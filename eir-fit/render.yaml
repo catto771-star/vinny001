@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: eir-fit
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/health
+    numInstances: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_PATH
+        value: /data/eir-fit.sqlite
+    disk:
+      name: eir-fit-data
+      mountPath: /data
+      sizeGB: 1

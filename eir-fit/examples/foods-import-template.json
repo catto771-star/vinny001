@@ -1,0 +1,12 @@
+[
+  {
+    "name": "EXEMPLO FICTÍCIO — substituir por alimento da fonte escolhida",
+    "sourceId": "SUBSTITUIR-CODIGO-DA-FONTE",
+    "kcal": 200,
+    "protein": 10,
+    "carbs": 20,
+    "fat": 5,
+    "fiber": null,
+    "sodium": null
+  }
+]

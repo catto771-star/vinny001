@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: eir-fit-test
+    runtime: docker
+    branch: eir-fit-preview
+    rootDir: eir-fit
+    plan: free
+    healthCheckPath: /api/health
+    numInstances: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_PATH
+        value: /data/eir-fit-test.sqlite

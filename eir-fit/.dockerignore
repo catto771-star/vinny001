@@ -1,0 +1,9 @@
+node_modules
+dist
+data
+backups
+screenshots
+test-results
+.git
+.env
+*.sqlite*

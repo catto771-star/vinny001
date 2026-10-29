@@ -1,0 +1,30 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      APP_ORIGIN: https://${DOMAIN:?Configure DOMAIN no arquivo .env}
+      DATABASE_PATH: /data/eir-fit.sqlite
+    volumes:
+      - eir_data:/data
+    expose:
+      - '3001'
+  proxy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      DOMAIN: ${DOMAIN:?Configure DOMAIN no arquivo .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+volumes:
+  eir_data:
+  caddy_data:
+  caddy_config:
