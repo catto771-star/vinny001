@@ -9,6 +9,7 @@ import Tasks from './pages/Tasks';
 import Habits from './pages/Habits';
 import Reminders from './pages/Reminders';
 import Placeholder from './pages/Placeholder';
+import Settings from './pages/Settings';
 
 const READY: Record<string, ReactElement> = {
   inicio: <Home />,
@@ -44,7 +45,11 @@ export default function App() {
       <Route element={<Layout email={session.user.email ?? ''} />}>
         <Route index element={<Navigate to="/inicio" replace />} />
         {SECTIONS.map((s) => (
-          <Route key={s.path} path={s.path} element={READY[s.path] ?? <Placeholder title={s.label} />} />
+          <Route
+            key={s.path}
+            path={s.path}
+            element={s.path === 'configuracoes' ? <Settings email={session.user.email ?? ''} /> : READY[s.path] ?? <Placeholder title={s.label} />}
+          />
         ))}
         <Route path="*" element={<Navigate to="/inicio" replace />} />
       </Route>
