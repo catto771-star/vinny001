@@ -1,0 +1,178 @@
+import { useMemo, useState } from 'react';
+import { supabase } from '../../lib/supabase';
+import { write } from '../../lib/useTable';
+import { toDay } from '../../lib/dates';
+import { DEFAULT_SETTINGS, lastWorkingSets, MUSCLE_LABEL, suggestNext, type Suggestion, type WorkoutSet } from '../../lib/training';
+import { searchKey } from '../../lib/text';
+import { Field, Modal } from '../../components/ui';
+import type { Health } from './useHealth';
+
+type DraftSet = Omit<WorkoutSet, 'id' | 'workout_id' | 'position'> & { key: string };
+
+let keySeq = 0;
+const newKey = () => `k${keySeq++}`;
+
+export default function WorkoutEditor({ h, workoutId, onClose }: { h: Health; workoutId: string | null; onClose: () => void }) {
+  const existing = workoutId ? h.workouts.rows.find((w) => w.id === workoutId) : undefined;
+  const [date, setDate] = useState(existing?.date ?? toDay(new Date()));
+  const [title, setTitle] = useState(existing?.title ?? '');
+  const [duration, setDuration] = useState(existing?.duration_min?.toString() ?? '');
+  const [notes, setNotes] = useState(existing?.notes ?? '');
+  const [sets, setSets] = useState<DraftSet[]>(() =>
+    h.sets.rows.filter((s) => s.workout_id === workoutId).sort((a, b) => a.position - b.position)
+      .map((s) => ({ key: newKey(), exercise_id: s.exercise_id, set_type_id: s.set_type_id, load_kg: s.load_kg, reps: s.reps, rest_s: s.rest_s, effort: s.effort })));
+  const [picking, setPicking] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const working = h.setTypes.rows.find((t) => t.drives_progression && t.user_id === null) ?? h.setTypes.rows[0];
+  const order = [...new Set(sets.map((s) => s.exercise_id))];
+
+  function suggestionFor(exerciseId: string): Suggestion | null {
+    const last = lastWorkingSets(exerciseId, h.sets.rows, h.workouts.rows, h.typeById, date);
+    return suggestNext(last, h.settingsById.get(exerciseId) ?? DEFAULT_SETTINGS);
+  }
+
+  function addExercise(exerciseId: string) {
+    const s = suggestionFor(exerciseId);
+    const load = s?.load_kg ?? 0;
+    const reps = s ? (s.action === 'increase_reps' ? s.reps : Array(s.sets).fill(s.reps)) : [DEFAULT_SETTINGS.rep_min];
+    setSets((xs) => [...xs, ...reps.map((r) => ({ key: newKey(), exercise_id: exerciseId, set_type_id: working.id, load_kg: load, reps: r, rest_s: 120, effort: null }))]);
+    setPicking(false);
+  }
+
+  function addSet(exerciseId: string) {
+    const last = [...sets].reverse().find((s) => s.exercise_id === exerciseId);
+    setSets((xs) => {
+      const idx = xs.map((s) => s.exercise_id).lastIndexOf(exerciseId);
+      const copy = { ...(last ?? { exercise_id: exerciseId, set_type_id: working.id, load_kg: 0, reps: 10, rest_s: 120, effort: null }), key: newKey() };
+      return [...xs.slice(0, idx + 1), copy, ...xs.slice(idx + 1)];
+    });
+  }
+
+  const update = (key: string, patch: Partial<DraftSet>) => setSets((xs) => xs.map((s) => (s.key === key ? { ...s, ...patch } : s)));
+
+  async function save() {
+    setSaving(true);
+    const row = { date, title: title || null, duration_min: duration ? Number(duration) : null, notes: notes || null };
+    let id = workoutId;
+    // Old sets are removed only after the new ones are saved, so a failed save loses nothing.
+    const oldSetIds = h.sets.rows.filter((s) => s.workout_id === workoutId).map((s) => s.id);
+    if (id) {
+      if (!(await write(supabase.from('workouts').update(row).eq('id', id)))) return setSaving(false);
+    } else {
+      const { data, error } = await supabase.from('workouts').insert(row).select('id').single();
+      if (error || !data) { alert(`Não foi possível salvar: ${error?.message}`); return setSaving(false); }
+      id = data.id;
+    }
+    // Keep exercises grouped in the order they were added.
+    const ordered = order.flatMap((ex) => sets.filter((s) => s.exercise_id === ex));
+    if (ordered.length) {
+      const ok = await write(supabase.from('workout_sets').insert(ordered.map((s, i) => ({
+        workout_id: id, exercise_id: s.exercise_id, set_type_id: s.set_type_id, position: i,
+        load_kg: s.load_kg, reps: s.reps, rest_s: s.rest_s, effort: s.effort,
+      }))));
+      if (!ok) return setSaving(false);
+    }
+    if (oldSetIds.length && !(await write(supabase.from('workout_sets').delete().in('id', oldSetIds)))) return setSaving(false);
+    await Promise.all([h.workouts.reload(), h.sets.reload()]);
+    setSaving(false);
+    onClose();
+  }
+
+  async function remove() {
+    if (workoutId && confirm('Excluir este treino e todas as séries dele?') && await write(supabase.from('workouts').delete().eq('id', workoutId))) {
+      await Promise.all([h.workouts.reload(), h.sets.reload()]);
+      onClose();
+    }
+  }
+
+  return (
+    <div>
+      <div className="mb-4 flex items-center gap-2">
+        <button className="btn-ghost" onClick={onClose}>← Voltar</button>
+        <h2 className="mr-auto text-lg font-semibold">{workoutId ? 'Editar treino' : 'Novo treino'}</h2>
+        {workoutId && <button className="btn-ghost text-red-600" onClick={remove}>Excluir</button>}
+        <button className="btn-primary" onClick={save} disabled={saving}>{saving ? 'Salvando…' : 'Salvar treino'}</button>
+      </div>
+      <div className="card mb-4 grid gap-3 sm:grid-cols-4">
+        <Field label="Data"><input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+        <Field label="Nome (opcional)"><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Peito e tríceps" /></Field>
+        <Field label="Duração (min)"><input className="input" type="number" min={1} value={duration} onChange={(e) => setDuration(e.target.value)} /></Field>
+        <Field label="Notas"><input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+      </div>
+
+      {order.map((exId) => {
+        const ex = h.exerciseById.get(exId);
+        const sug = suggestionFor(exId);
+        return (
+          <section key={exId} className="card mb-4">
+            <div className="mb-2 flex items-baseline gap-2">
+              <h3 className="font-medium">{ex?.name ?? 'Exercício'}</h3>
+              <span className="text-xs text-slate-500">{ex ? MUSCLE_LABEL[ex.muscle_group] : ''}</span>
+              <button className="ml-auto text-xs text-red-600" onClick={() => setSets((xs) => xs.filter((s) => s.exercise_id !== exId))}>remover</button>
+            </div>
+            {sug && (
+              <p className="mb-3 rounded-lg bg-sky-50 px-3 py-2 text-sm text-sky-900 dark:bg-sky-950 dark:text-sky-100" data-testid="suggestion">
+                <strong>Sugestão:</strong>{' '}
+                {sug.action === 'increase_reps' ? `${sug.load_kg} kg × ${sug.reps.join(', ')}` : `${sug.load_kg} kg × ${sug.reps} (${sug.sets} séries)`}. {sug.reason}
+              </p>
+            )}
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[560px] text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-slate-500">
+                    <th className="pb-1 font-normal">#</th><th className="pb-1 font-normal">Tipo</th><th className="pb-1 font-normal">Carga (kg)</th>
+                    <th className="pb-1 font-normal">Reps</th><th className="pb-1 font-normal">Descanso (s)</th><th className="pb-1 font-normal">Esforço (RPE)</th><th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {sets.filter((s) => s.exercise_id === exId).map((s, i) => (
+                    <tr key={s.key}>
+                      <td className="pr-2 text-slate-500">{i + 1}</td>
+                      <td className="py-1 pr-2">
+                        <select className="input py-1" aria-label={`Tipo da série ${i + 1}`} value={s.set_type_id} onChange={(e) => update(s.key, { set_type_id: e.target.value })}>
+                          {h.setTypes.rows.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                      </td>
+                      <td className="py-1 pr-2"><input className="input py-1" aria-label={`Carga da série ${i + 1}`} type="number" min={0} step="0.5" value={s.load_kg} onChange={(e) => update(s.key, { load_kg: Number(e.target.value) })} /></td>
+                      <td className="py-1 pr-2"><input className="input py-1" aria-label={`Repetições da série ${i + 1}`} type="number" min={0} value={s.reps} onChange={(e) => update(s.key, { reps: Number(e.target.value) })} /></td>
+                      <td className="py-1 pr-2"><input className="input py-1" aria-label={`Descanso da série ${i + 1}`} type="number" min={0} step={15} value={s.rest_s ?? ''} onChange={(e) => update(s.key, { rest_s: e.target.value === '' ? null : Number(e.target.value) })} /></td>
+                      <td className="py-1 pr-2"><input className="input py-1" aria-label={`Esforço da série ${i + 1}`} type="number" min={1} max={10} step={0.5} value={s.effort ?? ''} onChange={(e) => update(s.key, { effort: e.target.value === '' ? null : Number(e.target.value) })} /></td>
+                      <td><button className="text-slate-400 hover:text-red-600" aria-label={`Apagar série ${i + 1}`} onClick={() => setSets((xs) => xs.filter((x) => x.key !== s.key))}>✕</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <button className="btn-ghost mt-2" onClick={() => addSet(exId)}>+ Série</button>
+          </section>
+        );
+      })}
+      <button className="btn-primary" onClick={() => setPicking(true)}>+ Exercício</button>
+      {picking && <ExercisePicker h={h} onPick={addExercise} onClose={() => setPicking(false)} />}
+    </div>
+  );
+}
+
+export function ExercisePicker({ h, onPick, onClose }: { h: Health; onPick: (id: string) => void; onClose: () => void }) {
+  const [q, setQ] = useState('');
+  const list = useMemo(() => {
+    const key = searchKey(q);
+    return h.exercises.rows.filter((e) => !key || searchKey(e.name).includes(key) || searchKey(MUSCLE_LABEL[e.muscle_group] ?? '').includes(key)).slice(0, 60);
+  }, [q, h.exercises.rows]);
+  return (
+    <Modal title="Escolher exercício" onClose={onClose}>
+      <input className="input mb-3" placeholder="Buscar por nome ou músculo" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+      <ul className="max-h-80 overflow-y-auto">
+        {list.map((e) => (
+          <li key={e.id}>
+            <button className="w-full rounded-lg px-2 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => onPick(e.id)}>
+              {e.name} <span className="text-xs text-slate-500">· {MUSCLE_LABEL[e.muscle_group]}{e.user_id ? ' · seu' : ''}</span>
+            </button>
+          </li>
+        ))}
+        {!list.length && <li className="py-4 text-center text-sm text-slate-500">Nenhum exercício. Cadastre em Treino › Exercícios.</li>}
+      </ul>
+    </Modal>
+  );
+}

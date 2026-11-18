@@ -6,6 +6,7 @@ export const SECTIONS = [
   { path: 'agenda', label: 'Agenda', icon: '◷' },
   { path: 'tarefas', label: 'Tarefas', icon: '☑' },
   { path: 'habitos', label: 'Hábitos', icon: '↻' },
+  { path: 'saude', label: 'Saúde', icon: '♥' },
   { path: 'projetos', label: 'Projetos', icon: '▤' },
   { path: 'lembretes', label: 'Lembretes', icon: '⏰' },
   { path: 'financas', label: 'Finanças', icon: '$' },

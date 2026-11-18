@@ -10,12 +10,14 @@ import Habits from './pages/Habits';
 import Reminders from './pages/Reminders';
 import Placeholder from './pages/Placeholder';
 import Settings from './pages/Settings';
+import Health from './pages/health/Health';
 
 const READY: Record<string, ReactElement> = {
   inicio: <Home />,
   tarefas: <Tasks />,
   habitos: <Habits />,
   lembretes: <Reminders />,
+  saude: <Health />,
 };
 
 export default function App() {
