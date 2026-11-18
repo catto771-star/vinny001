@@ -32,11 +32,29 @@ seguintes acrescentam telas e regras.
 | Treino e dieta juntos | Modo "ajustada pelo treino": meta de descanso mais as calorias gastas no dia, em carboidrato. Tendência de peso, ritmo semanal e manutenção estimada pelo consumo médio |
 | Plano e compras | Refeições do plano com alimentos e quantidades; lista de compras para N dias |
 
+## Fase 1c: Saúde completa, pronta
+
+| Parte | O que funciona |
+|---|---|
+| Ficha de treino | Divisões (A, AB, ABC…) com dias da semana ou rodízio; exercícios com séries, repetições alvo, carga, descanso e observação; treino do dia e registro já preenchido a partir da ficha; criar exercício na hora |
+| Diário alimentar | Editar quantidade e refeição de cada item, copiar refeição ou dia, recentes e frequentes, metas em gramas ou % e por dia da semana |
+| Avaliação corporal | Peso, gordura, 10 circunferências, fotos de frente, lado e costas, comparação com a anterior e gordura pelo método da Marinha americana |
+
+## Fase 2: Finanças, pronta
+
+| Parte | O que funciona |
+|---|---|
+| Resumo | Sai, entra, sobra e patrimônio do mês; dia a dia; para onde foi; a pagar no mês; saldos de contas e cartões |
+| Lançamentos | Extrato do mês com busca e filtro; entradas e saídas por Pix, débito, crédito, dinheiro, boleto ou transferência |
+| Recorrentes | Assinaturas e contas fixas que aparecem todo mês; pagar (lançamento já preenchido) ou pular |
+| Parceladas | Compra em N vezes com cada parcela na fatura certa, centavos na 1ª; antecipar o restante |
+| Contas e cartões | Saldos por conta, transferências, limite usado, faturas abertas e fechadas, pagamento de fatura por uma conta |
+| Análise | 3, 6 ou 12 meses: taxa de sobra média, sobra mês a mês, fluxo e categorias com média mensal |
+
 ## Próximas fases
 
 | Fase | Módulo | Funções do Néctar a reconstruir |
 |---|---|---|
-| 2 | Finanças | Resumo do mês (entra, sai, sobra, patrimônio), dia a dia, previsão; despesas variáveis; recorrentes (assinaturas, contas fixas) com pular e pagar; compras parceladas com antecipação; contas e cartões, faturas, transferências; análise por período e categoria |
 | 3 | Projetos | Trajetória, quadro kanban, tarefas do projeto, marcos (etapas), análise, modelos de projeto |
 | 3 | Metas | Metas ativas, concluídas e pausadas; ritmo, progresso e prazo; vínculo com hábitos, projetos e finanças |
 | 4 | Conhecimento | Cadernos por área, editor de blocos, favoritos e fixados, conexões entre notas (mapa), diário com humor, captura rápida |

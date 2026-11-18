@@ -83,8 +83,10 @@ function Tooltip({ x, y, w, point, unit }: { x: number; y: number; w: number; po
   );
 }
 
-export function ColumnChart({ title, subtitle, points, unit, height = 220, highlightLast = true, aside }: {
-  title: string; subtitle?: string; points: Point[]; unit: string; height?: number; highlightLast?: boolean; aside?: ReactNode;
+export function ColumnChart({ title, subtitle, points, unit, height = 220, highlightLast = true, highlight, aside }: {
+  title: string; subtitle?: string; points: Point[]; unit: string; height?: number; highlightLast?: boolean;
+  /** Index of the bar that takes the accent, like today; wins over highlightLast. */
+  highlight?: number; aside?: ReactNode;
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const W = 640;
@@ -106,7 +108,7 @@ export function ColumnChart({ title, subtitle, points, unit, height = 220, highl
           const top = y(v);
           const h = Math.max(0, base - top);
           const r = Math.min(4, h, bar / 2);
-          const lead = highlightLast ? i === points.length - 1 : i === lastIdx;
+          const lead = highlight !== undefined ? i === highlight : highlightLast ? i === points.length - 1 : i === lastIdx;
           return (
             <g key={p.label + i} onMouseEnter={() => setHover(i)}>
               <rect x={cx - band / 2} y={PAD.top} width={band} height={H - PAD.top - PAD.bottom} fill="transparent" />
@@ -196,7 +198,7 @@ export function TargetBar({ label, consumed, target, unit }: { label: string; co
 }
 
 /** A ranked list with thin bars: the secondary data block next to a main chart. */
-export function RankedBars({ rows, unit }: { rows: { label: string; value: number; detail?: string }[]; unit: string }) {
+export function RankedBars({ rows, unit, format = num }: { rows: { label: string; value: number; detail?: string }[]; unit: string; format?: (n: number) => string }) {
   const max = Math.max(1, ...rows.map((r) => r.value));
   return (
     <ul className="space-y-3">
@@ -204,7 +206,7 @@ export function RankedBars({ rows, unit }: { rows: { label: string; value: numbe
         <li key={r.label}>
           <div className="mb-1 flex items-baseline text-sm">
             <span className="mr-auto">{r.label}</span>
-            <span className="figure text-fg2">{num(r.value)} {unit}</span>
+            <span className="figure text-fg2">{format(r.value)}{unit ? ` ${unit}` : ''}</span>
           </div>
           <div className="h-1 rounded-sm bg-raised"><div className="h-1 rounded-sm" style={{ width: `${(r.value / max) * 100}%`, background: i === 0 ? ACCENT : NEUTRAL }} /></div>
           {r.detail && <div className="figure mt-1 text-xs text-fg3">{r.detail}</div>}

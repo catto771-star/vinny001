@@ -11,6 +11,7 @@ import Reminders from './pages/Reminders';
 import Placeholder from './pages/Placeholder';
 import Settings from './pages/Settings';
 import Health from './pages/health/Health';
+import Finance from './pages/finance/Finance';
 
 const READY: Record<string, ReactElement> = {
   inicio: <Home />,
@@ -18,6 +19,7 @@ const READY: Record<string, ReactElement> = {
   habitos: <Habits />,
   lembretes: <Reminders />,
   saude: <Health />,
+  financas: <Finance />,
 };
 
 export default function App() {

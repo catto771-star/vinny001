@@ -44,7 +44,7 @@ export function Stat({ label, value, unit, hint, loading, accent }: {
     <div className="min-w-0">
       <div className="label">{label}</div>
       {loading ? <Skeleton className="mt-2 h-8 w-20" /> : (
-        <Figure value={value} unit={unit} className={`mt-1 block text-[28px] leading-8 font-medium ${accent ? 'text-brand-ink' : ''}`} />
+        <Figure value={value} unit={unit} className={`mt-1 block text-[clamp(18px,5.4vw,28px)] leading-8 font-medium ${accent ? 'text-brand-ink' : ''}`} />
       )}
       {hint && <div className="mt-1 text-[13px] leading-5 text-fg3">{hint}</div>}
     </div>
