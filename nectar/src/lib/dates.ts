@@ -63,3 +63,8 @@ export function greeting(now: Date): string {
   if (h < 18) return 'Boa tarde';
   return 'Boa noite';
 }
+
+/** First letter in upper case, the rest as is: 'qua, 18 de novembro' -> 'Qua, 18 de novembro'. */
+export function sentence(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}

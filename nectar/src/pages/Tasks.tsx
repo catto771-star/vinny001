@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { CheckSquare, Repeat } from 'lucide-react';
-import { Plus } from 'lucide-react';
+import { CalendarDays, CheckSquare, Plus, Repeat } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTable, write } from '../lib/useTable';
 import { bucketTasks, PRIORITY_LABEL, taskStats, type Priority, type Task } from '../lib/tasks';
-import { formatDay, formatTime, toDay, weekday, weekdayShort } from '../lib/dates';
+import { formatDay, formatTime, toDay, weekday, weekdayShort, sentence } from '../lib/dates';
+import { moveToDay } from '../lib/calendar';
+import { projectedRecurringTasks } from '../lib/agenda';
+import { CellChip, MonthCalendar } from '../components/MonthCalendar';
 import { Empty, Field, FieldGroup, ListSkeleton, Modal, PageHeader, Stat, WeekdayPicker } from '../components/ui';
 
-const TABS = ['Hoje', 'Tarefas', 'Recorrentes', 'Análise'] as const;
+const TABS = ['Hoje', 'Tarefas', 'Calendário', 'Recorrentes', 'Análise'] as const;
 type Tab = (typeof TABS)[number];
 
 interface Tag { id: string; name: string; color: string }
@@ -102,6 +104,22 @@ export default function Tasks() {
           {list('Concluídas', buckets.done.slice(0, 30), 'text-positive')}
           {tasks.loading ? <ListSkeleton /> : !visible.length && <div className="card"><Empty icon={<CheckSquare size={18} strokeWidth={1.5} />} action={<button className="btn-secondary" onClick={() => setEditing({})}>Nova tarefa</button>}>{search || tagFilter ? 'Nenhuma tarefa com esse filtro' : 'Nenhuma tarefa ainda'}</Empty></div>}
         </>
+      )}
+
+      {tab === 'Calendário' && (
+        <TasksCalendar
+          tasks={tasks.rows} templates={templates.rows} tags={tags.rows}
+          onToggle={toggle} onOpen={(t) => setEditing(t)}
+          onNew={(day) => setEditing({ due_date: new Date(`${day}T12:00:00`).toISOString(), due_all_day: true })}
+          onMove={async (id, day) => {
+            const t = tasks.rows.find((x) => x.id === id);
+            if (!t || !t.due_date) return;
+            const due_date = t.due_all_day ? new Date(`${day}T12:00:00`).toISOString() : moveToDay(t.due_date, day);
+            tasks.setRows((rows) => rows.map((x) => (x.id === id ? { ...x, due_date } : x)));
+            await write(supabase.from('tasks').update({ due_date }).eq('id', id));
+            void tasks.reload();
+          }}
+        />
       )}
 
       {tab === 'Recorrentes' && <RecurringTab templates={templates.rows} reload={templates.reload} />}
@@ -343,5 +361,69 @@ function TemplateForm({ template, onClose, onSaved }: { template: Partial<Templa
         </div>
       </form>
     </Modal>
+  );
+}
+
+function TasksCalendar({ tasks, templates, tags, onToggle, onOpen, onNew, onMove }: {
+  tasks: Task[]; templates: Template[]; tags: Tag[];
+  onToggle: (t: Task) => void; onOpen: (t: Task) => void; onNew: (day: string) => void; onMove: (id: string, day: string) => void;
+}) {
+  const now = new Date();
+  const today = toDay(now);
+  const [ym, setYm] = useState({ year: now.getFullYear(), month: now.getMonth() + 1 });
+  const [selected, setSelected] = useState(today);
+  const [showRecurring, setShowRecurring] = useState(true);
+  const dayOf = (t: Task) => (t.due_date ? toDay(new Date(t.due_date)) : null);
+  const byDay = new Map<string, Task[]>();
+  for (const t of tasks) {
+    const d = dayOf(t);
+    if (!d || t.is_archived) continue;
+    byDay.set(d, [...(byDay.get(d) ?? []), t]);
+  }
+  for (const list of byDay.values()) list.sort((a, b) => Number(a.completed) - Number(b.completed) || (a.due_date ?? '').localeCompare(b.due_date ?? ''));
+  const projected = showRecurring ? projectedRecurringTasks(templates, toDay(new Date(ym.year, ym.month - 1, -6)), toDay(new Date(ym.year, ym.month, 7)), today) : [];
+  const projectedOn = (d: string) => projected.filter((p) => p.day === d);
+  const selectedTasks = byDay.get(selected) ?? [];
+
+  return (
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <MonthCalendar
+        year={ym.year} month={ym.month} onMonth={setYm} selected={selected} onSelect={setSelected}
+        count={(d) => (byDay.get(d)?.length ?? 0) + projectedOn(d).length}
+        onDrop={(d, id) => onMove(id, d)}
+        aside={<label className="order-last flex w-full items-center gap-2 text-[13px] text-fg2 sm:order-none sm:mr-2 sm:w-auto"><input type="checkbox" checked={showRecurring} onChange={(e) => setShowRecurring(e.target.checked)} />Recorrentes</label>}
+        renderCell={(d) => {
+          const list = byDay.get(d) ?? [];
+          const proj = projectedOn(d);
+          const all = list.length + proj.length;
+          return (
+            <>
+              {list.slice(0, 3).map((t) => (
+                <CellChip key={t.id} done={t.completed} overdue={!t.completed && d < today} draggable={!t.completed} payload={t.id} title={t.title}>{t.title}</CellChip>
+              ))}
+              {list.length < 3 && proj.slice(0, 3 - list.length).map((p) => <CellChip key={p.template_id + p.day} dashed title={`${p.title} (recorrente)`}>{p.title}</CellChip>)}
+              {all > 3 && <div className="px-1.5 text-[11px] text-fg3">+{all - 3}</div>}
+            </>
+          );
+        }}
+      />
+      <section className="card h-fit">
+        <div className="mb-3 flex items-center gap-2">
+          <h2 className="mr-auto font-medium">{sentence(formatDay(selected))}</h2>
+          <button className="btn-secondary h-8" onClick={() => onNew(selected)}><Plus size={16} strokeWidth={1.5} />Tarefa</button>
+        </div>
+        {!selectedTasks.length && !projectedOn(selected).length ? <Empty icon={<CalendarDays size={18} strokeWidth={1.5} />}>Nada neste dia</Empty> : (
+          <ul className="divide-y divide-line">
+            {selectedTasks.map((t) => <TaskRow key={t.id} task={t} tags={tags} onToggle={() => onToggle(t)} onOpen={() => onOpen(t)} />)}
+            {projectedOn(selected).map((p) => (
+              <li key={p.template_id} className="flex items-center gap-3 px-4 py-3 text-sm text-fg3">
+                <Repeat size={16} strokeWidth={1.5} /><span className="mr-auto">{p.title}</span>{p.time && <span className="figure text-xs">{p.time}</span>}<span className="text-xs">recorrente</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-4 hidden text-xs text-fg3 md:block">Arraste uma tarefa para outro dia para remarcá-la</p>
+      </section>
+    </div>
   );
 }

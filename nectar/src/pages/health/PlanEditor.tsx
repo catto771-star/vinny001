@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { write } from '../../lib/useTable';
 import { toDay, weekdayShort } from '../../lib/dates';
 import { MUSCLE_LABEL } from '../../lib/training';
+import { serialQueue } from '../../lib/serial';
 import { draftFromSession, sessionsForDay, type PlanExercise, type PlanSession } from '../../lib/plans';
 import { Empty, Field, FieldGroup, WeekdayPicker } from '../../components/ui';
 import { ExercisePicker } from './WorkoutEditor';
@@ -116,11 +117,14 @@ function PlanName({ h }: { h: Health }) {
 function SessionCard({ h, session, onStart }: { h: Health; session: PlanSession; onStart: () => void }) {
   const [picking, setPicking] = useState(false);
   const [label, setLabel] = useState(session.label);
+  // Weekdays live here so quick taps build on each other instead of on the last saved value.
+  const [weekdays, setWeekdays] = useState(session.weekdays);
+  const [queue] = useState(serialQueue);
   const rows = h.planExercises.rows.filter((e) => e.session_id === session.id).sort((a, b) => a.order_index - b.order_index);
 
-  const update = async (patch: Partial<PlanSession>) => {
-    if (await write(supabase.from('workout_plan_sessions').update(patch).eq('id', session.id))) void h.planSessions.reload();
-  };
+  const update = (patch: Partial<PlanSession>) => queue(async () => {
+    if (await write(supabase.from('workout_plan_sessions').update(patch).eq('id', session.id))) await h.planSessions.reload();
+  });
   async function add(exerciseId: string) {
     setPicking(false);
     if (await write(supabase.from('workout_plan_exercises').insert({ session_id: session.id, exercise_id: exerciseId, sets: 3, reps: '8-12', rest_s: 90, order_index: rows.length }))) void h.planExercises.reload();
@@ -145,9 +149,9 @@ function SessionCard({ h, session, onStart }: { h: Health; session: PlanSession;
     <section className="card mb-4">
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <input className="input h-9 w-40 font-medium" aria-label="Nome da divisão" value={label} onChange={(e) => setLabel(e.target.value)}
-          onBlur={() => label.trim() && label !== session.label && update({ label })} />
-        <WeekdayPicker value={session.weekdays} onChange={(weekdays) => update({ weekdays })} />
-        <span className="text-[13px] text-fg3">{session.weekdays.length ? session.weekdays.map(weekdayShort).join(', ') : 'sem dia fixo: entra em rodízio'}</span>
+          onBlur={() => { if (label.trim() && label !== session.label) void update({ label }); }} />
+        <WeekdayPicker value={weekdays} onChange={(next) => { setWeekdays(next); void update({ weekdays: next }); }} />
+        <span className="text-[13px] text-fg3">{weekdays.length ? weekdays.map(weekdayShort).join(', ') : 'sem dia fixo: entra em rodízio'}</span>
         <div className="ml-auto flex gap-1">
           <button className="btn-primary" onClick={onStart} disabled={!rows.length}><Play {...I} />Começar</button>
           <button className="icon-btn" onClick={removeSession} aria-label={`Excluir ${session.label}`}><Trash2 {...I} /></button>
@@ -177,12 +181,14 @@ function SessionCard({ h, session, onStart }: { h: Health; session: PlanSession;
 function ExerciseRow({ h, row, first, last, onMove }: { h: Health; row: PlanExercise; first: boolean; last: boolean; onMove: (d: -1 | 1) => void }) {
   const ex = row.exercise_id ? h.exerciseById.get(row.exercise_id) : undefined;
   const [v, setV] = useState({ sets: row.sets?.toString() ?? '', reps: row.reps ?? '', load_kg: row.load_kg?.toString() ?? '', rest_s: row.rest_s?.toString() ?? '', notes: row.notes ?? '' });
-  const save = async () => {
+  // Saves run in order, so a quick series of edits always ends with the latest values stored.
+  const [queue] = useState(serialQueue);
+  const save = () => {
     const patch = {
       sets: v.sets ? Number(v.sets) : null, reps: v.reps || null, load_kg: v.load_kg ? Number(v.load_kg) : null,
       rest_s: v.rest_s ? Number(v.rest_s) : null, notes: v.notes || null,
     };
-    if (await write(supabase.from('workout_plan_exercises').update(patch).eq('id', row.id))) void h.planExercises.reload();
+    void queue(async () => { if (await write(supabase.from('workout_plan_exercises').update(patch).eq('id', row.id))) await h.planExercises.reload(); });
   };
   const cell = (k: keyof typeof v, label: string, w: string, type = 'text') => (
     <td className="py-1 pr-2"><input className={`input h-9 ${w}`} aria-label={`${label}: ${ex?.name}`} type={type} value={v[k]} onChange={(e) => setV({ ...v, [k]: e.target.value })} onBlur={save} /></td>

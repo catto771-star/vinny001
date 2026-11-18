@@ -51,6 +51,13 @@ seguintes acrescentam telas e regras.
 | Contas e cartões | Saldos por conta, transferências, limite usado, faturas abertas e fechadas, pagamento de fatura por uma conta |
 | Análise | 3, 6 ou 12 meses: taxa de sobra média, sobra mês a mês, fluxo e categorias com média mensal |
 
+## Fase 3a: Calendário de Tarefas e Agenda, prontos
+
+| Parte | O que funciona |
+|---|---|
+| Calendário de Tarefas | Grade do mês com as tarefas no dia em que vencem e as recorrentes projetadas; lista do dia selecionado; nova tarefa no dia; arrastar para remarcar mantendo o horário |
+| Agenda | Dia, semana e mês juntando compromissos, tarefas, lembretes, hábitos, treinos da ficha e contas (recorrentes, pendentes e faturas); filtros por tipo; concluir tarefas e lembretes; compromissos com horário, local e observações |
+
 ## Próximas fases
 
 | Fase | Módulo | Funções do Néctar a reconstruir |
@@ -59,7 +66,7 @@ seguintes acrescentam telas e regras.
 | 3 | Metas | Metas ativas, concluídas e pausadas; ritmo, progresso e prazo; vínculo com hábitos, projetos e finanças |
 | 4 | Conhecimento | Cadernos por área, editor de blocos, favoritos e fixados, conexões entre notas (mapa), diário com humor, captura rápida |
 | 4 | Saúde (restante) | Medidas corporais além do peso, ficha de treino com sessões por dia da semana |
-| 5 | Agenda | Visão do dia e do mês juntando tarefas, hábitos, finanças e eventos; sincronização com Google Agenda e Outlook |
+| 7 | Google Agenda | Sincronizar os compromissos com o Google Agenda (por último, a pedido) |
 | 5 | Assistente | Chat com IA que consulta e altera os módulos, briefing diário, automações agendadas (ex.: revisão semanal do dinheiro) |
 | 6 | Notificações | Push, e-mail ou WhatsApp/Telegram para lembretes, tarefas e faturas |
 
