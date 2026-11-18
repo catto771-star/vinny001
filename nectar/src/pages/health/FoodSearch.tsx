@@ -1,4 +1,6 @@
 import { useState, type FormEvent } from 'react';
+import { num } from '../../lib/format';
+import { ArrowLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { nutrientsFor, type Food } from '../../lib/nutrition';
 import { offToFood, type FoodCountry, type OffProduct } from '../../lib/off';
@@ -83,13 +85,13 @@ export default function FoodSearch({ title, onPick, onClose }: { title: string; 
               ? REGIONS.map((r) => <button key={r.id} className={r.id === region ? 'tab-active' : 'tab'} onClick={() => setRegion(r.id)}>{r.label}</button>)
               : (['BR', 'IE', 'UK'] as FoodCountry[]).map((c) => <button key={c} className={c === offCountry ? 'tab-active' : 'tab'} onClick={() => setOffCountry(c)}>{{ BR: 'Brasil', IE: 'Irlanda', UK: 'Reino Unido' }[c]}</button>)}
           </div>
-          {message && <p className="mb-2 text-sm text-slate-500">{message}</p>}
+          {message && <p className="mb-2 text-sm text-fg3">{message}</p>}
           <ul className="max-h-72 overflow-y-auto">
             {results.map((f) => (
               <li key={f.id}>
-                <button className="w-full rounded-lg px-2 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => setChosen(f)}>
-                  <div>{f.name}{f.brand ? <span className="text-slate-500"> · {f.brand}</span> : null}</div>
-                  <div className="text-xs text-slate-500">{f.kcal} kcal · P {f.protein_g} · C {f.carbs_g} · G {f.fat_g} por 100 g · {f.source}</div>
+                <button className="w-full rounded-lg px-2 py-2 text-left text-sm hover:bg-raised" onClick={() => setChosen(f)}>
+                  <div>{f.name}{f.brand ? <span className="text-fg3"> · {f.brand}</span> : null}</div>
+                  <div className="text-xs text-fg3">{num(f.kcal)} kcal · P {num(f.protein_g)} · C {num(f.carbs_g)} · G {num(f.fat_g)} por 100 g · {f.source}</div>
                 </button>
               </li>
             ))}
@@ -109,9 +111,9 @@ function QuantityStep({ food, title, onBack, onClose, onConfirm }: { food: Food;
       <form onSubmit={async (e) => { e.preventDefault(); setBusy(true); await onConfirm(grams); setBusy(false); }}>
         <p className="mb-3 text-sm">{food.name}</p>
         <Field label="Quantidade (g)"><input className="input" type="number" min={1} step="any" value={grams} onChange={(e) => setGrams(Number(e.target.value))} autoFocus required /></Field>
-        <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">{n.kcal} kcal · Proteína {n.protein_g} g · Carboidrato {n.carbs_g} g · Gordura {n.fat_g} g · Fibra {n.fiber_g} g</p>
+        <p className="mb-4 text-sm text-fg2">{num(n.kcal)} kcal · Proteína {num(n.protein_g)} g · Carboidrato {num(n.carbs_g)} g · Gordura {num(n.fat_g)} g · Fibra {num(n.fiber_g)} g</p>
         <div className="flex gap-2">
-          <button type="button" className="btn-ghost" onClick={onBack}>← Voltar</button>
+          <button type="button" className="btn-ghost" onClick={onBack}><ArrowLeft size={16} strokeWidth={1.5} />Voltar</button>
           <button className="btn-primary ml-auto" disabled={busy}>Adicionar</button>
         </div>
       </form>
@@ -135,7 +137,7 @@ function CustomFood({ onCreated }: { onCreated: (f: Food) => void }) {
   return (
     <form onSubmit={save}>
       <Field label="Nome"><input className="input" value={v.name} onChange={set('name')} required /></Field>
-      <p className="mb-2 text-xs text-slate-500">Valores por 100 g (veja o rótulo).</p>
+      <p className="mb-2 text-xs text-fg3">Valores por 100 g (veja o rótulo).</p>
       <div className="grid grid-cols-3 gap-2">
         <Field label="kcal"><input className="input" type="number" min={0} step="any" value={v.kcal} onChange={set('kcal')} required /></Field>
         <Field label="Proteína (g)"><input className="input" type="number" min={0} step="any" value={v.protein_g} onChange={set('protein_g')} /></Field>

@@ -18,7 +18,7 @@ export default function Health() {
   return (
     <>
       <PageHeader title="Saúde" subtitle={formatDay(toDay(new Date()))} tabs={TABS} tab={tab} onTab={(t) => setTab(t as Tab)} />
-      {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
+      {error && <p className="mb-4 text-sm text-negative">{error}</p>}
       {tab === 'Hoje' && <Today h={h} onGo={setTab} />}
       {tab === 'Treino' && <Training h={h} />}
       {tab === 'Dieta' && <Diet h={h} />}

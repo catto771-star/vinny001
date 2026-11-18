@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { CheckSquare, Repeat } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTable, write } from '../lib/useTable';
 import { bucketTasks, PRIORITY_LABEL, taskStats, type Priority, type Task } from '../lib/tasks';
 import { formatDay, formatTime, toDay, weekday, weekdayShort } from '../lib/dates';
-import { Empty, Field, Modal, PageHeader, Stat, WeekdayPicker } from '../components/ui';
+import { Empty, Field, ListSkeleton, Modal, PageHeader, Stat, WeekdayPicker } from '../components/ui';
 
 const TABS = ['Hoje', 'Tarefas', 'Recorrentes', 'Análise'] as const;
 type Tab = (typeof TABS)[number];
@@ -14,7 +16,7 @@ interface Template {
   recurrence_days: number[]; time_of_day: string | null; start_date: string; end_date: string | null; is_active: boolean;
 }
 
-const PRIORITY_DOT: Record<Priority, string> = { high: 'bg-red-500', medium: 'bg-amber-500', low: 'bg-sky-500' };
+const PRIORITY_DOT: Record<Priority, string> = { high: 'bg-negative', medium: 'bg-brand', low: 'bg-fg3' };
 
 export default function Tasks() {
   const [tab, setTab] = useState<Tab>('Hoje');
@@ -45,8 +47,8 @@ export default function Tasks() {
 
   const list = (title: string, items: Task[], tone = '') => items.length > 0 && (
     <section className="mb-4">
-      <div className={`label mb-2 ${tone}`}>{title} · {items.length}</div>
-      <ul className="card divide-y divide-slate-100 p-0 dark:divide-slate-800">
+      <div className={`label mb-2 flex gap-2 ${tone}`}>{title}<span className="figure text-fg3">{items.length}</span></div>
+      <ul className="card divide-y divide-line p-0">
         {items.map((t) => <TaskRow key={t.id} task={t} tags={tags.rows} onToggle={() => toggle(t)} onOpen={() => setEditing(t)} />)}
       </ul>
     </section>
@@ -60,9 +62,9 @@ export default function Tasks() {
         tabs={TABS}
         tab={tab}
         onTab={(t) => setTab(t as Tab)}
-        action={<button className="btn-primary" onClick={() => setEditing({})}>+ Nova tarefa</button>}
+        action={<button className="btn-primary" onClick={() => setEditing({})}><Plus size={16} strokeWidth={1.5} />Nova tarefa</button>}
       />
-      {tasks.error && <p className="mb-4 text-sm text-red-600">{tasks.error}</p>}
+      {tasks.error && <p className="mb-4 text-sm text-negative">{tasks.error}</p>}
 
       {tab === 'Hoje' && (
         <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
@@ -73,10 +75,10 @@ export default function Tasks() {
               <Stat label="Para hoje" value={stats.dueToday} />
               <Stat label="Feitas hoje" value={stats.completedToday} />
             </div>
-            {list('Atrasadas', buckets.overdue, 'text-red-600')}
+            {list('Atrasadas', buckets.overdue, 'text-negative')}
             {list('Hoje', buckets.today)}
-            {!buckets.overdue.length && !buckets.today.length && <div className="card mb-4"><Empty>Nada urgente agora.</Empty></div>}
-            {list('Feitas hoje', buckets.done.filter((t) => t.completed_at && toDay(new Date(t.completed_at)) === toDay(now)), 'text-emerald-600')}
+            {tasks.loading ? <ListSkeleton /> : !buckets.overdue.length && !buckets.today.length && <div className="card mb-4"><Empty icon={<CheckSquare size={18} strokeWidth={1.5} />}>Nada atrasado nem para hoje</Empty></div>}
+            {list('Feitas hoje', buckets.done.filter((t) => t.completed_at && toDay(new Date(t.completed_at)) === toDay(now)), 'text-positive')}
           </div>
           <PriorityCard stats={stats} />
         </div>
@@ -89,16 +91,16 @@ export default function Tasks() {
             <button className={tagFilter ? 'tab' : 'tab-active'} onClick={() => setTagFilter(null)}>Todas</button>
             {tags.rows.map((g) => (
               <button key={g.id} className={tagFilter === g.name ? 'tab-active' : 'tab'} onClick={() => setTagFilter(g.name)}>
-                <span className="mr-1 inline-block h-2 w-2 rounded-full" style={{ background: g.color }} />{g.name}
+                <span className="mr-2 inline-block h-2 w-2 rounded-full" style={{ background: g.color }} />{g.name}
               </button>
             ))}
           </div>
-          {list('Atrasadas', buckets.overdue, 'text-red-600')}
+          {list('Atrasadas', buckets.overdue, 'text-negative')}
           {list('Hoje', buckets.today)}
           {list('Próximas', buckets.upcoming)}
           {list('Sem data', buckets.noDate)}
-          {list('Concluídas', buckets.done.slice(0, 30), 'text-emerald-600')}
-          {!visible.length && <div className="card"><Empty>Nenhuma tarefa aqui.</Empty></div>}
+          {list('Concluídas', buckets.done.slice(0, 30), 'text-positive')}
+          {tasks.loading ? <ListSkeleton /> : !visible.length && <div className="card"><Empty icon={<CheckSquare size={18} strokeWidth={1.5} />} action={<button className="btn-secondary" onClick={() => setEditing({})}>Nova tarefa</button>}>{search || tagFilter ? 'Nenhuma tarefa com esse filtro' : 'Nenhuma tarefa ainda'}</Empty></div>}
         </>
       )}
 
@@ -113,9 +115,9 @@ export default function Tasks() {
                 const max = Math.max(1, ...stats.completedLast7.map((x) => x.count));
                 return (
                   <div key={d.day} className="flex flex-1 flex-col items-center gap-1">
-                    <span className="text-xs text-slate-500">{d.count}</span>
-                    <div className="w-full rounded-t bg-sky-500" style={{ height: `${(d.count / max) * 100}%`, minHeight: 2 }} />
-                    <span className="text-xs text-slate-500">{weekdayShort(weekday(d.day))}</span>
+                    <span className="text-xs text-fg3">{d.count}</span>
+                    <div className="w-full rounded-t bg-brand" style={{ height: `${(d.count / max) * 100}%`, minHeight: 2 }} />
+                    <span className="text-xs text-fg3">{weekdayShort(weekday(d.day))}</span>
                   </div>
                 );
               })}
@@ -145,7 +147,7 @@ function PriorityCard({ stats }: { stats: ReturnType<typeof taskStats> }) {
         <div key={p} className="mb-2 flex items-center gap-2 text-sm">
           <span className={`h-2 w-2 rounded-full ${PRIORITY_DOT[p]}`} />
           <span className="w-14">{PRIORITY_LABEL[p]}</span>
-          <div className="h-1.5 flex-1 rounded bg-slate-100 dark:bg-slate-800">
+          <div className="h-1.5 flex-1 rounded bg-raised">
             <div className={`h-1.5 rounded ${PRIORITY_DOT[p]}`} style={{ width: `${stats.open ? (stats.openByPriority[p] / stats.open) * 100 : 0}%` }} />
           </div>
           <span className="w-6 text-right">{stats.openByPriority[p]}</span>
@@ -158,10 +160,10 @@ function PriorityCard({ stats }: { stats: ReturnType<typeof taskStats> }) {
 function TaskRow({ task, tags, onToggle, onOpen }: { task: Task; tags: Tag[]; onToggle: () => void; onOpen: () => void }) {
   return (
     <li className="flex items-center gap-3 px-4 py-3">
-      <input type="checkbox" className="h-4 w-4 accent-sky-600" checked={task.completed} onChange={onToggle} aria-label={`Concluir ${task.title}`} />
+      <input type="checkbox" className="h-4 w-4" checked={task.completed} onChange={onToggle} aria-label={`Concluir ${task.title}`} />
       <button className="min-w-0 flex-1 text-left" onClick={onOpen}>
-        <div className={`truncate text-sm ${task.completed ? 'text-slate-400 line-through' : ''}`}>{task.title}</div>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+        <div className={`truncate text-sm ${task.completed ? 'text-fg3 line-through' : ''}`}>{task.title}</div>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-fg3">
           <span className={`h-1.5 w-1.5 rounded-full ${PRIORITY_DOT[task.priority]}`} />
           {task.due_date && <span>{formatDay(toDay(new Date(task.due_date)))}{!task.due_all_day && ` · ${formatTime(task.due_date)}`}</span>}
           {task.tags.map((name) => {
@@ -236,7 +238,7 @@ function TaskForm({ task, tags, onClose, onSaved }: { task: Partial<Task>; tags:
           <input className="input" placeholder="Nova tag" value={newTag} onChange={(e) => setNewTag(e.target.value)} />
         </Field>
         <div className="flex gap-2">
-          {task.id && <button type="button" className="btn-ghost text-red-600" onClick={remove}>Excluir</button>}
+          {task.id && <button type="button" className="btn-ghost text-negative" onClick={remove}>Excluir</button>}
           <button className="btn-primary ml-auto">Salvar</button>
         </div>
       </form>
@@ -279,15 +281,15 @@ function RecurringTab({ templates, reload }: { templates: Template[]; reload: ()
   const [editing, setEditing] = useState<Partial<Template> | null>(null);
   return (
     <>
-      <div className="mb-4 flex"><button className="btn-primary ml-auto" onClick={() => setEditing({})}>+ Nova recorrente</button></div>
-      {templates.length === 0 && <div className="card"><Empty>Nenhuma tarefa recorrente. Ela aparece sozinha em Hoje nos dias escolhidos.</Empty></div>}
+      <div className="mb-4 flex"><button className="btn-primary ml-auto" onClick={() => setEditing({})}><Plus size={16} strokeWidth={1.5} />Nova recorrente</button></div>
+      {templates.length === 0 && <div className="card"><Empty icon={<Repeat size={18} strokeWidth={1.5} />}>Nenhuma tarefa recorrente. Ela aparece sozinha em Hoje nos dias escolhidos</Empty></div>}
       <ul className="grid gap-2">
         {templates.map((t) => (
           <li key={t.id}>
             <button className="card flex w-full items-center gap-3 text-left" onClick={() => setEditing(t)}>
               <div className="flex-1">
-                <div className={t.is_active ? '' : 'text-slate-400'}>{t.title}</div>
-                <div className="text-xs text-slate-500">
+                <div className={t.is_active ? '' : 'text-fg3'}>{t.title}</div>
+                <div className="text-xs text-fg3">
                   {t.recurrence_days.length ? t.recurrence_days.map(weekdayShort).join(', ') : 'todo dia'}
                   {t.time_of_day && ` · ${t.time_of_day.slice(0, 5)}`}{!t.is_active && ' · pausada'}
                 </div>
@@ -336,7 +338,7 @@ function TemplateForm({ template, onClose, onSaved }: { template: Partial<Templa
         </div>
         <label className="mb-4 flex items-center gap-2 text-sm"><input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> Ativa</label>
         <div className="flex gap-2">
-          {template.id && <button type="button" className="btn-ghost text-red-600" onClick={remove}>Excluir</button>}
+          {template.id && <button type="button" className="btn-ghost text-negative" onClick={remove}>Excluir</button>}
           <button className="btn-primary ml-auto">Salvar</button>
         </div>
       </form>

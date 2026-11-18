@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { num } from '../../lib/format';
+import { Camera, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { write } from '../../lib/useTable';
 import { addDays, formatDay, toDay } from '../../lib/dates';
@@ -26,9 +28,9 @@ export default function Diet({ h }: { h: Health }) {
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <button className="btn-ghost" onClick={() => setDay(addDays(day, -1))} aria-label="Dia anterior">‹</button>
+        <button className="btn-ghost" onClick={() => setDay(addDays(day, -1))} aria-label="Dia anterior"><ChevronLeft size={16} strokeWidth={1.5} /></button>
         <span className="min-w-48 text-center font-medium">{formatDay(day)}</span>
-        <button className="btn-ghost" onClick={() => setDay(addDays(day, 1))} aria-label="Próximo dia">›</button>
+        <button className="btn-ghost" onClick={() => setDay(addDays(day, 1))} aria-label="Próximo dia"><ChevronRight size={16} strokeWidth={1.5} /></button>
         {day !== toDay(new Date()) && <button className="btn-ghost" onClick={() => setDay(toDay(new Date()))}>hoje</button>}
       </div>
 
@@ -39,19 +41,21 @@ export default function Diet({ h }: { h: Health }) {
             const sub = sumNutrients(items);
             return (
               <section key={meal} className="card mb-3">
-                <div className="mb-2 flex items-baseline gap-2">
-                  <h3 className="font-medium">{meal}</h3>
-                  {items.length > 0 && <span className="text-xs text-slate-500">{sub.kcal} kcal · P {sub.protein_g} · C {sub.carbs_g} · G {sub.fat_g}</span>}
-                  <button className="btn-ghost ml-auto" onClick={() => setAdding(meal)}>+ alimento</button>
+                <div className="mb-2 flex items-start gap-2">
+                  <div className="min-w-0">
+                    <h3 className="font-medium">{meal}</h3>
+                    {items.length > 0 && <div className="text-xs text-fg3"><span className="figure">{num(sub.kcal)}</span> kcal · P {num(sub.protein_g)} · C {num(sub.carbs_g)} · G {num(sub.fat_g)}</div>}
+                  </div>
+                  <button className="btn-ghost ml-auto" onClick={() => setAdding(meal)}><Plus size={16} strokeWidth={1.5} />Alimento</button>
                 </div>
                 <ul className="text-sm">
                   {items.map((l) => (
-                    <li key={l.id} className="flex items-center gap-2 border-t border-slate-100 py-1.5 dark:border-slate-800">
-                      <span className="mr-auto">{l.food_name} <span className="text-slate-500">· {l.quantity_g} g</span></span>
-                      <span className="text-xs text-slate-500">{l.kcal} kcal</span>
-                      <button className="text-slate-400 hover:text-red-600" aria-label={`Remover ${l.food_name}`} onClick={async () => {
+                    <li key={l.id} className="flex items-center gap-2 border-t border-line py-1.5">
+                      <span className="mr-auto">{l.food_name} <span className="text-fg3">· {num(l.quantity_g)} g</span></span>
+                      <span className="text-xs text-fg3">{num(l.kcal)} kcal</span>
+                      <button className="text-fg3 hover:text-negative" aria-label={`Remover ${l.food_name}`} onClick={async () => {
                         if (await write(supabase.from('food_logs').delete().eq('id', l.id))) void h.foodLogs.reload();
-                      }}>✕</button>
+                      }}><X size={16} strokeWidth={1.5} /></button>
                     </li>
                   ))}
                 </ul>
@@ -76,12 +80,12 @@ export default function Diet({ h }: { h: Health }) {
               <TargetBar label="Proteína" consumed={totals.protein_g} target={target.protein_g} unit="g" />
               <TargetBar label="Carboidrato" consumed={totals.carbs_g} target={target.carbs_g} unit="g" />
               <TargetBar label="Gordura" consumed={totals.fat_g} target={target.fat_g} unit="g" />
-              <p className="text-xs text-slate-500">Base: {target.basis}. Fibra: {totals.fiber_g} g.</p>
-              {burned > 0 && <p className="mt-1 text-xs text-slate-500">Treino do dia: {burned} kcal{estimated ? ' (estimado)' : ''}.</p>}
+              <p className="text-xs text-fg3">Base: {target.basis} · fibra {num(totals.fiber_g)} g</p>
+              {burned > 0 && <p className="mt-1 text-xs text-fg3">Treino do dia: {num(burned)} kcal{estimated ? ' (estimado)' : ''}</p>}
               <button className="btn-ghost mt-3" onClick={() => setAdjusting(true)}>Ajustar macros deste dia</button>
             </>
           ) : (
-            <p className="text-sm text-slate-500">Cadastre suas metas na aba Plano para comparar o dia. Total até agora: {totals.kcal} kcal · P {totals.protein_g} g · C {totals.carbs_g} g · G {totals.fat_g} g.</p>
+            <p className="text-sm text-fg3">Cadastre suas metas na aba Plano para comparar o dia. Total até agora: {num(totals.kcal)} kcal · P {num(totals.protein_g)} g · C {num(totals.carbs_g)} g · G {num(totals.fat_g)} g.</p>
           )}
         </aside>
       </div>
@@ -116,7 +120,7 @@ function AdjustDay({ h, day, current, onClose }: { h: Health; day: string; curre
   );
   return (
     <Modal title={`Ajuste de ${formatDay(day)}`} onClose={onClose}>
-      <p className="mb-3 text-xs text-slate-500">Deixe em branco o que deve seguir o plano. Os valores em cinza são os atuais.</p>
+      <p className="mb-3 text-xs text-fg3">Deixe em branco o que deve seguir o plano. Os valores em cinza são os atuais.</p>
       <div className="grid grid-cols-2 gap-2">
         {field('kcal', 'Calorias', current.kcal)}
         {field('protein_g', 'Proteína (g)', current.protein_g)}
@@ -168,11 +172,11 @@ function MealPhotos({ day, meal }: { day: string; meal: string }) {
       {photos.map((p) => (
         <figure key={p.id} className="relative">
           <img src={p.url} alt={`Foto de ${meal}`} className="h-16 w-16 rounded-lg object-cover" />
-          <button className="absolute -right-1 -top-1 rounded-full bg-white px-1 text-xs shadow dark:bg-slate-800" aria-label="Excluir foto" onClick={() => remove(p)}>✕</button>
+          <button className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-md border border-line bg-surface text-fg2" aria-label="Excluir foto" onClick={() => remove(p)}><X size={14} strokeWidth={1.5} /></button>
         </figure>
       ))}
       <label className={`btn-ghost cursor-pointer text-xs ${busy ? 'opacity-50' : ''}`}>
-        📷 {busy ? 'enviando…' : 'foto do prato'}
+        <Camera size={16} strokeWidth={1.5} />{busy ? 'Enviando…' : 'Foto do prato'}
         <input type="file" accept="image/*" capture="environment" className="hidden" disabled={busy}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ''; }} />
       </label>

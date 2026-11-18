@@ -1,4 +1,5 @@
 import { toDay } from '../../lib/dates';
+import { num } from '../../lib/format';
 import { DEFAULT_SETTINGS, lastWorkingSets, suggestNext, workoutSummary } from '../../lib/training';
 import { sumNutrients } from '../../lib/nutrition';
 import { TargetBar } from '../../components/Charts';
@@ -27,9 +28,9 @@ export default function Today({ h, onGo }: { h: Health; onGo: (tab: 'Treino' | '
         {workouts.length === 0 && cardio.length === 0 && <Empty>Nada registrado hoje.</Empty>}
         {workouts.map((w) => {
           const s = workoutSummary(w, h.sets.rows, h.workouts.rows, h.typeById);
-          return <p key={w.id} className="text-sm">{w.title || 'Treino'}: {s.sets} séries · {s.tonnage.toLocaleString('pt-BR')} kg{s.records.length ? ` · 🏆 ${s.records.length} recorde(s)` : ''}</p>;
+          return <p key={w.id} className="text-sm">{w.title || 'Treino'}: {s.sets} séries · {num(s.tonnage)} kg{s.records.length ? ` · ${s.records.length} ${s.records.length === 1 ? 'recorde' : 'recordes'}` : ''}</p>;
         })}
-        {cardio.map((c) => <p key={c.id} className="text-sm capitalize">{c.cardio_type}: {Math.round(c.duration_s / 60)} min{c.distance_km ? ` · ${c.distance_km} km` : ''}</p>)}
+        {cardio.map((c) => <p key={c.id} className="text-sm capitalize">{c.cardio_type}: {Math.round(c.duration_s / 60)} min{c.distance_km ? ` · ${num(c.distance_km)} km` : ''}</p>)}
         <div className="mt-3 grid grid-cols-2 gap-4">
           <Stat label="Gasto do treino" value={`${burned} kcal`} hint={estimated && burned ? 'estimado' : undefined} />
           <Stat label="Tipo do dia" value={dayType === 'training' ? 'Treino' : 'Descanso'} />
@@ -39,7 +40,7 @@ export default function Today({ h, onGo }: { h: Health; onGo: (tab: 'Treino' | '
             <div className="label mb-1">Próxima sessão ({last?.title || 'último treino'})</div>
             <ul className="space-y-1 text-sm">
               {nextUp.map(({ id, s }) => (
-                <li key={id}>{h.exerciseById.get(id)?.name}: {s!.action === 'increase_reps' ? `${s!.load_kg} kg × ${s!.reps.join(', ')}` : `${s!.load_kg} kg × ${s!.reps}`}</li>
+                <li key={id}>{h.exerciseById.get(id)?.name}: {s!.action === 'increase_reps' ? `${num(s!.load_kg)} kg × ${s!.reps.join(', ')}` : `${num(s!.load_kg)} kg × ${s!.reps}`}</li>
               ))}
             </ul>
           </div>
@@ -53,9 +54,9 @@ export default function Today({ h, onGo }: { h: Health; onGo: (tab: 'Treino' | '
             <TargetBar label="Proteína" consumed={totals.protein_g} target={target.protein_g} unit="g" />
             <TargetBar label="Carboidrato" consumed={totals.carbs_g} target={target.carbs_g} unit="g" />
             <TargetBar label="Gordura" consumed={totals.fat_g} target={target.fat_g} unit="g" />
-            <p className="text-xs text-slate-500">Base: {target.basis}.</p>
+            <p className="text-xs text-fg3">Base: {target.basis}.</p>
           </>
-        ) : <Empty>Cadastre as metas em Dieta › Plano para acompanhar o dia.</Empty>}
+        ) : <Empty>Cadastre as metas na aba Plano para acompanhar o dia.</Empty>}
       </section>
     </div>
   );

@@ -1,9 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Bell, Repeat } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTable, write } from '../lib/useTable';
 import { addDays, formatDay, formatTime, toDay, weekdayShort } from '../lib/dates';
 import { missingOccurrences, reminderPanel, type Reminder, type ReminderTemplate } from '../lib/reminders';
-import { Empty, Field, Modal, PageHeader, Stat, WeekdayPicker } from '../components/ui';
+import { Empty, Field, ListSkeleton, Modal, PageHeader, Stat, WeekdayPicker } from '../components/ui';
 
 const TABS = ['Lembretes', 'Recorrentes'] as const;
 type Tab = (typeof TABS)[number];
@@ -36,14 +38,14 @@ export default function Reminders() {
 
   const group = (title: string, items: Reminder[], tone = '') => items.length > 0 && (
     <section className="mb-4">
-      <div className={`label mb-2 ${tone}`}>{title} · {items.length}</div>
-      <ul className="card divide-y divide-slate-100 p-0 dark:divide-slate-800">
+      <div className={`label mb-2 flex gap-2 ${tone}`}>{title}<span className="figure text-fg3">{items.length}</span></div>
+      <ul className="card divide-y divide-line p-0">
         {items.map((r) => (
           <li key={r.id} className="flex items-center gap-3 px-4 py-3">
-            <input type="checkbox" className="h-4 w-4 accent-sky-600" checked={r.completed} onChange={() => toggle(r)} aria-label={`Concluir ${r.title}`} />
+            <input type="checkbox" className="h-4 w-4" checked={r.completed} onChange={() => toggle(r)} aria-label={`Concluir ${r.title}`} />
             <button className="flex-1 text-left" onClick={() => setEditing(r)}>
-              <div className={`text-sm ${r.completed ? 'text-slate-400 line-through' : ''}`}>{r.title}</div>
-              <div className="text-xs text-slate-500">
+              <div className={`text-sm ${r.completed ? 'text-fg3 line-through' : ''}`}>{r.title}</div>
+              <div className="text-xs text-fg3">
                 {formatDay(toDay(new Date(r.datetime)))} · {formatTime(r.datetime)}
                 {r.recurring_template_id && ' · recorrente'}{r.alarm_enabled && ' · alarme'}
               </div>
@@ -63,10 +65,10 @@ export default function Reminders() {
         tab={tab}
         onTab={(t) => setTab(t as Tab)}
         action={tab === 'Lembretes'
-          ? <button className="btn-primary" onClick={() => setEditing({})}>+ Novo lembrete</button>
-          : <button className="btn-primary" onClick={() => setEditingTpl({})}>+ Nova recorrência</button>}
+          ? <button className="btn-primary" onClick={() => setEditing({})}><Plus size={16} strokeWidth={1.5} />Novo lembrete</button>
+          : <button className="btn-primary" onClick={() => setEditingTpl({})}><Plus size={16} strokeWidth={1.5} />Nova recorrência</button>}
       />
-      {reminders.error && <p className="mb-4 text-sm text-red-600">{reminders.error}</p>}
+      {reminders.error && <p className="mb-4 text-sm text-negative">{reminders.error}</p>}
 
       {tab === 'Lembretes' && (
         <>
@@ -75,24 +77,24 @@ export default function Reminders() {
             <Stat label="Atrasados" value={panel.overdue.length} />
             <Stat label="Próximos 7 dias" value={panel.thisWeek.length} />
           </div>
-          {group('Atrasados', panel.overdue, 'text-red-600')}
+          {group('Atrasados', panel.overdue, 'text-negative')}
           {group('Hoje', panel.today)}
           {group('Esta semana', panel.thisWeek)}
           {group('Depois', panel.later)}
-          {group('Concluídos', panel.done.slice(0, 20), 'text-emerald-600')}
-          {!reminders.rows.length && <div className="card"><Empty>Nada agendado à frente.</Empty></div>}
+          {group('Concluídos', panel.done.slice(0, 20), 'text-positive')}
+          {reminders.loading ? <ListSkeleton /> : !reminders.rows.length && <div className="card"><Empty icon={<Bell size={18} strokeWidth={1.5} />} action={<button className="btn-secondary" onClick={() => setEditing({})}>Novo lembrete</button>}>Nada agendado à frente</Empty></div>}
         </>
       )}
 
       {tab === 'Recorrentes' && (
         <>
-          {templates.rows.length === 0 && <div className="card"><Empty>Nenhum recorrente ainda. Vitamina, academia, fatura: cadastre uma vez.</Empty></div>}
+          {templates.rows.length === 0 && <div className="card"><Empty icon={<Repeat size={18} strokeWidth={1.5} />}>Nenhum recorrente ainda. Vitamina, academia, fatura: cadastre uma vez</Empty></div>}
           <ul className="grid gap-2">
             {templates.rows.map((t) => (
               <li key={t.id}>
                 <button className="card w-full text-left" onClick={() => setEditingTpl(t)}>
-                  <div className={t.is_active ? '' : 'text-slate-400'}>{t.title}</div>
-                  <div className="text-xs text-slate-500">
+                  <div className={t.is_active ? '' : 'text-fg3'}>{t.title}</div>
+                  <div className="text-xs text-fg3">
                     {t.recurrence_days.length ? t.recurrence_days.map(weekdayShort).join(', ') : 'todo dia'} · {t.time_of_day.slice(0, 5)}
                     {!t.is_active && ' · pausado'}
                   </div>
@@ -143,7 +145,7 @@ function ReminderForm({ reminder, onClose, onSaved }: { reminder: Partial<Remind
         </div>
         <label className="mb-4 flex items-center gap-2 text-sm"><input type="checkbox" checked={alarm} onChange={(e) => setAlarm(e.target.checked)} /> Alarme</label>
         <div className="flex gap-2">
-          {reminder.id && <button type="button" className="btn-ghost text-red-600" onClick={remove}>Excluir</button>}
+          {reminder.id && <button type="button" className="btn-ghost text-negative" onClick={remove}>Excluir</button>}
           <button className="btn-primary ml-auto">Salvar</button>
         </div>
       </form>
@@ -184,7 +186,7 @@ function TemplateForm({ template, onClose, onSaved }: { template: Partial<Remind
         </div>
         <label className="mb-4 flex items-center gap-2 text-sm"><input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> Ativa</label>
         <div className="flex gap-2">
-          {template.id && <button type="button" className="btn-ghost text-red-600" onClick={remove}>Excluir</button>}
+          {template.id && <button type="button" className="btn-ghost text-negative" onClick={remove}>Excluir</button>}
           <button className="btn-primary ml-auto">Salvar</button>
         </div>
       </form>

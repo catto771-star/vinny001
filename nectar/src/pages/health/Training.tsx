@@ -1,4 +1,6 @@
 import { useState, type FormEvent } from 'react';
+import { num } from '../../lib/format';
+import { Plus, Trophy, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { write } from '../../lib/useTable';
 import { formatDay, toDay } from '../../lib/dates';
@@ -35,7 +37,7 @@ export default function Training({ h }: { h: Health }) {
 function WorkoutList({ h, onOpen }: { h: Health; onOpen: (id: string | null) => void }) {
   return (
     <>
-      <div className="mb-4 flex"><button className="btn-primary ml-auto" onClick={() => onOpen(null)}>+ Registrar treino</button></div>
+      <div className="mb-4 flex"><button className="btn-primary ml-auto" onClick={() => onOpen(null)}><Plus size={16} strokeWidth={1.5} />Registrar treino</button></div>
       {h.workouts.rows.length === 0 && <div className="card"><Empty>Nenhum treino registrado ainda.</Empty></div>}
       <ul className="grid gap-2">
         {h.workouts.rows.map((w) => {
@@ -46,15 +48,15 @@ function WorkoutList({ h, onOpen }: { h: Health; onOpen: (id: string | null) => 
               <button className="card w-full text-left" onClick={() => onOpen(w.id)}>
                 <div className="flex flex-wrap items-baseline gap-2">
                   <span className="font-medium">{w.title || 'Treino'}</span>
-                  <span className="text-sm text-slate-500">{formatDay(w.date)}{w.duration_min ? ` · ${w.duration_min} min` : ''}</span>
-                  <span className="ml-auto text-sm">{s.sets} séries · {s.reps} reps · {s.tonnage.toLocaleString('pt-BR')} kg</span>
+                  <span className="text-sm text-fg3">{formatDay(w.date)}{w.duration_min ? ` · ${w.duration_min} min` : ''}</span>
+                  <span className="ml-auto text-sm">{s.sets} séries · {s.reps} reps · <span className="figure">{num(s.tonnage)}</span> kg</span>
                 </div>
-                <div className="mt-1 truncate text-xs text-slate-500">{names.join(', ')}</div>
+                <div className="mt-1 truncate text-xs text-fg3">{names.join(', ')}</div>
                 {s.records.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
                     {s.records.map((r) => (
-                      <span key={r.exercise_id + r.kind} className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-                        🏆 {h.exerciseById.get(r.exercise_id)?.name}: {r.kind === 'volume' ? `volume ${r.value} kg` : r.kind === '1RM' ? `1RM est. ${r.value} kg` : `carga ${r.value} kg`}
+                      <span key={r.exercise_id + r.kind} className="inline-flex items-center gap-1 rounded-md border border-line bg-raised px-2 py-0.5 text-xs text-fg2">
+                        <Trophy size={14} strokeWidth={1.5} className="text-brand" />{h.exerciseById.get(r.exercise_id)?.name}: {r.kind === 'volume' ? `volume ${num(r.value)} kg` : r.kind === '1RM' ? `1RM est. ${num(r.value)} kg` : `carga ${num(r.value)} kg`}
                       </span>
                     ))}
                   </div>
@@ -75,7 +77,7 @@ function CardioList({ h }: { h: Health }) {
   const weight = h.latestWeight ?? DEFAULT_WEIGHT_KG;
   return (
     <>
-      <div className="mb-4 flex"><button className="btn-primary ml-auto" onClick={() => setForm(true)}>+ Registrar cardio</button></div>
+      <div className="mb-4 flex"><button className="btn-primary ml-auto" onClick={() => setForm(true)}><Plus size={16} strokeWidth={1.5} />Registrar cardio</button></div>
       {h.cardio.rows.length === 0 && <div className="card"><Empty>Nenhum cardio registrado ainda.</Empty></div>}
       <ul className="grid gap-2">
         {h.cardio.rows.map((c) => {
@@ -83,12 +85,12 @@ function CardioList({ h }: { h: Health }) {
           return (
             <li key={c.id} className="card flex flex-wrap items-baseline gap-3">
               <span className="font-medium capitalize">{c.cardio_type}</span>
-              <span className="text-sm text-slate-500">{formatDay(c.date)}</span>
+              <span className="text-sm text-fg3">{formatDay(c.date)}</span>
               <span className="ml-auto text-sm">
-                {c.distance_km ? `${c.distance_km} km · ` : ''}{Math.round(c.duration_s / 60)} min · {formatPace(paceMinPerKm(c))} ·{' '}
-                {k.kcal} kcal{k.estimated ? ' (est.)' : ''} · {kcalPerMinute(k.kcal, c.duration_s)} kcal/min
+                {c.distance_km ? `${num(c.distance_km)} km · ` : ''}{Math.round(c.duration_s / 60)} min · {formatPace(paceMinPerKm(c))} ·{' '}
+                {num(k.kcal)} kcal{k.estimated ? ' (est.)' : ''} · {kcalPerMinute(k.kcal, c.duration_s)} kcal/min
               </span>
-              <button className="text-xs text-red-600" onClick={async () => {
+              <button className="text-xs text-negative" onClick={async () => {
                 if (confirm('Excluir este cardio?') && await write(supabase.from('cardio_sessions').delete().eq('id', c.id))) void h.cardio.reload();
               }}>excluir</button>
             </li>
@@ -144,18 +146,18 @@ function Records({ h }: { h: Health }) {
     <div className="card overflow-x-auto p-0">
       <table className="w-full min-w-[560px] text-sm">
         <thead>
-          <tr className="text-left text-xs text-slate-500">
+          <tr className="text-left text-xs text-fg3">
             <th className="p-3 font-normal">Exercício</th><th className="p-3 font-normal">Carga máxima</th>
             <th className="p-3 font-normal">1RM estimado</th><th className="p-3 font-normal">Maior volume num treino</th>
           </tr>
         </thead>
         <tbody>
           {records.map((r) => (
-            <tr key={r.exercise_id} className="border-t border-slate-100 dark:border-slate-800">
+            <tr key={r.exercise_id} className="border-t border-line">
               <td className="p-3">{h.exerciseById.get(r.exercise_id)?.name}</td>
-              <td className="p-3">{r.maxLoad ? `${r.maxLoad.load_kg} kg × ${r.maxLoad.reps}` : '—'}<div className="text-xs text-slate-500">{r.maxLoad && formatDay(r.maxLoad.date)}</div></td>
-              <td className="p-3">{r.best1RM ? `${r.best1RM.value} kg` : '—'}<div className="text-xs text-slate-500">{r.best1RM && `${r.best1RM.load_kg} kg × ${r.best1RM.reps}`}</div></td>
-              <td className="p-3">{r.bestSessionVolume ? `${r.bestSessionVolume.tonnage.toLocaleString('pt-BR')} kg` : '—'}<div className="text-xs text-slate-500">{r.bestSessionVolume && formatDay(r.bestSessionVolume.date)}</div></td>
+              <td className="p-3">{r.maxLoad ? `${num(r.maxLoad.load_kg)} kg × ${r.maxLoad.reps}` : '—'}<div className="text-xs text-fg3">{r.maxLoad && formatDay(r.maxLoad.date)}</div></td>
+              <td className="p-3">{r.best1RM ? `${num(r.best1RM.value)} kg` : '—'}<div className="text-xs text-fg3">{r.best1RM && `${num(r.best1RM.load_kg)} kg × ${r.best1RM.reps}`}</div></td>
+              <td className="p-3">{r.bestSessionVolume ? `${num(r.bestSessionVolume.tonnage)} kg` : '—'}<div className="text-xs text-fg3">{r.bestSessionVolume && formatDay(r.bestSessionVolume.date)}</div></td>
             </tr>
           ))}
         </tbody>
@@ -173,21 +175,21 @@ function Exercises({ h }: { h: Health }) {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       <div>
-        <div className="mb-3 flex"><button className="btn-primary ml-auto" onClick={() => setNewExercise(true)}>+ Exercício próprio</button></div>
+        <div className="mb-3 flex"><button className="btn-primary ml-auto" onClick={() => setNewExercise(true)}><Plus size={16} strokeWidth={1.5} />Exercício próprio</button></div>
         {groups.map((g) => {
           const list = h.exercises.rows.filter((e) => e.muscle_group === g);
           if (!list.length) return null;
           return (
             <section key={g} className="mb-4">
               <div className="label mb-2">{MUSCLE_LABEL[g]}</div>
-              <ul className="card divide-y divide-slate-100 p-0 dark:divide-slate-800">
+              <ul className="card divide-y divide-line p-0">
                 {list.map((e) => {
                   const s = h.settingsById.get(e.id) ?? DEFAULT_SETTINGS;
                   return (
                     <li key={e.id} className="flex items-center gap-2 px-4 py-2 text-sm">
-                      <span className="mr-auto">{e.name}{e.user_id && <span className="text-xs text-slate-500"> · seu</span>}</span>
-                      {used.has(e.id) && <span className="text-xs text-slate-500">{s.rep_min}-{s.rep_max} reps · +{s.load_increment_kg} kg</span>}
-                      <button className="text-xs text-sky-700 underline" onClick={() => setSettingsFor(e.id)}>progressão</button>
+                      <span className="mr-auto">{e.name}{e.user_id && <span className="text-xs text-fg3"> · seu</span>}</span>
+                      {used.has(e.id) && <span className="text-xs text-fg3">{s.rep_min}-{s.rep_max} reps · +{s.load_increment_kg} kg</span>}
+                      <button className="text-xs text-fg underline" onClick={() => setSettingsFor(e.id)}>progressão</button>
                     </li>
                   );
                 })}
@@ -202,15 +204,15 @@ function Exercises({ h }: { h: Health }) {
           {h.setTypes.rows.map((t) => (
             <li key={t.id} className="flex gap-2">
               <span className="mr-auto">{t.name}</span>
-              <span className="text-xs text-slate-500">{t.drives_progression ? 'progressão' : t.counts_for_volume ? 'conta volume' : 'não conta'}</span>
-              {t.user_id && <button className="text-xs text-red-600" onClick={async () => {
+              <span className="text-xs text-fg3">{t.drives_progression ? 'progressão' : t.counts_for_volume ? 'conta volume' : 'não conta'}</span>
+              {t.user_id && <button className="text-xs text-negative" onClick={async () => {
                 if (confirm(`Excluir o tipo "${t.name}"?`) && await write(supabase.from('set_types').delete().eq('id', t.id))) void h.setTypes.reload();
-              }}>✕</button>}
+              }}><X size={16} strokeWidth={1.5} /></button>}
             </li>
           ))}
         </ul>
-        <button className="btn-ghost" onClick={() => setNewType(true)}>+ Tipo de série</button>
-        <p className="mt-3 text-xs text-slate-500">Só working sets geram sugestão de progressão. Os outros tipos contam ou não no volume e nos recordes, conforme a configuração.</p>
+        <button className="btn-ghost" onClick={() => setNewType(true)}><Plus size={16} strokeWidth={1.5} />Tipo de série</button>
+        <p className="mt-3 text-xs text-fg3">Só working sets geram sugestão de progressão. Os outros tipos contam ou não no volume e nos recordes, conforme a configuração.</p>
       </div>
       {settingsFor && <SettingsForm h={h} exerciseId={settingsFor} onClose={() => setSettingsFor(null)} />}
       {newExercise && <ExerciseForm onClose={() => setNewExercise(false)} onSaved={() => { setNewExercise(false); void h.exercises.reload(); }} />}
@@ -240,7 +242,7 @@ function SettingsForm({ h, exerciseId, onClose }: { h: Health; exerciseId: strin
           <Field label={`Reps máximas (até ${MAX_REPS})`}><input className="input" type="number" min={1} max={MAX_REPS} value={max} onChange={(e) => setMax(Number(e.target.value))} /></Field>
           <Field label="Aumento (kg)"><input className="input" type="number" min={0.25} step={0.25} value={inc} onChange={(e) => setInc(Number(e.target.value))} /></Field>
         </div>
-        <p className="mb-3 text-xs text-slate-500">Quando todas as working sets chegam às reps máximas, a próxima sessão sugere subir a carga pelo aumento e voltar às reps mínimas.</p>
+        <p className="mb-3 text-xs text-fg3">Quando todas as working sets chegam às reps máximas, a próxima sessão sugere subir a carga pelo aumento e voltar às reps mínimas.</p>
         <button className="btn-primary w-full justify-center">Salvar</button>
       </form>
     </Modal>

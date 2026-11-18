@@ -43,7 +43,7 @@ export default function Settings({ email }: { email: string }) {
           </Field>
           <div className="flex items-center gap-3">
             <button className="btn-primary" disabled={busy}>Trocar senha</button>
-            {message && <span className="text-sm text-slate-600">{message}</span>}
+            {message && <span className="text-sm text-fg2">{message}</span>}
           </div>
         </form>
       </div>

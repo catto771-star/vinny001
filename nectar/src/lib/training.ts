@@ -1,4 +1,5 @@
 import { addDays, parseDay, type Day } from './dates';
+import { num } from './format';
 
 export const MAX_REPS = 15;
 
@@ -53,18 +54,18 @@ export function suggestNext(lastWorkingSets: Pick<WorkoutSet, 'load_kg' | 'reps'
   if (atTop.every((s) => s.reps >= repMax)) {
     return {
       action: 'increase_load', load_kg: round(top + settings.load_increment_kg, 2), reps: repMin, sets: atTop.length,
-      reason: `Todas as séries chegaram a ${repMax} repetições: suba a carga e volte para ${repMin}.`,
+      reason: `Todas as séries chegaram a ${repMax} repetições: suba a carga e volte para ${repMin}`,
     };
   }
   if (best < repMin - 2 && top > settings.load_increment_kg) {
     return {
       action: 'decrease_load', load_kg: round(top - settings.load_increment_kg, 2), reps: repMin, sets: atTop.length,
-      reason: `A melhor série ficou em ${best} repetições, abaixo da faixa (${repMin}-${repMax}): reduza a carga.`,
+      reason: `A melhor série ficou em ${best} repetições, abaixo da faixa (${repMin}-${repMax}): reduza a carga`,
     };
   }
   return {
     action: 'increase_reps', load_kg: top, reps: atTop.map((s) => Math.min(repMax, Math.max(s.reps + 1, repMin))),
-    reason: `Mantenha ${top} kg e busque uma repetição a mais por série, até ${repMax}.`,
+    reason: `Mantenha ${num(top)} kg e busque uma repetição a mais por série, até ${repMax}`,
   };
 }
 

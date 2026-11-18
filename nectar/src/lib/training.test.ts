@@ -34,6 +34,9 @@ describe('suggestNext (progression)', () => {
     expect(suggestNext([{ load_kg: 80, reps: 10 }, { load_kg: 80, reps: 8 }], SETTINGS))
       .toMatchObject({ action: 'increase_reps', load_kg: 80, reps: [11, 9] });
   });
+  it('writes loads in the Brazilian format in its reason', () => {
+    expect(suggestNext([{ load_kg: 82.5, reps: 9 }], SETTINGS)!.reason).toContain('82,5 kg');
+  });
   it('never targets more than 15 reps, even if the settings allow it', () => {
     const wide = { rep_min: 10, rep_max: 20, load_increment_kg: 2 };
     expect(suggestNext([{ load_kg: 20, reps: 14 }], wide)).toMatchObject({ action: 'increase_reps', reps: [15] });

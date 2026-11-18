@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { num } from '../../lib/format';
+import { Plus, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { write } from '../../lib/useTable';
 import { kcalFromMacros, nutrientsFor, shoppingList, sumNutrients, type DayTarget, type DayType } from '../../lib/nutrition';
@@ -27,7 +29,7 @@ function CreatePlan({ h }: { h: Health }) {
   const [name, setName] = useState('Meu plano');
   return (
     <div className="card max-w-md">
-      <p className="mb-3 text-sm text-slate-600 dark:text-slate-300">Cadastre o plano do seu nutricionista: metas para dia de treino e de descanso, e as refeições, que geram a lista de compras.</p>
+      <p className="mb-3 text-sm text-fg2">Cadastre o plano do seu nutricionista: metas para dia de treino e de descanso, e as refeições, que geram a lista de compras.</p>
       <Field label="Nome do plano"><input className="input" value={name} onChange={(e) => setName(e.target.value)} /></Field>
       <button className="btn-primary" onClick={async () => {
         if (await write(supabase.from('diet_plans').insert({ name, is_active: true }))) void h.plans.reload();
@@ -85,7 +87,7 @@ function TargetForm({ h, dayType, current }: { h: Health; dayType: DayType; curr
         {input('carbs_g', 'Carboidrato (g)')}
         {input('fat_g', 'Gordura (g)')}
       </div>
-      <p className="mb-3 text-xs text-slate-500">Os macros somam {fromMacros} kcal{v.kcal && Math.abs(v.kcal - fromMacros) > 50 ? `, diferente das ${v.kcal} kcal informadas` : ''}. Calorias em 0 usam a soma dos macros.</p>
+      <p className="mb-3 text-xs text-fg3">Os macros somam {num(fromMacros)} kcal{v.kcal && Math.abs(v.kcal - fromMacros) > 50 ? `, diferente das ${num(v.kcal)} kcal informadas` : ''}. Calorias em 0 usam a soma dos macros.</p>
       <button className="btn-primary" onClick={save}>Salvar meta</button>
     </div>
   );
@@ -100,8 +102,8 @@ function PlanMeals({ h }: { h: Health }) {
   return (
     <>
       <div className="mb-3 flex items-center gap-2">
-        <span className="text-sm text-slate-500">Plano por dia: {day.kcal} kcal · P {day.protein_g} g · C {day.carbs_g} g · G {day.fat_g} g</span>
-        <button className="btn-primary ml-auto" onClick={() => setNewMeal(true)}>+ Refeição</button>
+        <span className="text-sm text-fg3">Plano por dia: {num(day.kcal)} kcal · P {num(day.protein_g)} g · C {num(day.carbs_g)} g · G {num(day.fat_g)} g</span>
+        <button className="btn-primary ml-auto" onClick={() => setNewMeal(true)}><Plus size={16} strokeWidth={1.5} />Refeição</button>
       </div>
       {!meals.length && <div className="card"><Empty>Nenhuma refeição no plano ainda.</Empty></div>}
       {meals.map((m) => {
@@ -110,20 +112,20 @@ function PlanMeals({ h }: { h: Health }) {
           <section key={m.id} className="card mb-3">
             <div className="mb-2 flex items-baseline gap-2">
               <h3 className="font-medium">{m.name}</h3>
-              {m.time_of_day && <span className="text-xs text-slate-500">{m.time_of_day.slice(0, 5)}</span>}
-              <button className="btn-ghost ml-auto" onClick={() => setAdding(m.id)}>+ alimento</button>
-              <button className="text-xs text-red-600" onClick={async () => {
+              {m.time_of_day && <span className="text-xs text-fg3">{m.time_of_day.slice(0, 5)}</span>}
+              <button className="btn-ghost ml-auto" onClick={() => setAdding(m.id)}><Plus size={16} strokeWidth={1.5} />Alimento</button>
+              <button className="text-xs text-negative" onClick={async () => {
                 if (confirm(`Excluir a refeição ${m.name}?`) && await write(supabase.from('diet_plan_meals').delete().eq('id', m.id))) { void h.meals.reload(); void h.items.reload(); }
               }}>excluir</button>
             </div>
             <ul className="text-sm">
               {items.map((i) => (
-                <li key={i.id} className="flex gap-2 border-t border-slate-100 py-1.5 dark:border-slate-800">
-                  <span className="mr-auto">{i.food?.name} <span className="text-slate-500">· {i.quantity_g} g</span></span>
-                  {i.food && <span className="text-xs text-slate-500">{nutrientsFor(i.food, i.quantity_g).kcal} kcal</span>}
-                  <button className="text-slate-400 hover:text-red-600" aria-label={`Remover ${i.food?.name}`} onClick={async () => {
+                <li key={i.id} className="flex gap-2 border-t border-line py-1.5">
+                  <span className="mr-auto">{i.food?.name} <span className="text-fg3">· {num(i.quantity_g)} g</span></span>
+                  {i.food && <span className="text-xs text-fg3">{nutrientsFor(i.food, i.quantity_g).kcal} kcal</span>}
+                  <button className="text-fg3 hover:text-negative" aria-label={`Remover ${i.food?.name}`} onClick={async () => {
                     if (await write(supabase.from('diet_plan_items').delete().eq('id', i.id))) void h.items.reload();
-                  }}>✕</button>
+                  }}><X size={16} strokeWidth={1.5} /></button>
                 </li>
               ))}
             </ul>
@@ -173,7 +175,7 @@ function Shopping({ h }: { h: Health }) {
     setChecked(next);
     try { localStorage.setItem(CHECKS_KEY, JSON.stringify([...next])); } catch { /* storage unavailable */ }
   }
-  const fmt = (g: number) => (g >= 1000 ? `${(g / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kg` : `${g} g`);
+  const fmt = (g: number) => (g >= 1000 ? `${num(g / 1000, 2)} kg` : `${num(g)} g`);
   return (
     <>
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -183,17 +185,17 @@ function Shopping({ h }: { h: Health }) {
         <button className="btn-ghost ml-auto" onClick={() => { setChecked(new Set()); try { localStorage.removeItem(CHECKS_KEY); } catch { /* ignore */ } }}>desmarcar tudo</button>
       </div>
       {!list.length ? <div className="card"><Empty>Monte as refeições do plano para gerar a lista.</Empty></div> : (
-        <ul className="card divide-y divide-slate-100 p-0 dark:divide-slate-800">
+        <ul className="card divide-y divide-line p-0">
           {list.map((i) => (
             <li key={i.food_id} className="flex items-center gap-3 px-4 py-2 text-sm">
-              <input type="checkbox" className="h-4 w-4 accent-sky-600" checked={checked.has(i.food_id)} onChange={() => toggle(i.food_id)} aria-label={`Comprado: ${i.name}`} />
-              <span className={`mr-auto ${checked.has(i.food_id) ? 'text-slate-400 line-through' : ''}`}>{i.name}</span>
-              <span className="text-slate-500">{fmt(i.grams)}</span>
+              <input type="checkbox" className="h-4 w-4" checked={checked.has(i.food_id)} onChange={() => toggle(i.food_id)} aria-label={`Comprado: ${i.name}`} />
+              <span className={`mr-auto ${checked.has(i.food_id) ? 'text-fg3 line-through' : ''}`}>{i.name}</span>
+              <span className="text-fg3">{fmt(i.grams)}</span>
             </li>
           ))}
         </ul>
       )}
-      <p className="mt-2 text-xs text-slate-500">Quantidades em peso dos alimentos como cadastrados no plano (cru ou cozido, conforme a tabela escolhida).</p>
+      <p className="mt-2 text-xs text-fg3">Quantidades em peso dos alimentos como cadastrados no plano (cru ou cozido, conforme a tabela escolhida).</p>
     </>
   );
 }

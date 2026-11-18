@@ -1,41 +1,149 @@
 @import "tailwindcss";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
 
-@theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+/* Dark theme is the default; html.light switches to the light ramp. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root,
+.dark {
+  --bg: #141415;
+  --sunken: #0f0f10;
+  --surface: #19191b;
+  --raised: #232325;
+  --line: rgb(237 237 237 / 0.08);
+  --line-strong: rgb(237 237 237 / 0.14);
+  --fg: #ededed;
+  --fg2: #a1a1a6;
+  --fg3: #85858b;
+  --brand: #ea580c;
+  --brand-ink: #fb923c;
+  --primary: #ededed;
+  --primary-ink: #141415;
+  --positive: #4cc38a;
+  --negative: #e5484d;
+  --chart-neutral: #3a3a3e;
+  color-scheme: dark;
+}
+
+.light {
+  --bg: #fafafa;
+  --sunken: #f4f4f5;
+  --surface: #ffffff;
+  --raised: #f4f4f5;
+  --line: rgb(23 23 23 / 0.08);
+  --line-strong: rgb(23 23 23 / 0.14);
+  --fg: #171717;
+  --fg2: #525252;
+  --fg3: #737373;
+  --brand: #ea580c;
+  --brand-ink: #c2410c;
+  --primary: #171717;
+  --primary-ink: #ffffff;
+  --positive: #16a34a;
+  --negative: #dc2626;
+  --chart-neutral: #d4d4d8;
+  color-scheme: light;
+}
+
+@theme inline {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+  --color-bg: var(--bg);
+  --color-sunken: var(--sunken);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg2: var(--fg2);
+  --color-fg3: var(--fg3);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-primary: var(--primary);
+  --color-primary-ink: var(--primary-ink);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --color-chart-neutral: var(--chart-neutral);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html {
+  background: var(--bg);
 }
 
 body {
-  @apply bg-slate-50 text-slate-800 antialiased dark:bg-slate-950 dark:text-slate-100;
+  @apply bg-bg font-sans text-[15px] leading-[22px] text-fg antialiased;
+}
+
+/* Every figure lines up like a scoreboard. */
+.figure {
+  @apply font-mono tabular-nums;
 }
 
 @utility card {
-  @apply rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900;
+  @apply rounded-2xl border border-line bg-surface p-5;
 }
 
 @utility label {
-  @apply text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400;
+  @apply text-[13px] leading-5 font-medium text-fg2;
 }
 
 @utility btn {
-  @apply inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium transition disabled:opacity-50;
+  @apply inline-flex h-9 items-center justify-center gap-2 rounded-[10px] px-4 text-sm font-medium transition-[background-color,color,opacity,transform] duration-150 ease-out active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100;
 }
 
 @utility btn-primary {
-  @apply btn bg-sky-600 text-white hover:bg-sky-700;
+  @apply btn bg-primary text-primary-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:opacity-90;
+}
+
+@utility btn-secondary {
+  @apply btn border border-line bg-raised text-fg hover:bg-surface;
 }
 
 @utility btn-ghost {
-  @apply btn text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800;
+  @apply btn px-3 text-fg2 hover:bg-raised hover:text-fg;
+}
+
+@utility icon-btn {
+  @apply inline-flex h-8 w-8 items-center justify-center rounded-lg text-fg3 transition-colors duration-150 hover:bg-raised hover:text-fg;
 }
 
 @utility input {
-  @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 dark:border-slate-700 dark:bg-slate-900;
+  @apply h-10 w-full rounded-[10px] border border-line bg-raised px-3 text-sm text-fg outline-none transition-colors duration-150 placeholder:text-fg3 focus:border-line-strong focus:ring-2 focus:ring-brand/30;
 }
 
 @utility tab {
-  @apply rounded-full px-3 py-1 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800;
+  @apply inline-flex h-8 items-center rounded-lg px-3 text-sm text-fg2 transition-colors duration-150 hover:text-fg;
 }
 
 @utility tab-active {
-  @apply tab bg-slate-900 text-white hover:bg-slate-900 dark:bg-white dark:text-slate-900;
+  @apply tab bg-raised text-fg shadow-[inset_0_1px_0_rgba(255,255,255,0.06)];
+}
+
+@utility segmented {
+  @apply inline-flex flex-wrap gap-1 rounded-[12px] border border-line bg-sunken p-1;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--brand);
+}
+
+@keyframes enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.enter {
+  animation: enter 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enter { animation: none; }
 }
