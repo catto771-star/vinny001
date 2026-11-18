@@ -10,22 +10,27 @@ import {
 } from '../../lib/training';
 import { Empty, Field, Modal } from '../../components/ui';
 import WorkoutEditor from './WorkoutEditor';
+import PlanEditor, { type StartSession } from './PlanEditor';
 import { DEFAULT_WEIGHT_KG, type Health } from './useHealth';
 
-const VIEWS = ['Treinos', 'Cardio', 'Recordes', 'Exercícios'] as const;
+const VIEWS = ['Ficha', 'Treinos', 'Cardio', 'Recordes', 'Exercícios'] as const;
 type View = (typeof VIEWS)[number];
 
 export default function Training({ h }: { h: Health }) {
-  const [view, setView] = useState<View>('Treinos');
+  const [view, setView] = useState<View>('Ficha');
   const [editing, setEditing] = useState<string | null | undefined>(undefined);
+  const [start, setStart] = useState<StartSession | undefined>(undefined);
+  const close = () => { setEditing(undefined); setStart(undefined); setView('Treinos'); };
 
+  if (start) return <WorkoutEditor h={h} workoutId={null} start={start} onClose={close} />;
   if (editing !== undefined) return <WorkoutEditor h={h} workoutId={editing} onClose={() => setEditing(undefined)} />;
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap gap-1">
+      <div className="segmented mb-6">
         {VIEWS.map((v) => <button key={v} className={v === view ? 'tab-active' : 'tab'} onClick={() => setView(v)}>{v}</button>)}
       </div>
+      {view === 'Ficha' && <PlanEditor h={h} onStart={setStart} />}
       {view === 'Treinos' && <WorkoutList h={h} onOpen={setEditing} />}
       {view === 'Cardio' && <CardioList h={h} />}
       {view === 'Recordes' && <Records h={h} />}

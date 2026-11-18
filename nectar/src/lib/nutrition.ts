@@ -46,6 +46,8 @@ export function dayTypeFor(day: Day, trainedDays: Set<Day>, override?: Pick<Over
 export interface TargetInput {
   dayType: DayType;
   targets: Partial<Record<DayType, DayTarget>>;
+  /** A target set for this day of the week; it replaces the training/rest target. */
+  weekdayTarget?: DayTarget | null;
   mode: 'fixed' | 'dynamic';
   /** Calories the day's training burned (used in dynamic mode). */
   burnedKcal: number;
@@ -56,17 +58,21 @@ export interface ResolvedTarget extends DayTarget { basis: string }
 
 /**
  * The calorie and macro target of a day.
+ * - a target set for the day of the week wins over the training/rest ones;
  * - rest day: the rest target;
  * - training day, fixed mode: the training target (rest target if none);
  * - training day, dynamic mode: the rest target plus the calories burned,
  *   which go to carbohydrates (4 kcal per gram).
  * A per-day override replaces any value it sets.
  */
-export function resolveTarget({ dayType, targets, mode, burnedKcal, override }: TargetInput): ResolvedTarget | null {
+export function resolveTarget({ dayType, targets, weekdayTarget, mode, burnedKcal, override }: TargetInput): ResolvedTarget | null {
   const rest = targets.rest ?? targets.training;
   let base: DayTarget | undefined;
   let basis: string;
-  if (dayType === 'training' && mode === 'dynamic' && rest) {
+  if (weekdayTarget) {
+    base = weekdayTarget;
+    basis = 'meta do dia da semana';
+  } else if (dayType === 'training' && mode === 'dynamic' && rest) {
     const extra = Math.max(0, Math.round(burnedKcal));
     base = { ...rest, kcal: rest.kcal + extra, carbs_g: rest.carbs_g + Math.round(extra / 4) };
     basis = extra ? `descanso + ${extra} kcal do treino` : 'descanso (treino sem gasto registrado)';

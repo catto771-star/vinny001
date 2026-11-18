@@ -106,6 +106,16 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   );
 }
 
+/** A labelled group of buttons. A <label> would hand its text to the first button and click it. */
+export function FieldGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="mb-4" role="group" aria-label={label}>
+      <span className="mb-1.5 block text-[13px] leading-5 text-fg2">{label}</span>
+      {children}
+    </div>
+  );
+}
+
 export const WEEKDAY_LETTERS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 const WEEKDAY_NAMES = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
 

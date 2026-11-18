@@ -7,8 +7,9 @@ import Training from './Training';
 import Diet from './Diet';
 import DietPlan from './DietPlan';
 import Dashboard from './Dashboard';
+import Body from './Body';
 
-const TABS = ['Hoje', 'Treino', 'Dieta', 'Plano', 'Painel'] as const;
+const TABS = ['Hoje', 'Treino', 'Dieta', 'Plano', 'Corpo', 'Painel'] as const;
 type Tab = (typeof TABS)[number];
 
 export default function Health() {
@@ -23,6 +24,7 @@ export default function Health() {
       {tab === 'Treino' && <Training h={h} />}
       {tab === 'Dieta' && <Diet h={h} />}
       {tab === 'Plano' && <DietPlan h={h} />}
+      {tab === 'Corpo' && <Body h={h} />}
       {tab === 'Painel' && <Dashboard h={h} />}
     </>
   );

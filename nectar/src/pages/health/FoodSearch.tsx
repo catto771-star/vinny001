@@ -5,17 +5,21 @@ import { supabase } from '../../lib/supabase';
 import { nutrientsFor, type Food } from '../../lib/nutrition';
 import { offToFood, type FoodCountry, type OffProduct } from '../../lib/off';
 import { searchKey, searchWords } from '../../lib/text';
+import type { QuickFood } from '../../lib/diary';
 import { Field, Modal } from '../../components/ui';
 
-const SOURCES = ['Tabelas', 'Produtos de marca', 'Novo alimento'] as const;
+const SOURCES = ['Recentes', 'Frequentes', 'Tabelas', 'Produtos de marca', 'Novo alimento'] as const;
 const REGIONS: { id: FoodCountry | 'ALL'; label: string }[] = [
   { id: 'ALL', label: 'Todos' }, { id: 'BR', label: 'Brasil (TACO)' }, { id: 'UK', label: 'Reino Unido e Irlanda (CoFID)' },
 ];
 const COLUMNS = 'id,name,brand,source,country,kcal,protein_g,carbs_g,fat_g,fiber_g,default_serving_g';
 
 /** Finds a food in the built-in tables, Open Food Facts or a new custom one, then asks for the quantity. */
-export default function FoodSearch({ title, onPick, onClose }: { title: string; onPick: (food: Food, grams: number) => void | Promise<void>; onClose: () => void }) {
-  const [source, setSource] = useState<(typeof SOURCES)[number]>('Tabelas');
+export default function FoodSearch({ title, onPick, onClose, recent = [], frequent = [] }: {
+  title: string; onPick: (food: Food, grams: number) => void | Promise<void>; onClose: () => void; recent?: QuickFood[]; frequent?: QuickFood[];
+}) {
+  const [source, setSource] = useState<(typeof SOURCES)[number]>(recent.length ? 'Recentes' : 'Tabelas');
+  const [quickGrams, setQuickGrams] = useState<number | null>(null);
   const [region, setRegion] = useState<FoodCountry | 'ALL'>('ALL');
   const [offCountry, setOffCountry] = useState<FoodCountry>('BR');
   const [q, setQ] = useState('');
@@ -64,17 +68,37 @@ export default function FoodSearch({ title, onPick, onClose }: { title: string; 
     return data as Food;
   }
 
-  if (chosen) return <QuantityStep food={chosen} title={title} onBack={() => setChosen(null)} onClose={onClose} onConfirm={async (grams) => {
+  async function pickQuick(q: QuickFood) {
+    const { data, error } = await supabase.from('foods').select(COLUMNS).eq('id', q.food_id).maybeSingle();
+    if (error || !data) return setMessage('Esse alimento não está mais disponível');
+    setQuickGrams(q.quantity_g);
+    setChosen(data as Food);
+  }
+
+  if (chosen) return <QuantityStep food={chosen} initialGrams={quickGrams} title={title} onBack={() => { setChosen(null); setQuickGrams(null); }} onClose={onClose} onConfirm={async (grams) => {
     const food = await persist(chosen);
     if (food) await onPick(food, grams);
   }} />;
 
   return (
     <Modal title={title} onClose={onClose}>
-      <div className="mb-3 flex flex-wrap gap-1">
+      <div className="segmented mb-4">
         {SOURCES.map((s) => <button key={s} className={s === source ? 'tab-active' : 'tab'} onClick={() => { setSource(s); setResults([]); setMessage(null); }}>{s}</button>)}
       </div>
-      {source === 'Novo alimento' ? <CustomFood onCreated={setChosen} /> : (
+      {(source === 'Recentes' || source === 'Frequentes') ? (
+        <ul className="max-h-80 overflow-y-auto">
+          {(source === 'Recentes' ? recent : frequent).map((q) => (
+            <li key={q.food_id}>
+              <button className="w-full rounded-lg px-2 py-2 text-left text-sm hover:bg-raised" onClick={() => pickQuick(q)}>
+                <div>{q.food_name}</div>
+                <div className="text-xs text-fg3">{num(q.quantity_g)} g da última vez{source === 'Frequentes' ? ` · ${q.count} ${q.count === 1 ? 'vez' : 'vezes'}` : ''}</div>
+              </button>
+            </li>
+          ))}
+          {!(source === 'Recentes' ? recent : frequent).length && <li className="py-6 text-center text-sm text-fg3">Os alimentos que você registrar aparecem aqui</li>}
+          {message && <li className="py-2 text-sm text-fg3">{message}</li>}
+        </ul>
+      ) : source === 'Novo alimento' ? <CustomFood onCreated={setChosen} /> : (
         <>
           <form onSubmit={search} className="mb-2 flex gap-2">
             <input className="input" placeholder={source === 'Tabelas' ? 'arroz integral, chicken breast…' : 'aveia, porridge oats…'} value={q} onChange={(e) => setQ(e.target.value)} autoFocus required />
@@ -102,8 +126,8 @@ export default function FoodSearch({ title, onPick, onClose }: { title: string; 
   );
 }
 
-function QuantityStep({ food, title, onBack, onClose, onConfirm }: { food: Food; title: string; onBack: () => void; onClose: () => void; onConfirm: (grams: number) => Promise<void> }) {
-  const [grams, setGrams] = useState(food.default_serving_g ?? 100);
+function QuantityStep({ food, initialGrams, title, onBack, onClose, onConfirm }: { food: Food; initialGrams?: number | null; title: string; onBack: () => void; onClose: () => void; onConfirm: (grams: number) => Promise<void> }) {
+  const [grams, setGrams] = useState(initialGrams ?? food.default_serving_g ?? 100);
   const [busy, setBusy] = useState(false);
   const n = nutrientsFor(food, grams || 0);
   return (

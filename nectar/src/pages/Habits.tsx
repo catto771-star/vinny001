@@ -8,7 +8,7 @@ import {
   currentStreak, isDone, isPerfectDay, isScheduledOn, monthConsistency, routineFor,
   type Habit, type HabitCompletion,
 } from '../lib/habits';
-import { Empty, Field, ListSkeleton, Modal, PageHeader, Stat, WeekdayPicker } from '../components/ui';
+import { Empty, Field, FieldGroup, ListSkeleton, Modal, PageHeader, Stat, WeekdayPicker } from '../components/ui';
 
 const TABS = ['Hoje', 'Hábitos', 'Calendário'] as const;
 type Tab = (typeof TABS)[number];
@@ -236,7 +236,7 @@ function HabitForm({ habit, onClose, onSaved }: { habit: Partial<Habit>; onClose
             <Field label="Unidade"><input className="input" value={unit} onChange={(e) => setUnit(e.target.value)} /></Field>
           </div>
         )}
-        <Field label="Dias (nenhum = todo dia)"><WeekdayPicker value={days} onChange={setDays} /></Field>
+        <FieldGroup label="Dias (nenhum = todo dia)"><WeekdayPicker value={days} onChange={setDays} /></FieldGroup>
         <div className="grid grid-cols-2 gap-2">
           <Field label="Horário (opcional)"><input className="input" type="time" value={time} onChange={(e) => setTime(e.target.value)} /></Field>
           <Field label="Cor"><input className="input h-10 p-1" type="color" value={color} onChange={(e) => setColor(e.target.value)} /></Field>

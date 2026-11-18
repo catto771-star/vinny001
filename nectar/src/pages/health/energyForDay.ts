@@ -1,4 +1,4 @@
-import type { Day } from '../../lib/dates';
+import { weekday, type Day } from '../../lib/dates';
 import { cardioKcal, strengthKcal } from '../../lib/training';
 import { dayTypeFor, resolveTarget, type ResolvedTarget } from '../../lib/nutrition';
 import { DEFAULT_WEIGHT_KG, type Health } from './useHealth';
@@ -21,6 +21,7 @@ export function energyForDay(h: Health, day: Day): { burned: number; estimated: 
   const dayType = dayTypeFor(day, h.trainedDays, override);
   const planTargets = h.plan ? h.targets.rows.filter((t) => t.plan_id === h.plan!.id) : [];
   const targets = Object.fromEntries(planTargets.map((t) => [t.day_type, t]));
-  const target = resolveTarget({ dayType, targets, mode: h.plan?.training_target_mode ?? 'fixed', burnedKcal: burned, override });
+  const weekdayTarget = h.plan ? h.weekdayTargets.rows.find((t) => t.plan_id === h.plan!.id && t.weekday === weekday(day)) ?? null : null;
+  const target = resolveTarget({ dayType, targets, weekdayTarget, mode: h.plan?.training_target_mode ?? 'fixed', burnedKcal: burned, override });
   return { burned, estimated, dayType, target };
 }

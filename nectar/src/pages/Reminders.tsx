@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useTable, write } from '../lib/useTable';
 import { addDays, formatDay, formatTime, toDay, weekdayShort } from '../lib/dates';
 import { missingOccurrences, reminderPanel, type Reminder, type ReminderTemplate } from '../lib/reminders';
-import { Empty, Field, ListSkeleton, Modal, PageHeader, Stat, WeekdayPicker } from '../components/ui';
+import { Empty, Field, FieldGroup, ListSkeleton, Modal, PageHeader, Stat, WeekdayPicker } from '../components/ui';
 
 const TABS = ['Lembretes', 'Recorrentes'] as const;
 type Tab = (typeof TABS)[number];
@@ -179,7 +179,7 @@ function TemplateForm({ template, onClose, onSaved }: { template: Partial<Remind
     <Modal title={template.id ? 'Editar recorrência' : 'Nova recorrência'} onClose={onClose}>
       <form onSubmit={save}>
         <Field label="O que lembrar"><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} required autoFocus /></Field>
-        <Field label="Dias (nenhum = todo dia)"><WeekdayPicker value={days} onChange={setDays} /></Field>
+        <FieldGroup label="Dias (nenhum = todo dia)"><WeekdayPicker value={days} onChange={setDays} /></FieldGroup>
         <div className="grid grid-cols-2 gap-2">
           <Field label="Hora"><input className="input" type="time" value={time} onChange={(e) => setTime(e.target.value)} required /></Field>
           <Field label="Até (opcional)"><input className="input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></Field>

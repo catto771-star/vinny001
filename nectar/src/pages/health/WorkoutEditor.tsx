@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { num } from '../../lib/format';
 import { ArrowLeft, Plus, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -8,20 +8,23 @@ import { DEFAULT_SETTINGS, lastWorkingSets, MUSCLE_LABEL, suggestNext, type Sugg
 import { searchKey } from '../../lib/text';
 import { Field, Modal } from '../../components/ui';
 import type { Health } from './useHealth';
+import type { StartSession } from './PlanEditor';
 
 type DraftSet = Omit<WorkoutSet, 'id' | 'workout_id' | 'position'> & { key: string };
 
 let keySeq = 0;
 const newKey = () => `k${keySeq++}`;
 
-export default function WorkoutEditor({ h, workoutId, onClose }: { h: Health; workoutId: string | null; onClose: () => void }) {
+export default function WorkoutEditor({ h, workoutId, start, onClose }: { h: Health; workoutId: string | null; start?: StartSession; onClose: () => void }) {
   const existing = workoutId ? h.workouts.rows.find((w) => w.id === workoutId) : undefined;
+  const planSessionId = existing?.plan_session_id ?? start?.sessionId ?? null;
   const [date, setDate] = useState(existing?.date ?? toDay(new Date()));
-  const [title, setTitle] = useState(existing?.title ?? '');
+  const [title, setTitle] = useState(existing?.title ?? start?.label ?? '');
   const [duration, setDuration] = useState(existing?.duration_min?.toString() ?? '');
   const [notes, setNotes] = useState(existing?.notes ?? '');
-  const [sets, setSets] = useState<DraftSet[]>(() =>
-    h.sets.rows.filter((s) => s.workout_id === workoutId).sort((a, b) => a.position - b.position)
+  const [sets, setSets] = useState<DraftSet[]>(() => start && !workoutId
+    ? start.draft.map((d) => ({ ...d, key: newKey() }))
+    : h.sets.rows.filter((s) => s.workout_id === workoutId).sort((a, b) => a.position - b.position)
       .map((s) => ({ key: newKey(), exercise_id: s.exercise_id, set_type_id: s.set_type_id, load_kg: s.load_kg, reps: s.reps, rest_s: s.rest_s, effort: s.effort })));
   const [picking, setPicking] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -55,7 +58,7 @@ export default function WorkoutEditor({ h, workoutId, onClose }: { h: Health; wo
 
   async function save() {
     setSaving(true);
-    const row = { date, title: title || null, duration_min: duration ? Number(duration) : null, notes: notes || null };
+    const row = { date, title: title || null, duration_min: duration ? Number(duration) : null, notes: notes || null, plan_session_id: planSessionId };
     let id = workoutId;
     // Old sets are removed only after the new ones are saved, so a failed save loses nothing.
     const oldSetIds = h.sets.rows.filter((s) => s.workout_id === workoutId).map((s) => s.id);
@@ -92,7 +95,7 @@ export default function WorkoutEditor({ h, workoutId, onClose }: { h: Health; wo
     <div>
       <div className="mb-4 flex items-center gap-2">
         <button className="btn-ghost" onClick={onClose}><ArrowLeft size={16} strokeWidth={1.5} />Voltar</button>
-        <h2 className="mr-auto text-lg font-semibold">{workoutId ? 'Editar treino' : 'Novo treino'}</h2>
+        <h2 className="mr-auto text-lg font-medium">{workoutId ? 'Editar treino' : start ? `${start.label}: registrar` : 'Novo treino'}</h2>
         {workoutId && <button className="btn-ghost text-negative" onClick={remove}>Excluir</button>}
         <button className="btn-primary" onClick={save} disabled={saving}>{saving ? 'Salvando…' : 'Salvar treino'}</button>
       </div>
@@ -132,15 +135,15 @@ export default function WorkoutEditor({ h, workoutId, onClose }: { h: Health; wo
                     <tr key={s.key}>
                       <td className="pr-2 text-fg3">{i + 1}</td>
                       <td className="py-1 pr-2">
-                        <select className="input py-1" aria-label={`Tipo da série ${i + 1}`} value={s.set_type_id} onChange={(e) => update(s.key, { set_type_id: e.target.value })}>
+                        <select className="input py-1" aria-label={`Tipo da série ${i + 1}, ${ex?.name ?? 'exercício'}`} value={s.set_type_id} onChange={(e) => update(s.key, { set_type_id: e.target.value })}>
                           {h.setTypes.rows.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                         </select>
                       </td>
-                      <td className="py-1 pr-2"><input className="input py-1" aria-label={`Carga da série ${i + 1}`} type="number" min={0} step="0.5" value={s.load_kg} onChange={(e) => update(s.key, { load_kg: Number(e.target.value) })} /></td>
-                      <td className="py-1 pr-2"><input className="input py-1" aria-label={`Repetições da série ${i + 1}`} type="number" min={0} value={s.reps} onChange={(e) => update(s.key, { reps: Number(e.target.value) })} /></td>
-                      <td className="py-1 pr-2"><input className="input py-1" aria-label={`Descanso da série ${i + 1}`} type="number" min={0} step={15} value={s.rest_s ?? ''} onChange={(e) => update(s.key, { rest_s: e.target.value === '' ? null : Number(e.target.value) })} /></td>
-                      <td className="py-1 pr-2"><input className="input py-1" aria-label={`Esforço da série ${i + 1}`} type="number" min={1} max={10} step={0.5} value={s.effort ?? ''} onChange={(e) => update(s.key, { effort: e.target.value === '' ? null : Number(e.target.value) })} /></td>
-                      <td><button className="icon-btn hover:text-negative" aria-label={`Apagar série ${i + 1}`} onClick={() => setSets((xs) => xs.filter((x) => x.key !== s.key))}><X size={16} strokeWidth={1.5} /></button></td>
+                      <td className="py-1 pr-2"><input className="input py-1" aria-label={`Carga da série ${i + 1}, ${ex?.name ?? 'exercício'}`} type="number" min={0} step="0.5" value={s.load_kg} onChange={(e) => update(s.key, { load_kg: Number(e.target.value) })} /></td>
+                      <td className="py-1 pr-2"><input className="input py-1" aria-label={`Repetições da série ${i + 1}, ${ex?.name ?? 'exercício'}`} type="number" min={0} value={s.reps} onChange={(e) => update(s.key, { reps: Number(e.target.value) })} /></td>
+                      <td className="py-1 pr-2"><input className="input py-1" aria-label={`Descanso da série ${i + 1}, ${ex?.name ?? 'exercício'}`} type="number" min={0} step={15} value={s.rest_s ?? ''} onChange={(e) => update(s.key, { rest_s: e.target.value === '' ? null : Number(e.target.value) })} /></td>
+                      <td className="py-1 pr-2"><input className="input py-1" aria-label={`Esforço da série ${i + 1}, ${ex?.name ?? 'exercício'}`} type="number" min={1} max={10} step={0.5} value={s.effort ?? ''} onChange={(e) => update(s.key, { effort: e.target.value === '' ? null : Number(e.target.value) })} /></td>
+                      <td><button className="icon-btn hover:text-negative" aria-label={`Apagar série ${i + 1}, ${ex?.name ?? 'exercício'}`} onClick={() => setSets((xs) => xs.filter((x) => x.key !== s.key))}><X size={16} strokeWidth={1.5} /></button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -158,23 +161,52 @@ export default function WorkoutEditor({ h, workoutId, onClose }: { h: Health; wo
 
 export function ExercisePicker({ h, onPick, onClose }: { h: Health; onPick: (id: string) => void; onClose: () => void }) {
   const [q, setQ] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [group, setGroup] = useState('peito');
   const list = useMemo(() => {
     const key = searchKey(q);
     return h.exercises.rows.filter((e) => !key || searchKey(e.name).includes(key) || searchKey(MUSCLE_LABEL[e.muscle_group] ?? '').includes(key)).slice(0, 60);
   }, [q, h.exercises.rows]);
+
+  async function create(e: FormEvent) {
+    e.preventDefault();
+    const { data, error } = await supabase.from('exercises').insert({ name: q.trim(), muscle_group: group }).select('id').single();
+    if (error || !data) return alert(`Não foi possível criar: ${error?.message}`);
+    await h.exercises.reload();
+    onPick(data.id);
+  }
+
   return (
-    <Modal title="Escolher exercício" onClose={onClose}>
-      <input className="input mb-3" placeholder="Buscar por nome ou músculo" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
-      <ul className="max-h-80 overflow-y-auto">
-        {list.map((e) => (
-          <li key={e.id}>
-            <button className="w-full rounded-lg px-2 py-2 text-left text-sm hover:bg-raised" onClick={() => onPick(e.id)}>
-              {e.name} <span className="text-xs text-fg3">· {MUSCLE_LABEL[e.muscle_group]}{e.user_id ? ' · seu' : ''}</span>
-            </button>
-          </li>
-        ))}
-        {!list.length && <li className="py-4 text-center text-sm text-fg3">Nenhum exercício encontrado. Cadastre o seu na aba Exercícios.</li>}
-      </ul>
+    <Modal title={creating ? 'Novo exercício' : 'Escolher exercício'} onClose={onClose}>
+      {creating ? (
+        <form onSubmit={create}>
+          <Field label="Nome"><input className="input" value={q} onChange={(e) => setQ(e.target.value)} required autoFocus /></Field>
+          <Field label="Grupo muscular principal">
+            <select className="input" value={group} onChange={(e) => setGroup(e.target.value)}>
+              {Object.entries(MUSCLE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </Field>
+          <div className="flex gap-2">
+            <button type="button" className="btn-ghost" onClick={() => setCreating(false)}><ArrowLeft size={16} strokeWidth={1.5} />Voltar</button>
+            <button className="btn-primary ml-auto">Criar e usar</button>
+          </div>
+        </form>
+      ) : (
+        <>
+          <input className="input mb-3" placeholder="Buscar por nome ou músculo" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+          <ul className="max-h-80 overflow-y-auto">
+            {list.map((e) => (
+              <li key={e.id}>
+                <button className="w-full rounded-lg px-2 py-2 text-left text-sm hover:bg-raised" onClick={() => onPick(e.id)}>
+                  {e.name} <span className="text-xs text-fg3">· {MUSCLE_LABEL[e.muscle_group]}{e.user_id ? ' · seu' : ''}</span>
+                </button>
+              </li>
+            ))}
+            {!list.length && <li className="py-4 text-center text-sm text-fg3">Nenhum exercício encontrado</li>}
+          </ul>
+          <button className="btn-secondary mt-3 w-full" onClick={() => setCreating(true)}><Plus size={16} strokeWidth={1.5} />Criar novo exercício{q.trim() ? `: ${q.trim()}` : ''}</button>
+        </>
+      )}
     </Modal>
   );
 }

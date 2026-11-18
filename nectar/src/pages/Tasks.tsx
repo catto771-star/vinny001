@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useTable, write } from '../lib/useTable';
 import { bucketTasks, PRIORITY_LABEL, taskStats, type Priority, type Task } from '../lib/tasks';
 import { formatDay, formatTime, toDay, weekday, weekdayShort } from '../lib/dates';
-import { Empty, Field, ListSkeleton, Modal, PageHeader, Stat, WeekdayPicker } from '../components/ui';
+import { Empty, Field, FieldGroup, ListSkeleton, Modal, PageHeader, Stat, WeekdayPicker } from '../components/ui';
 
 const TABS = ['Hoje', 'Tarefas', 'Recorrentes', 'Análise'] as const;
 type Tab = (typeof TABS)[number];
@@ -327,7 +327,7 @@ function TemplateForm({ template, onClose, onSaved }: { template: Partial<Templa
     <Modal title={template.id ? 'Editar recorrente' : 'Nova recorrente'} onClose={onClose}>
       <form onSubmit={save}>
         <Field label="Título"><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} required autoFocus /></Field>
-        <Field label="Dias (nenhum = todo dia)"><WeekdayPicker value={days} onChange={setDays} /></Field>
+        <FieldGroup label="Dias (nenhum = todo dia)"><WeekdayPicker value={days} onChange={setDays} /></FieldGroup>
         <div className="grid grid-cols-2 gap-2">
           <Field label="Hora (opcional)"><input className="input" type="time" value={time} onChange={(e) => setTime(e.target.value)} /></Field>
           <Field label="Prioridade">

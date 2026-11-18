@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { num } from '../../lib/format';
-import { Camera, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
+import { Camera, ChevronLeft, ChevronRight, Copy, Plus, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { write } from '../../lib/useTable';
 import { addDays, formatDay, toDay } from '../../lib/dates';
-import { MEALS, nutrientsFor, sumNutrients, type Food } from '../../lib/nutrition';
+import { MEALS, nutrientsFor, sumNutrients, type Food, type FoodLog } from '../../lib/nutrition';
+import { copyLogs, frequentFoods, recentFoods, rescaleLog } from '../../lib/diary';
 import { TargetBar } from '../../components/Charts';
 import { Field, Modal } from '../../components/ui';
 import FoodSearch from './FoodSearch';
@@ -15,7 +16,11 @@ export default function Diet({ h }: { h: Health }) {
   const [day, setDay] = useState(toDay(new Date()));
   const [adding, setAdding] = useState<string | null>(null);
   const [adjusting, setAdjusting] = useState(false);
+  const [editingLog, setEditingLog] = useState<FoodLog | null>(null);
+  const [copying, setCopying] = useState<{ meal?: string } | null>(null);
   const logs = h.foodLogs.rows.filter((l) => l.date === day);
+  const recent = recentFoods(h.foodLogs.rows);
+  const frequent = frequentFoods(h.foodLogs.rows);
   const totals = sumNutrients(logs);
   const { burned, estimated, dayType, target } = energyForDay(h, day);
   const override = h.overrides.rows.find((o) => o.date === day);
@@ -31,7 +36,8 @@ export default function Diet({ h }: { h: Health }) {
         <button className="btn-ghost" onClick={() => setDay(addDays(day, -1))} aria-label="Dia anterior"><ChevronLeft size={16} strokeWidth={1.5} /></button>
         <span className="min-w-48 text-center font-medium">{formatDay(day)}</span>
         <button className="btn-ghost" onClick={() => setDay(addDays(day, 1))} aria-label="Próximo dia"><ChevronRight size={16} strokeWidth={1.5} /></button>
-        {day !== toDay(new Date()) && <button className="btn-ghost" onClick={() => setDay(toDay(new Date()))}>hoje</button>}
+        {day !== toDay(new Date()) && <button className="btn-ghost" onClick={() => setDay(toDay(new Date()))}>Hoje</button>}
+        <button className="btn-secondary ml-auto" onClick={() => setCopying({})}><Copy size={16} strokeWidth={1.5} />Copiar dia</button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
@@ -46,13 +52,16 @@ export default function Diet({ h }: { h: Health }) {
                     <h3 className="font-medium">{meal}</h3>
                     {items.length > 0 && <div className="text-xs text-fg3"><span className="figure">{num(sub.kcal)}</span> kcal · P {num(sub.protein_g)} · C {num(sub.carbs_g)} · G {num(sub.fat_g)}</div>}
                   </div>
-                  <button className="btn-ghost ml-auto" onClick={() => setAdding(meal)}><Plus size={16} strokeWidth={1.5} />Alimento</button>
+                  <button className="icon-btn ml-auto" onClick={() => setCopying({ meal })} aria-label={`Copiar ${meal} de outro dia`} title="Copiar de outro dia"><Copy size={16} strokeWidth={1.5} /></button>
+                  <button className="btn-ghost" onClick={() => setAdding(meal)}><Plus size={16} strokeWidth={1.5} />Alimento</button>
                 </div>
                 <ul className="text-sm">
                   {items.map((l) => (
-                    <li key={l.id} className="flex items-center gap-2 border-t border-line py-1.5">
-                      <span className="mr-auto">{l.food_name} <span className="text-fg3">· {num(l.quantity_g)} g</span></span>
-                      <span className="text-xs text-fg3">{num(l.kcal)} kcal</span>
+                    <li key={l.id} className="flex items-center gap-2 border-t border-line">
+                      <button className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left" onClick={() => setEditingLog(l)} aria-label={`Editar ${l.food_name}`}>
+                        <span className="mr-auto truncate">{l.food_name} <span className="text-fg3">· {num(l.quantity_g)} g</span></span>
+                        <span className="figure text-xs text-fg3">{num(l.kcal)} kcal</span>
+                      </button>
                       <button className="text-fg3 hover:text-negative" aria-label={`Remover ${l.food_name}`} onClick={async () => {
                         if (await write(supabase.from('food_logs').delete().eq('id', l.id))) void h.foodLogs.reload();
                       }}><X size={16} strokeWidth={1.5} /></button>
@@ -91,7 +100,7 @@ export default function Diet({ h }: { h: Health }) {
       </div>
 
       {adding && (
-        <FoodSearch title={`Adicionar em ${adding}`} onClose={() => setAdding(null)} onPick={async (food: Food, grams: number) => {
+        <FoodSearch title={`Adicionar em ${adding}`} recent={recent} frequent={frequent} onClose={() => setAdding(null)} onPick={async (food: Food, grams: number) => {
           const n = nutrientsFor(food, grams);
           if (await write(supabase.from('food_logs').insert({ date: day, meal: adding, food_id: food.id, food_name: food.name, quantity_g: grams, ...n }))) {
             setAdding(null);
@@ -100,7 +109,71 @@ export default function Diet({ h }: { h: Health }) {
         }} />
       )}
       {adjusting && target && <AdjustDay h={h} day={day} current={target} onClose={() => setAdjusting(false)} />}
+      {editingLog && <EditLog h={h} log={editingLog} onClose={() => setEditingLog(null)} />}
+      {copying && <CopyFrom h={h} toDay={day} meal={copying.meal} onClose={() => setCopying(null)} />}
     </>
+  );
+}
+
+function EditLog({ h, log, onClose }: { h: Health; log: FoodLog; onClose: () => void }) {
+  const [grams, setGrams] = useState(log.quantity_g);
+  const [meal, setMeal] = useState(log.meal);
+  const preview = rescaleLog(log, grams || 0);
+  async function save() {
+    if (await write(supabase.from('food_logs').update({
+      quantity_g: preview.quantity_g, kcal: preview.kcal, protein_g: preview.protein_g, carbs_g: preview.carbs_g,
+      fat_g: preview.fat_g, fiber_g: preview.fiber_g, meal,
+    }).eq('id', log.id))) { await h.foodLogs.reload(); onClose(); }
+  }
+  async function remove() {
+    if (await write(supabase.from('food_logs').delete().eq('id', log.id))) { await h.foodLogs.reload(); onClose(); }
+  }
+  return (
+    <Modal title={log.food_name} onClose={onClose}>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Quantidade (g)"><input className="input" type="number" min={1} step="any" value={grams} onChange={(e) => setGrams(Number(e.target.value))} autoFocus /></Field>
+        <Field label="Refeição">
+          <select className="input" value={meal} onChange={(e) => setMeal(e.target.value)}>
+            {MEALS.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </Field>
+      </div>
+      <p className="mb-5 text-sm text-fg2"><span className="figure">{num(preview.kcal)}</span> kcal · Proteína {num(preview.protein_g)} g · Carboidrato {num(preview.carbs_g)} g · Gordura {num(preview.fat_g)} g</p>
+      <div className="flex gap-2">
+        <button className="btn-ghost text-negative" onClick={remove}>Excluir</button>
+        <button className="btn-primary ml-auto" onClick={save} disabled={!grams}>Salvar</button>
+      </div>
+    </Modal>
+  );
+}
+
+function CopyFrom({ h, toDay: target, meal, onClose }: { h: Health; toDay: string; meal?: string; onClose: () => void }) {
+  const [from, setFrom] = useState(addDays(target, -1));
+  const [fromMeal, setFromMeal] = useState(meal ?? '');
+  const rows = copyLogs(h.foodLogs.rows, { day: from, meal: fromMeal || undefined }, { day: target, meal: meal });
+  async function copy() {
+    if (!rows.length) return;
+    const clean = rows.map(({ date, meal: m, food_id, food_name, quantity_g, kcal, protein_g, carbs_g, fat_g, fiber_g }) =>
+      ({ date, meal: m, food_id, food_name, quantity_g, kcal, protein_g, carbs_g, fat_g, fiber_g }));
+    if (await write(supabase.from('food_logs').insert(clean))) { await h.foodLogs.reload(); onClose(); }
+  }
+  return (
+    <Modal title={meal ? `Copiar para ${meal}` : `Copiar para ${formatDay(target)}`} onClose={onClose}>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Do dia"><input className="input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
+        <Field label="Refeição de origem">
+          <select className="input" value={fromMeal} onChange={(e) => setFromMeal(e.target.value)}>
+            {!meal && <option value="">Dia inteiro</option>}
+            {MEALS.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </Field>
+      </div>
+      <ul className="mb-5 max-h-48 overflow-y-auto text-sm">
+        {rows.map((r, i) => <li key={i} className="flex gap-2 border-t border-line py-1.5"><span className="mr-auto">{r.food_name}</span><span className="figure text-fg3">{num(r.quantity_g)} g</span></li>)}
+        {!rows.length && <li className="py-4 text-center text-fg3">Nada registrado nessa origem</li>}
+      </ul>
+      <button className="btn-primary w-full" onClick={copy} disabled={!rows.length}>Copiar {rows.length} {rows.length === 1 ? 'item' : 'itens'}</button>
+    </Modal>
   );
 }
 

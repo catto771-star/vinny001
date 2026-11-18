@@ -4,6 +4,8 @@ import { Plus, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { write } from '../../lib/useTable';
 import { kcalFromMacros, nutrientsFor, shoppingList, sumNutrients, type DayTarget, type DayType } from '../../lib/nutrition';
+import { gramsFromPercent, percentFromGrams } from '../../lib/diary';
+import { weekdayShort } from '../../lib/dates';
 import { Empty, Field, Modal } from '../../components/ui';
 import FoodSearch from './FoodSearch';
 import type { Health } from './useHealth';
@@ -45,6 +47,7 @@ function Targets({ h }: { h: Health }) {
     <div className="grid gap-4 md:grid-cols-2">
       <TargetForm h={h} dayType="rest" current={get('rest')} />
       <TargetForm h={h} dayType="training" current={get('training')} />
+      <WeekdayTargets h={h} />
       <div className="card md:col-span-2">
         <div className="label mb-2">Meta nos dias de treino</div>
         <label className="mb-1 flex items-start gap-2 text-sm">
@@ -66,30 +69,104 @@ async function setMode(h: Health, mode: 'fixed' | 'dynamic') {
   if (await write(supabase.from('diet_plans').update({ training_target_mode: mode }).eq('id', h.plan!.id))) void h.plans.reload();
 }
 
-function TargetForm({ h, dayType, current }: { h: Health; dayType: DayType; current?: DayTarget }) {
-  const [v, setV] = useState({ protein_g: current?.protein_g ?? 0, carbs_g: current?.carbs_g ?? 0, fat_g: current?.fat_g ?? 0, kcal: current?.kcal ?? 0 });
-  useEffect(() => { if (current) setV(current); }, [current?.kcal, current?.protein_g, current?.carbs_g, current?.fat_g]);
-  const fromMacros = kcalFromMacros(v);
-  async function save() {
-    const kcal = v.kcal > 0 ? v.kcal : fromMacros;
-    if (kcal <= 0) return alert('Informe as calorias ou os macros.');
-    if (await write(supabase.from('diet_day_targets').upsert({ plan_id: h.plan!.id, day_type: dayType, ...v, kcal }, { onConflict: 'plan_id,day_type' }))) void h.targets.reload();
-  }
-  const input = (k: keyof typeof v, label: string) => (
-    <Field label={label}><input className="input" type="number" min={0} aria-label={`${label} (${dayType === 'rest' ? 'descanso' : 'treino'})`} value={v[k]} onChange={(e) => setV({ ...v, [k]: Number(e.target.value) })} /></Field>
+/** Calories and macros, entered in grams or as a percentage of the calories. */
+export function MacroEditor({ value, onChange, idSuffix }: { value: DayTarget; onChange: (v: DayTarget) => void; idSuffix: string }) {
+  const [mode, setMode] = useState<'g' | '%'>('g');
+  const pct = percentFromGrams(value);
+  const [p, setP] = useState(pct);
+  const fromMacros = kcalFromMacros(value);
+  const setPct = (next: typeof pct) => { setP(next); onChange({ ...value, ...gramsFromPercent(value.kcal, next) }); };
+  const g = (k: 'protein_g' | 'carbs_g' | 'fat_g', label: string) => (
+    <Field label={label}><input className="input" type="number" min={0} aria-label={`${label} (${idSuffix})`} value={value[k]} onChange={(e) => onChange({ ...value, [k]: Number(e.target.value) })} /></Field>
+  );
+  const pc = (k: keyof typeof pct, label: string) => (
+    <Field label={`${label} (%)`}><input className="input" type="number" min={0} max={100} aria-label={`${label} % (${idSuffix})`} value={p[k]} onChange={(e) => setPct({ ...p, [k]: Number(e.target.value) })} /></Field>
   );
   return (
-    <div className="card">
-      <div className="label mb-2">{dayType === 'rest' ? 'Dia de descanso' : 'Dia de treino'}</div>
-      <div className="grid grid-cols-2 gap-2">
-        {input('kcal', 'Calorias')}
-        {input('protein_g', 'Proteína (g)')}
-        {input('carbs_g', 'Carboidrato (g)')}
-        {input('fat_g', 'Gordura (g)')}
+    <>
+      <div className="mb-3 flex items-end gap-3">
+        <div className="flex-1"><Field label="Calorias"><input className="input" type="number" min={0} aria-label={`Calorias (${idSuffix})`} value={value.kcal} onChange={(e) => onChange({ ...value, kcal: Number(e.target.value), ...(mode === '%' ? gramsFromPercent(Number(e.target.value), p) : {}) })} /></Field></div>
+        <div className="segmented mb-4">
+          {(['g', '%'] as const).map((m) => <button type="button" key={m} className={m === mode ? 'tab-active' : 'tab'} onClick={() => { setMode(m); if (m === '%') setP(percentFromGrams(value)); }}>{m === 'g' ? 'Gramas' : '%'}</button>)}
+        </div>
       </div>
-      <p className="mb-3 text-xs text-fg3">Os macros somam {num(fromMacros)} kcal{v.kcal && Math.abs(v.kcal - fromMacros) > 50 ? `, diferente das ${num(v.kcal)} kcal informadas` : ''}. Calorias em 0 usam a soma dos macros.</p>
+      <div className="grid grid-cols-3 gap-2">
+        {mode === 'g'
+          ? <>{g('protein_g', 'Proteína (g)')}{g('carbs_g', 'Carboidrato (g)')}{g('fat_g', 'Gordura (g)')}</>
+          : <>{pc('protein', 'Proteína')}{pc('carbs', 'Carboidrato')}{pc('fat', 'Gordura')}</>}
+      </div>
+      <p className="mb-3 text-xs text-fg3">
+        {mode === '%' ? `${value.protein_g} g de proteína, ${value.carbs_g} g de carboidrato e ${value.fat_g} g de gordura${p.protein + p.carbs + p.fat !== 100 ? ` · os percentuais somam ${p.protein + p.carbs + p.fat}%` : ''}`
+          : `Os macros somam ${num(fromMacros)} kcal${value.kcal && Math.abs(value.kcal - fromMacros) > 50 ? `, diferente das ${num(value.kcal)} kcal informadas` : ''}`}
+      </p>
+    </>
+  );
+}
+
+function TargetForm({ h, dayType, current }: { h: Health; dayType: DayType; current?: DayTarget }) {
+  const [v, setV] = useState<DayTarget>({ kcal: current?.kcal ?? 0, protein_g: current?.protein_g ?? 0, carbs_g: current?.carbs_g ?? 0, fat_g: current?.fat_g ?? 0 });
+  useEffect(() => { if (current) setV({ kcal: current.kcal, protein_g: current.protein_g, carbs_g: current.carbs_g, fat_g: current.fat_g }); }, [current?.kcal, current?.protein_g, current?.carbs_g, current?.fat_g]);
+  async function save() {
+    const kcal = v.kcal > 0 ? v.kcal : kcalFromMacros(v);
+    if (kcal <= 0) return alert('Informe as calorias ou os macros');
+    if (await write(supabase.from('diet_day_targets').upsert({ plan_id: h.plan!.id, day_type: dayType, ...v, kcal }, { onConflict: 'plan_id,day_type' }))) void h.targets.reload();
+  }
+  return (
+    <div className="card">
+      <div className="mb-3 font-medium">{dayType === 'rest' ? 'Dia de descanso' : 'Dia de treino'}</div>
+      <MacroEditor value={v} onChange={setV} idSuffix={dayType === 'rest' ? 'descanso' : 'treino'} />
       <button className="btn-primary" onClick={save}>Salvar meta</button>
     </div>
+  );
+}
+
+const WEEKDAY_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
+function WeekdayTargets({ h }: { h: Health }) {
+  const [editing, setEditing] = useState<number | null>(null);
+  const plan = h.plan!;
+  const rows = h.weekdayTargets.rows.filter((t) => t.plan_id === plan.id);
+  return (
+    <section className="card md:col-span-2">
+      <div className="mb-1 font-medium">Metas por dia da semana</div>
+      <p className="mb-4 text-[13px] text-fg3">Opcional. Um dia com meta própria ignora a de treino ou descanso; os outros seguem as metas acima</p>
+      <ul className="divide-y divide-line">
+        {[1, 2, 3, 4, 5, 6, 0].map((wd) => {
+          const t = rows.find((r) => r.weekday === wd);
+          return (
+            <li key={wd} className="flex items-center gap-3 py-2.5 text-sm">
+              <span className="w-24">{WEEKDAY_FULL[wd]}</span>
+              <span className="mr-auto text-fg3">
+                {t ? <><span className="figure text-fg">{num(t.kcal)}</span> kcal · P {t.protein_g} · C {t.carbs_g} · G {t.fat_g}</> : 'segue treino ou descanso'}
+              </span>
+              <button className="btn-ghost" onClick={() => setEditing(wd)} aria-label={`Editar meta de ${WEEKDAY_FULL[wd]}`}>{t ? 'Editar' : 'Definir'}</button>
+            </li>
+          );
+        })}
+      </ul>
+      {editing !== null && <WeekdayForm h={h} weekday={editing} current={rows.find((r) => r.weekday === editing)} onClose={() => setEditing(null)} />}
+    </section>
+  );
+}
+
+function WeekdayForm({ h, weekday, current, onClose }: { h: Health; weekday: number; current?: DayTarget; onClose: () => void }) {
+  const fallback = h.targets.rows.find((t) => t.plan_id === h.plan!.id && t.day_type === 'rest');
+  const [v, setV] = useState<DayTarget>(current ?? (fallback ? { kcal: fallback.kcal, protein_g: fallback.protein_g, carbs_g: fallback.carbs_g, fat_g: fallback.fat_g } : { kcal: 2000, protein_g: 150, carbs_g: 200, fat_g: 65 }));
+  async function save() {
+    const kcal = v.kcal > 0 ? v.kcal : kcalFromMacros(v);
+    if (await write(supabase.from('diet_weekday_targets').upsert({ plan_id: h.plan!.id, weekday, ...v, kcal }, { onConflict: 'plan_id,weekday' }))) { await h.weekdayTargets.reload(); onClose(); }
+  }
+  async function clear() {
+    if (await write(supabase.from('diet_weekday_targets').delete().eq('plan_id', h.plan!.id).eq('weekday', weekday))) { await h.weekdayTargets.reload(); onClose(); }
+  }
+  return (
+    <Modal title={`Meta de ${WEEKDAY_FULL[weekday].toLowerCase()} (${weekdayShort(weekday)})`} onClose={onClose}>
+      <MacroEditor value={v} onChange={setV} idSuffix={WEEKDAY_FULL[weekday].toLowerCase()} />
+      <div className="flex gap-2">
+        {current && <button className="btn-ghost" onClick={clear}>Remover meta do dia</button>}
+        <button className="btn-primary ml-auto" onClick={save}>Salvar</button>
+      </div>
+    </Modal>
   );
 }
 
