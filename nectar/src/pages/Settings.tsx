@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
 import { Field, PageHeader } from '../components/ui';
+import { InstallCard, NotificationsCard } from './NotificationSettings';
 
 export default function Settings({ email }: { email: string }) {
   const [password, setPassword] = useState('');
@@ -28,6 +29,8 @@ export default function Settings({ email }: { email: string }) {
     <>
       <PageHeader title="Configurações" />
       <div className="grid max-w-xl gap-6">
+        <InstallCard />
+        <NotificationsCard />
         <section className="card">
           <div className="label mb-2">Conta</div>
           <p className="mb-4 text-sm">{email}</p>

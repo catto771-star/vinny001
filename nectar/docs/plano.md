@@ -86,14 +86,22 @@ seguintes acrescentam telas e regras.
 | Piloto automático | Os pedidos à IA rodam no horário pelo próprio servidor (cron → banco → função, com segredo guardado no Vault) ou em "Rodar agora"; a resposta aparece no Assistente e no histórico |
 | Segurança | Toda consulta das ferramentas é limitada ao dono, testada uma a uma, para valer também quando a função roda como administrador |
 
+## Fase 6: Notificações e app instalável, prontos
+
+| Parte | O que funciona |
+|---|---|
+| App instalável | Manifesto e service worker; botão "Instalar o app" em Configurações (Chrome/Edge no Android e no computador) e o passo a passo no iPhone |
+| Notificações | Push do navegador por aparelho, mesmo com o app fechado: lembretes (na hora e com antecedência), tarefas com horário, resumo do dia (tarefas, atrasadas, hábitos e contas) e respostas do Piloto automático; preferências e "Enviar teste" em Configurações |
+| Servidor | Função notify a cada 5 minutos (cron → banco → função), mensagens cifradas no padrão Web Push, nenhuma notificação repetida (registro por chave) e aparelhos desinstalados removidos sozinhos |
+
 ## Próximas fases
 
 | Fase | Módulo | O que falta |
 |---|---|---|
-| 6 | Notificações | Push, e-mail ou Telegram/WhatsApp para lembretes, tarefas e faturas (as integrações ficam em Configurações; o Piloto automático usa o que estiver conectado) |
 | 7 | Google Agenda | Sincronizar os compromissos com o Google Agenda (por último, a pedido) |
-| 8 | Manual | Guia curto e direto: o que registrar e onde, para tirar o máximo do app |
-| 9 | Seus dados | Testar com os dados de teste que você passar, refinar, apagar e inserir os seus dados reais |
+| 8 | Dados fictícios | Usuário de demonstração com dados realistas em todos os módulos e prints das telas (celular e computador) para o manual; apagado no fim |
+| 9 | Manual | Guia curto e direto, com os prints: o que registrar e onde, para tirar o máximo do app |
+| 10 | Seus dados | Testar com os dados de teste que você passar, refinar, apagar e inserir os seus dados reais |
 
 Fora do escopo: assinatura e pagamento, plano família, comunidade e integrações
 de marca do Néctar (Alexa, Strava), que dependem dos serviços deles.
