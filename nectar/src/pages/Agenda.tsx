@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
+import { syncGoogleNow } from '../lib/gcal';
 import { Bell, CalendarDays, CheckSquare, ChevronLeft, ChevronRight, Dumbbell, MapPin, Plus, Repeat, Wallet, type LucideIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTable, write } from '../lib/useTable';
@@ -135,7 +136,7 @@ export default function Agenda() {
           <DayList items={items} day={day} onToggle={toggle} onOpen={openEvent} />
         </div>
       )}
-      {editing && <EventForm event={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); void events.reload(); }} />}
+      {editing && <EventForm event={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); void events.reload(); void syncGoogleNow().then((ok) => { if (ok) void events.reload(); }); }} />}
     </>
   );
 }

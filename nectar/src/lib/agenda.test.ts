@@ -78,3 +78,16 @@ describe('agenda', () => {
     expect(projectedRecurringTasks([t], '2026-11-16', '2026-11-22', '2026-11-18').map((p) => p.day)).toEqual(['2026-11-20']);
   });
 });
+
+describe('Google events', () => {
+  it('say they come from Google Agenda', () => {
+    const at = (h: number) => new Date(2026, 10, 18, h).toISOString();
+    const items = buildAgenda('2026-11-18', '2026-11-18', {
+      events: [
+        { id: 'g', title: 'Voo', start_at: at(9), end_at: at(11), all_day: false, location: 'GRU', source: 'google' },
+        { id: 'p', title: 'Dentista', start_at: at(14), end_at: null, all_day: false, location: null, source: 'manual' },
+      ],
+    }, new Date(2026, 10, 18, 8));
+    expect(items.map((i) => i.detail)).toEqual(['GRU · Google Agenda', undefined]);
+  });
+});

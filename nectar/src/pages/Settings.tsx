@@ -256,9 +256,7 @@ function Connectors() {
       <Connector name="Alimentos (TACO, CoFID e Open Food Facts)" status="ok">
         <p>Tabelas brasileira (TACO) e britânica (CoFID) embutidas; produtos de marca buscados no Open Food Facts.</p>
       </Connector>
-      <Connector name="Google Agenda" status="soon">
-        <p>Sincronizar seus compromissos com o Google Agenda. Fica para a próxima etapa, como combinado.</p>
-      </Connector>
+      <GoogleCalendar />
     </>
   );
 }
@@ -310,5 +308,89 @@ function DataPrivacy() {
         <p className="mt-2 flex items-center gap-1.5 text-xs text-fg3"><Bot size={12} strokeWidth={1.5} />O assistente só envia ao OpenRouter o necessário para responder cada pedido.</p>
       </Card>
     </>
+  );
+}
+
+interface GoogleStatus { email: string | null; connected_at: string; last_sync_at: string | null; last_error: string | null; last_result: Record<string, number | boolean> | null }
+
+const when = (iso: string) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+/** Connect, see how the last sync went, sync now, disconnect. */
+function GoogleCalendar() {
+  const [params, setParams] = useSearchParams();
+  const [acc, setAcc] = useState<GoogleStatus | null | undefined>(undefined);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(() => {
+    const r = params.get('google');
+    if (r === 'ok') return 'Google Agenda conectado. Seus eventos já estão na Agenda do Painel.';
+    if (r === 'recusado') return 'A conexão foi cancelada na tela do Google.';
+    if (r === 'erro') return `Não deu para conectar: ${params.get('motivo') ?? 'erro desconhecido'}.`;
+    return null;
+  });
+  async function load() {
+    const { data } = await supabase.from('google_accounts').select('email,connected_at,last_sync_at,last_error,last_result').maybeSingle();
+    setAcc((data as GoogleStatus | null) ?? null);
+  }
+  useEffect(() => {
+    void load();
+    // The result of the Google sign-in came in the address: shown once, then cleared.
+    if (params.get('google')) setParams({ secao: 'conectores' }, { replace: true });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function connect() {
+    setBusy('Abrindo o Google…');
+    const { data, error } = await supabase.functions.invoke('gcal', { body: { action: 'auth_url' } });
+    if (error || !data?.url) { setBusy(null); setMessage('Não deu para iniciar a conexão agora.'); return; }
+    window.location.assign(data.url);
+  }
+  async function syncNow() {
+    setBusy('Sincronizando…');
+    const { data, error } = await supabase.functions.invoke('gcal', { body: { action: 'sync' } });
+    setBusy(null);
+    setMessage(error || data?.error ? `A sincronização falhou: ${data?.error ?? 'sem resposta'}` : 'Sincronizado.');
+    await load();
+  }
+  async function disconnect() {
+    if (!window.confirm('Desconectar o Google Agenda? Os eventos que vieram do Google saem do Painel; os compromissos criados aqui ficam.')) return;
+    setBusy('Desconectando…');
+    await supabase.functions.invoke('gcal', { body: { action: 'disconnect' } });
+    setBusy(null);
+    setMessage('Google Agenda desconectado.');
+    await load();
+  }
+  const r = acc?.last_result;
+  const summary = r ? [
+    r.trazidos ? `${r.trazidos} trazidos` : null, r.enviados ? `${r.enviados} enviados` : null,
+    Number(r.atualizados_aqui) + Number(r.atualizados_no_google) ? `${Number(r.atualizados_aqui) + Number(r.atualizados_no_google)} atualizados` : null,
+    Number(r.apagados_aqui) + Number(r.apagados_no_google) ? `${Number(r.apagados_aqui) + Number(r.apagados_no_google)} apagados` : null,
+  ].filter(Boolean).join(', ') || 'nada mudou' : null;
+
+  return (
+    <Connector name="Google Agenda" status={acc === undefined ? 'checking' : acc ? (acc.last_error ? 'off' : 'ok') : 'off'}>
+      {acc === null && (
+        <>
+          <p>Seus eventos do Google aparecem na Agenda do Painel, e os compromissos criados aqui vão para o Google. Edições e exclusões valem dos dois lados.</p>
+          <button className="btn-primary mt-3" disabled={!!busy} onClick={() => void connect()}>Conectar com o Google</button>
+          <p className="mt-2 text-xs text-fg3">O Google vai avisar que o app não foi verificado: em uso pessoal, toque em Avançado → Acessar Painel.</p>
+        </>
+      )}
+      {acc && (
+        <>
+          <p>Conectado como <span className="text-fg">{acc.email ?? 'sua conta'}</span>.</p>
+          <p className="mt-1 text-xs text-fg3">
+            {acc.last_sync_at ? `Última sincronização: ${when(acc.last_sync_at)}${summary ? ` · ${summary}` : ''}` : 'Ainda não sincronizou'}
+            {' · '}a cada 5 minutos, e na hora quando você salva um compromisso.
+          </p>
+          {acc.last_error && <p className="mt-2 text-sm text-negative" role="alert">{acc.last_error}</p>}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {acc.last_error?.includes('Conecte de novo')
+              ? <button className="btn-primary" disabled={!!busy} onClick={() => void connect()}>Conectar de novo</button>
+              : <button className="btn-secondary" disabled={!!busy} onClick={() => void syncNow()}>Sincronizar agora</button>}
+            <button className="btn-ghost text-negative" disabled={!!busy} onClick={() => void disconnect()}>Desconectar</button>
+          </div>
+        </>
+      )}
+      {(busy || message) && <p className="mt-2 text-xs text-fg2" role="status">{busy ?? message}</p>}
+    </Connector>
   );
 }

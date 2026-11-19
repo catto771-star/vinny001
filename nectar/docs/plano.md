@@ -102,11 +102,17 @@ seguintes acrescentam telas e regras.
 | Moedas | Lançamentos em real, dólar ou euro com a cotação do dia (PTAX do Banco Central, editável); "Ver em R$ / US$ / €" converte as finanças pela cotação de hoje |
 | Configurações | Seções Conta (nome, senha, sair de todos os aparelhos), Preferências (tema, tela inicial, fuso, moeda), Saúde, Notificações, Conectores (status da IA, cotações, alimentos, Google Agenda), App no aparelho e Dados e privacidade (exportar tudo em JSON, apagar a conversa) |
 
+## Fase 7: Google Agenda, pronta (falta só você conectar)
+
+| Parte | O que funciona |
+|---|---|
+| Conexão | Configurações › Conectores › Conectar com o Google (OAuth com acesso contínuo); tokens guardados onde o app não lê; desconectar revoga o acesso |
+| Sincronização | Nos dois sentidos, a cada 5 minutos e na hora ao salvar um compromisso: eventos do Google aparecem na Agenda, compromissos do Painel vão para o Google; edições e exclusões valem dos dois lados (a edição mais recente vence) |
+
 ## Próximas fases
 
 | Fase | Módulo | O que falta |
 |---|---|---|
-| 7 | Google Agenda | Sincronizar os compromissos com o Google Agenda (por último, a pedido) |
 | 8 | Dados fictícios | Usuário de demonstração com dados realistas em todos os módulos e prints das telas (celular e computador) para o manual; apagado no fim |
 | 9 | Manual | Guia curto e direto, com os prints: o que registrar e onde, para tirar o máximo do app |
 | 10 | Seus dados | Testar com os dados de teste que você passar, refinar, apagar e inserir os seus dados reais |

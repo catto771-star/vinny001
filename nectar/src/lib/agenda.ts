@@ -18,7 +18,7 @@ export interface AgendaItem {
   amount?: number; detail?: string; ref?: string;
 }
 
-export interface Event { id: string; title: string; start_at: string; end_at: string | null; all_day: boolean; location: string | null }
+export interface Event { id: string; title: string; start_at: string; end_at: string | null; all_day: boolean; location: string | null; source?: string }
 
 export interface AgendaSources {
   events?: Event[]; tasks?: Task[]; reminders?: Reminder[]; habits?: Habit[]; completions?: HabitCompletion[];
@@ -43,7 +43,8 @@ export function buildAgenda(from: Day, to: Day, s: AgendaSources, now: Date): Ag
     const day = toDay(new Date(e.start_at));
     if (!inRange(day)) continue;
     out.push({ key: `e${e.id}`, kind: 'event', day, title: e.title, time: e.all_day ? null : hhmm(e.start_at),
-      endTime: e.all_day || !e.end_at ? null : hhmm(e.end_at), done: false, overdue: false, detail: e.location ?? undefined, ref: e.id });
+      endTime: e.all_day || !e.end_at ? null : hhmm(e.end_at), done: false, overdue: false,
+      detail: [e.location, e.source === 'google' ? 'Google Agenda' : null].filter(Boolean).join(' · ') || undefined, ref: e.id });
   }
   for (const t of s.tasks ?? []) {
     if (!t.due_date || t.is_archived) continue;
