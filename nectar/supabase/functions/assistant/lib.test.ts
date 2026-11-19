@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TOOLS, addDays, checkArgs, cleanKey, history, keyHint, localNow, systemPrompt, textToBlocks, zonedToUtc } from './lib';
+import { TOOLS, addDays, checkArgs, cleanKey, history, keyHint, maskKey, localNow, systemPrompt, textToBlocks, zonedToUtc } from './lib';
 
 const SP = 'America/Sao_Paulo';
 
@@ -71,6 +71,13 @@ describe('api key', () => {
     expect(cleanKey('"sk-or-v1-abc"')).toBe('sk-or-v1-abc');
     expect(cleanKey('Bearer sk-or-v1-abc')).toBe('sk-or-v1-abc');
     expect(cleanKey('OPENROUTER_API_KEY=sk-or-v1-abc')).toBe('sk-or-v1-abc');
+  });
+  it('drops invisible characters copied along, even in the middle', () => {
+    expect(cleanKey('sk-or-v1-\u200babc\u00a0\ufeff')).toBe('sk-or-v1-abc');
+    expect(cleanKey('sk-or-v1-ab c')).toBe('sk-or-v1-abc');
+  });
+  it('shows a masked form to compare with the key list', () => {
+    expect(maskKey(`sk-or-v1-${'0'.repeat(60)}a1b2`)).toBe('sk-or-v1-…a1b2 (73 caracteres)');
   });
   it('says what is odd about a key without revealing it', () => {
     // Built at run time: a literal key-shaped string trips secret scanners.

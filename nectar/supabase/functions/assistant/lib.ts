@@ -210,7 +210,14 @@ export function history(messages: StoredMessage[], maxChars = 12000, maxMessages
 
 /** The key without what tends to come along when pasting: spaces, quotes, "Bearer ", "NAME=". */
 export function cleanKey(raw: string): string {
-  return raw.trim().replace(/^[A-Z_]+=/, '').replace(/^["']|["']$/g, '').replace(/^Bearer\s+/i, '').trim();
+  const once = raw.trim().replace(/^[A-Z_]+=/, '').replace(/^["']|["']$/g, '').replace(/^Bearer\s+/i, '');
+  // A key has no spaces; drop any blank or invisible character that came along.
+  return once.replace(/[\s\u00a0\u200b-\u200d\u2060\ufeff]/g, '');
+}
+
+/** "sk-or-v1-…a1b2 (73 caracteres)": enough to compare with the key list, not enough to use. */
+export function maskKey(key: string): string {
+  return `${key.slice(0, 9)}…${key.slice(-4)} (${key.length} caracteres)`;
 }
 
 /** What looks wrong with a key, to explain a refusal; never echoes the key. Null when it looks fine. */

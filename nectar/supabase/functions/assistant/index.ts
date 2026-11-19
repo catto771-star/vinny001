@@ -5,7 +5,7 @@
 // Supabase secret (OPENROUTER_API_KEY) and never reaches the browser.
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import {
-  TOOLS, WRITES, addDays, checkArgs, cleanKey, history, keyHint, localNow, systemPrompt, textToBlocks, zonedToUtc,
+  TOOLS, WRITES, addDays, checkArgs, cleanKey, history, keyHint, maskKey, localNow, systemPrompt, textToBlocks, zonedToUtc,
   type LocalNow, type StoredMessage, type ToolArgs,
 } from './lib.ts';
 
@@ -100,7 +100,7 @@ async function complete(key: string, messages: Msg[]): Promise<{ model: string; 
     const detail = data.error?.message ?? `HTTP ${res.status}`;
     if (res.status === 401) {
       const hint = keyHint(key);
-      throw new Error(`A chave do OpenRouter foi recusada (${detail})${hint ? `: ${hint}` : ''}. Confira o valor salvo no Supabase.`);
+      throw new Error(`A chave do OpenRouter foi recusada (${detail})${hint ? `: ${hint}` : ''}. Chave salva: ${maskKey(key)}. Confira o valor salvo no Supabase.`);
     }
     if (res.status === 402) throw new Error('A conta do OpenRouter está sem créditos para este modelo.');
     if (res.status === 429) throw new Error('Muitas mensagens em pouco tempo. Espere um minuto e tente de novo.');
