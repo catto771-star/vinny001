@@ -5,7 +5,7 @@
 // Supabase secret (OPENROUTER_API_KEY) and never reaches the browser.
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import {
-  TOOLS, WRITES, addDays, checkArgs, history, localNow, systemPrompt, textToBlocks, zonedToUtc,
+  TOOLS, WRITES, addDays, checkArgs, cleanKey, history, keyHint, localNow, systemPrompt, textToBlocks, zonedToUtc,
   type LocalNow, type StoredMessage, type ToolArgs,
 } from './lib.ts';
 
@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
   const message = String(body.message ?? '').trim();
   if (!message || message.length > 4000) return json({ error: 'A mensagem precisa ter de 1 a 4000 caracteres.' }, 400);
 
-  const key = Deno.env.get('OPENROUTER_API_KEY');
+  const key = cleanKey(Deno.env.get('OPENROUTER_API_KEY') ?? '');
   if (!key) {
     return json({ error: 'missing_key', message: 'A chave do OpenRouter ainda não foi salva no Supabase (Edge Functions → Secrets → OPENROUTER_API_KEY).' }, 503);
   }
@@ -42,7 +42,6 @@ Deno.serve(async (req) => {
   const tz = settings?.timezone ?? 'America/Sao_Paulo';
   const now = localNow(tz);
   const { data: past } = await db.from('chat_messages').select('content,is_user,created_at,metadata').order('created_at', { ascending: false }).limit(30);
-  await db.from('chat_messages').insert({ content: message, is_user: true });
 
   const messages: Msg[] = [
     { role: 'system', content: systemPrompt(now, tz, { name: settings?.display_name, ...await snapshot(db, now, tz) }) },
@@ -73,7 +72,12 @@ Deno.serve(async (req) => {
     return json({ error: 'ai_failed', message: (e as Error).message }, 502);
   }
   if (!reply) reply = actions.length ? 'Pronto.' : 'Não consegui responder agora. Tente de novo.';
-  await db.from('chat_messages').insert({ content: reply, is_user: false, metadata: { model, actions } });
+  // Both sides are saved only once there is an answer, so a failed call leaves no orphan question.
+  const sent = new Date();
+  await db.from('chat_messages').insert([
+    { content: message, is_user: true, created_at: sent.toISOString() },
+    { content: reply, is_user: false, metadata: { model, actions }, created_at: new Date(sent.getTime() + 1).toISOString() },
+  ]);
   return json({ reply, actions, model });
 });
 
@@ -94,7 +98,10 @@ async function complete(key: string, messages: Msg[]): Promise<{ model: string; 
       return { model: data.model ?? model, message: data.choices[0].message };
     }
     const detail = data.error?.message ?? `HTTP ${res.status}`;
-    if (res.status === 401) throw new Error('A chave do OpenRouter foi recusada. Confira o valor salvo no Supabase.');
+    if (res.status === 401) {
+      const hint = keyHint(key);
+      throw new Error(`A chave do OpenRouter foi recusada (${detail})${hint ? `: ${hint}` : ''}. Confira o valor salvo no Supabase.`);
+    }
     if (res.status === 402) throw new Error('A conta do OpenRouter está sem créditos para este modelo.');
     if (res.status === 429) throw new Error('Muitas mensagens em pouco tempo. Espere um minuto e tente de novo.');
     last = `${model}: ${detail}`;

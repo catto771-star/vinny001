@@ -203,3 +203,19 @@ export function history(messages: StoredMessage[], maxChars = 12000, maxMessages
   while (out.length && out[0].role !== 'user') out.shift();
   return out;
 }
+
+// ---------------------------------------------------------------------------
+// The OpenRouter key as saved in the Supabase secrets
+// ---------------------------------------------------------------------------
+
+/** The key without what tends to come along when pasting: spaces, quotes, "Bearer ", "NAME=". */
+export function cleanKey(raw: string): string {
+  return raw.trim().replace(/^[A-Z_]+=/, '').replace(/^["']|["']$/g, '').replace(/^Bearer\s+/i, '').trim();
+}
+
+/** What looks wrong with a key, to explain a refusal; never echoes the key. Null when it looks fine. */
+export function keyHint(key: string): string | null {
+  if (!key.startsWith('sk-or-')) return 'o valor salvo não parece uma chave do OpenRouter (deveria começar com sk-or-)';
+  if (key.length < 40) return 'a chave salva parece incompleta';
+  return null;
+}

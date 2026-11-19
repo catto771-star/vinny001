@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TOOLS, addDays, checkArgs, history, localNow, systemPrompt, textToBlocks, zonedToUtc } from './lib';
+import { TOOLS, addDays, checkArgs, cleanKey, history, keyHint, localNow, systemPrompt, textToBlocks, zonedToUtc } from './lib';
 
 const SP = 'America/Sao_Paulo';
 
@@ -62,5 +62,20 @@ describe('prompt and history', () => {
     const h = history([m('resumo', false, '1'), m('oi', true, '2'), m('olá', false, '3'), m('x'.repeat(50), true, '4')], 52); // 50 + 3 would pass 52
     expect(h).toEqual([{ role: 'user', content: 'x'.repeat(50) }]);
     expect(history([m('resumo', false, '1'), m('oi', true, '2'), m('olá', false, '3')]).map((x) => x.role)).toEqual(['user', 'assistant']);
+  });
+});
+
+describe('api key', () => {
+  it('drops spaces, line breaks, quotes and a Bearer prefix pasted with the key', () => {
+    expect(cleanKey('  sk-or-v1-abc\n')).toBe('sk-or-v1-abc');
+    expect(cleanKey('"sk-or-v1-abc"')).toBe('sk-or-v1-abc');
+    expect(cleanKey('Bearer sk-or-v1-abc')).toBe('sk-or-v1-abc');
+    expect(cleanKey('OPENROUTER_API_KEY=sk-or-v1-abc')).toBe('sk-or-v1-abc');
+  });
+  it('says what is odd about a key without revealing it', () => {
+    // Built at run time: a literal key-shaped string trips secret scanners.
+    expect(keyHint(`sk-or-v1-${'0'.repeat(64)}`)).toBeNull();
+    expect(keyHint('openrouter.ai')).toBe('o valor salvo não parece uma chave do OpenRouter (deveria começar com sk-or-)');
+    expect(keyHint(`sk-or-v1-${'0'.repeat(64)}`)).toBe('a chave salva parece incompleta');
   });
 });
