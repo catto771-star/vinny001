@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "vitest run src scripts",
+    "test": "vitest run src scripts supabase/functions",
     "import-nectar": "node scripts/import-nectar.mjs",
     "test:db": "bash scripts/test-db.sh"
   },

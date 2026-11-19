@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import {
   Bell, CalendarDays, CheckSquare, Dumbbell, FolderKanban, Gauge, LogOut, Menu, Moon, Notebook, Repeat,
-  Settings, Sun, Target, Wallet, Workflow, type LucideIcon,
+  Bot, Settings, Sun, Target, Wallet, Workflow, type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { applyTheme, readTheme, type Theme } from '../lib/theme';
@@ -10,6 +10,7 @@ import { Modal } from './ui';
 
 export const SECTIONS: readonly { path: string; label: string; icon: LucideIcon; mobile?: boolean }[] = [
   { path: 'inicio', label: 'Início', icon: Gauge, mobile: true },
+  { path: 'assistente', label: 'Assistente', icon: Bot },
   { path: 'agenda', label: 'Agenda', icon: CalendarDays },
   { path: 'tarefas', label: 'Tarefas', icon: CheckSquare, mobile: true },
   { path: 'habitos', label: 'Hábitos', icon: Repeat, mobile: true },

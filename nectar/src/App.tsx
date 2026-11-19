@@ -17,9 +17,11 @@ import Projects from './pages/projects/Projects';
 import Goals from './pages/Goals';
 import Knowledge from './pages/knowledge/Knowledge';
 import Automations from './pages/Automations';
+import Assistant from './pages/Assistant';
 
 const READY: Record<string, ReactElement> = {
   inicio: <Home />,
+  assistente: <Assistant />,
   tarefas: <Tasks />,
   habitos: <Habits />,
   lembretes: <Reminders />,
