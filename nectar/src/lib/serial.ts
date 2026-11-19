@@ -39,3 +39,23 @@ export function latestPerKey() {
   submit.idle = async () => { while (running.size) await Promise.all(running.values()); };
   return submit;
 }
+
+/**
+ * Like latestPerKey, for partial changes: changes queued for a key while a
+ * save runs are merged, later fields winning, and written together next.
+ */
+export function mergingWriter<P extends object>() {
+  const submit = latestPerKey();
+  const waiting = new Map<string, P>();
+  function save(key: string, patch: P, write: (merged: P) => Promise<unknown>): Promise<void> {
+    waiting.set(key, { ...(waiting.get(key) ?? {}), ...patch } as P);
+    return submit(key, async () => {
+      const merged = waiting.get(key);
+      waiting.delete(key);
+      if (merged) await write(merged);
+    });
+  }
+  save.busy = submit.busy;
+  save.idle = submit.idle;
+  return save;
+}

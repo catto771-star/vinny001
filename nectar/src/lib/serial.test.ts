@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { latestPerKey, serialQueue } from './serial';
+import { latestPerKey, mergingWriter, serialQueue } from './serial';
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -50,5 +50,23 @@ describe('latestPerKey', () => {
     submit('a', () => { calls.push('ok'); return Promise.resolve(); });
     await submit.idle();
     expect(calls).toEqual(['fail', 'ok']);
+  });
+});
+
+describe('mergingWriter', () => {
+  it('merges the changes queued for a key, so none is lost behind a running save', async () => {
+    const save = mergingWriter<Record<string, string>>();
+    const written: Record<string, string>[] = [];
+    let release: () => void = () => {};
+    const write = (patch: Record<string, string>) => { written.push(patch); return new Promise<void>((r) => { release = r; }); };
+    save('n1', { title: 'A' }, write);
+    save('n1', { title: 'B' }, write);
+    save('n1', { content: 'texto' }, write);
+    expect(written).toEqual([{ title: 'A' }]);
+    release();
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+    expect(written).toEqual([{ title: 'A' }, { title: 'B', content: 'texto' }]);
+    release();
+    await save.idle();
   });
 });
