@@ -50,6 +50,13 @@ describe('agenda', () => {
     expect(items[1].overdue).toBe(true); // 08:00 reminder still open at 09:00
     expect(items[2]).toMatchObject({ endTime: '15:00', detail: 'Centro' });
   });
+  it('shows a weekly habit on the days it was done and while its weekly target is open', () => {
+    const gym = { id: 'g', name: 'Academia', description: null, habit_type: 'boolean' as const, unit: 'x', target_value: 1, monthly_goal: 30,
+      schedule_days: null, schedule_time: null, color: '#000', is_archived: false, frequency: 'weekly' as const, times_per_week: 2 };
+    const done = (d: string) => ({ id: d, habit_id: 'g', completed_date: d, value: 1 });
+    const items = buildAgenda('2026-11-15', '2026-11-21', { habits: [gym], completions: [done('2026-11-16'), done('2026-11-18')] }, NOW);
+    expect(items.map((i) => [i.day, i.done])).toEqual([['2026-11-15', false], ['2026-11-16', true], ['2026-11-17', false], ['2026-11-18', true]]);
+  });
   it('shows planned workouts from the plan on coming days and logged ones on past days', () => {
     const items = buildAgenda('2026-11-16', '2026-11-20', {
       planSessions: [{ id: 'A', plan_id: 'p', label: 'Treino A', weekdays: [1, 4], order_index: 0, notes: null }],

@@ -11,3 +11,31 @@ export function serialQueue() {
     return run;
   };
 }
+
+/**
+ * Writes per key (a habit and a day, say): one write at a time for a key, and a
+ * write queued while another runs is replaced by any later one, so ten quick
+ * clicks cost two requests, not ten. Different keys do not wait for each other.
+ */
+export function latestPerKey() {
+  const pending = new Map<string, () => Promise<unknown>>();
+  const running = new Map<string, Promise<void>>();
+  function submit(key: string, task: () => Promise<unknown>): Promise<void> {
+    pending.set(key, task);
+    let run = running.get(key);
+    if (!run) {
+      run = (async () => {
+        for (let next = pending.get(key); next; next = pending.get(key)) {
+          pending.delete(key);
+          try { await next(); } catch { /* the caller reports its own errors */ }
+        }
+        running.delete(key);
+      })();
+      running.set(key, run);
+    }
+    return run;
+  }
+  submit.busy = () => running.size > 0;
+  submit.idle = async () => { while (running.size) await Promise.all(running.values()); };
+  return submit;
+}

@@ -1,6 +1,6 @@
 import { addDays, toDay, weekday, type Day } from './dates';
 import { recurringInMonth, invoices, type Card, type InvoicePayment, type RecurringTemplate, type Skip, type Tx } from './finance';
-import { isDone, isScheduledOn, type Habit, type HabitCompletion } from './habits';
+import { isDone, routineFor, type Habit, type HabitCompletion } from './habits';
 import type { PlanSession } from './plans';
 import type { Reminder } from './reminders';
 import type { Task } from './tasks';
@@ -60,7 +60,7 @@ export function buildAgenda(from: Day, to: Day, s: AgendaSources, now: Date): Ag
   }
   for (const h of (s.habits ?? []).filter((x) => !x.is_archived)) {
     for (const day of days) {
-      if (!isScheduledOn(h, day)) continue;
+      if (!routineFor([h], day, s.completions ?? []).length) continue;
       const c = (s.completions ?? []).find((x) => x.habit_id === h.id && x.completed_date === day);
       out.push({ key: `h${h.id}${day}`, kind: 'habit', day, title: h.name, time: h.schedule_time?.slice(0, 5) ?? null,
         done: isDone(h, c), overdue: false, ref: h.id });

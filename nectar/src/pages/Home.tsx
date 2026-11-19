@@ -27,7 +27,7 @@ export default function Home() {
   const b = bucketTasks(tasks.rows, now);
   const dueToday = [...b.overdue, ...b.today];
   const doneToday = b.done.filter((t) => t.completed_at && toDay(new Date(t.completed_at)) === today).length;
-  const routine = routineFor(habits.rows, today);
+  const routine = routineFor(habits.rows, today, completions.rows);
   const doneHabits = routine.filter((x) => isDone(x, completions.rows.find((c) => c.habit_id === x.id && c.completed_date === today))).length;
   const panel = reminderPanel(reminders.rows, now);
   const next = [...panel.overdue, ...panel.today, ...panel.thisWeek].slice(0, 5);

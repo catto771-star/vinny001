@@ -58,6 +58,17 @@ seguintes acrescentam telas e regras.
 | Calendário de Tarefas | Grade do mês com as tarefas no dia em que vencem e as recorrentes projetadas; lista do dia selecionado; nova tarefa no dia; arrastar para remarcar mantendo o horário |
 | Agenda | Dia, semana e mês juntando compromissos, tarefas, lembretes, hábitos, treinos da ficha e contas (recorrentes, pendentes e faturas); filtros por tipo; concluir tarefas e lembretes; compromissos com horário, local e observações |
 
+## Fase 3b: Hábitos completos, prontos
+
+| Parte | O que funciona |
+|---|---|
+| Hoje | Placar do mês, semana navegável (marcar dias passados), rotina agrupada em Manhã, Tarde, Noite e Qualquer hora, botões −/+ e barra de progresso para quantidade e duração, valor para medição, "Em risco hoje" para sequências que zeram, hábitos fora da rotina do dia |
+| Frequência | Dias fixos da semana ou N vezes por semana (sequência contada em semanas); cada hábito conta a partir de quando foi criado ou do primeiro registro |
+| Hábitos | Lista na ordem que você escolhe (subir e descer), constância do mês e sequência; arquivados com restaurar |
+| Detalhe | Sequência atual e recorde, % dos últimos 30 dias, total, mapa de 6 meses, gráfico dos valores e observações por registro |
+| Calendário | Mês com feitos por dia e dias perfeitos; registrar qualquer dia passado |
+| Análise | Dias perfeitos por semana, desempenho por dia da semana (com o dia mais fraco) e constância por hábito com recorde |
+
 ## Próximas fases
 
 | Fase | Módulo | Funções do Néctar a reconstruir |
@@ -65,7 +76,6 @@ seguintes acrescentam telas e regras.
 | 3 | Projetos | Trajetória, quadro kanban, tarefas do projeto, marcos (etapas), análise, modelos de projeto |
 | 3 | Metas | Metas ativas, concluídas e pausadas; ritmo, progresso e prazo; vínculo com hábitos, projetos e finanças |
 | 4 | Conhecimento | Cadernos por área, editor de blocos, favoritos e fixados, conexões entre notas (mapa), diário com humor, captura rápida |
-| 4 | Saúde (restante) | Medidas corporais além do peso, ficha de treino com sessões por dia da semana |
 | 7 | Google Agenda | Sincronizar os compromissos com o Google Agenda (por último, a pedido) |
 | 5 | Assistente | Chat com IA que consulta e altera os módulos, briefing diário, automações agendadas (ex.: revisão semanal do dinheiro) |
 | 6 | Notificações | Push, e-mail ou WhatsApp/Telegram para lembretes, tarefas e faturas |

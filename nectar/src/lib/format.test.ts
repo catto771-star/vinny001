@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { brl, change, num } from './format';
+import { brl, change, num, plural } from './format';
 import { resolveTheme } from './theme';
 
 describe('number format', () => {
@@ -25,5 +25,12 @@ describe('theme', () => {
     expect(resolveTheme(null)).toBe('dark');
     expect(resolveTheme('light')).toBe('light');
     expect(resolveTheme('purple')).toBe('dark');
+  });
+});
+
+describe('plural', () => {
+  it('uses the singular only for exactly one', () => {
+    expect([0, 1, 2].map((n) => plural(n, 'dia', 'dias'))).toEqual(['dias', 'dia', 'dias']);
+    expect(plural(1, 'vez', 'vezes')).toBe('vez');
   });
 });

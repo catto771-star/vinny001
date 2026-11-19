@@ -26,3 +26,8 @@ export function change(current: number, previous: number, against: string): stri
   if (pct === 0) return `igual à ${against}`;
   return `${pct > 0 ? '+' : '−'}${Math.abs(pct)}% vs ${against}`;
 }
+
+/** The word for a count: plural(1, 'dia', 'dias') -> 'dia'; plural(0 or 2, ...) -> 'dias'. */
+export function plural(n: number, one: string, many: string): string {
+  return n === 1 ? one : many;
+}
