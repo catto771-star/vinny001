@@ -16,6 +16,7 @@ import Agenda from './pages/Agenda';
 import Projects from './pages/projects/Projects';
 import Goals from './pages/Goals';
 import Knowledge from './pages/knowledge/Knowledge';
+import Automations from './pages/Automations';
 
 const READY: Record<string, ReactElement> = {
   inicio: <Home />,
@@ -28,6 +29,7 @@ const READY: Record<string, ReactElement> = {
   projetos: <Projects />,
   metas: <Goals />,
   conhecimento: <Knowledge />,
+  automacoes: <Automations />,
 };
 
 export default function App() {
