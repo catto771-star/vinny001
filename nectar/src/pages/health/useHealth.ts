@@ -13,7 +13,7 @@ export interface PlanItem { id: string; meal_id: string; food_id: string; quanti
 export interface Measurement { id: string; measured_at: string; metric: string; value: number; assessment_id: string | null }
 export interface WorkoutPlan { id: string; name: string; is_active: boolean; started_at: string; ended_at: string | null }
 export interface WeekdayTarget extends DayTarget { plan_id: string; weekday: number }
-export interface BodyAssessment { id: string; date: string; notes: string | null }
+export interface BodyAssessment { id: string; date: string; notes: string | null; created_at: string }
 export interface BodyPhoto { id: string; assessment_id: string; pose: 'front' | 'side' | 'back'; storage_path: string }
 export interface UserSettings { user_id: string; height_cm: number | null; sex: 'M' | 'F' | null }
 export interface SettingsRow extends ExerciseSettings { exercise_id: string }
