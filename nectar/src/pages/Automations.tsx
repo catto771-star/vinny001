@@ -38,7 +38,7 @@ export default function Automations() {
   return (
     <>
       <PageHeader
-        title="Automações" subtitle={`${automations.rows.filter((a) => a.is_active).length} ativas · rodam no servidor a cada 5 minutos, com o app fechado`}
+        title="Piloto automático" subtitle={`O que o app faz sozinho, nos dias e horários que você escolher · ${automations.rows.filter((a) => a.is_active).length} ativas`}
         tabs={TABS} tab={tab} onTab={(t) => setTab(t as Tab)}
         action={<button className="btn-primary" onClick={() => setEditing({})}><Plus size={16} strokeWidth={1.5} />Nova automação</button>}
       />

@@ -29,7 +29,7 @@ const READY: Record<string, ReactElement> = {
   projetos: <Projects />,
   metas: <Goals />,
   conhecimento: <Knowledge />,
-  automacoes: <Automations />,
+  'piloto-automatico': <Automations />,
 };
 
 export default function App() {
@@ -65,6 +65,7 @@ export default function App() {
             element={s.path === 'configuracoes' ? <Settings email={session.user.email ?? ''} /> : READY[s.path] ?? <Placeholder title={s.label} />}
           />
         ))}
+        <Route path="automacoes" element={<Navigate to="/piloto-automatico" replace />} />
         <Route path="*" element={<Navigate to="/inicio" replace />} />
       </Route>
     </Routes>

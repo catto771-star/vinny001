@@ -19,7 +19,7 @@ export const SECTIONS: readonly { path: string; label: string; icon: LucideIcon;
   { path: 'financas', label: 'Finanças', icon: Wallet },
   { path: 'conhecimento', label: 'Conhecimento', icon: Notebook },
   { path: 'metas', label: 'Metas', icon: Target },
-  { path: 'automacoes', label: 'Automações', icon: Workflow },
+  { path: 'piloto-automatico', label: 'Piloto automático', icon: Workflow },
   { path: 'configuracoes', label: 'Configurações', icon: Settings },
 ];
 
