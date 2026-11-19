@@ -21,6 +21,8 @@ export interface Tx {
   payment_method: string | null; bank_id: string | null; card_id: string | null; is_pending: boolean;
   installment_purchase_id: string | null; installment_number: number | null; is_advance_payment?: boolean;
   recurring_template_id: string | null;
+  /** Amount above is in reais; a purchase in another currency keeps what was spent and the rate (reais per unit). */
+  currency?: 'BRL' | 'USD' | 'EUR'; original_amount?: number | null; fx_rate?: number | null;
 }
 export interface Bank { id: string; name: string; initial_balance: number; color: string | null }
 export interface Card { id: string; name: string; bank_id: string | null; card_type: 'credit' | 'debit'; credit_limit: number | null; closing_day: number | null; due_day: number | null }

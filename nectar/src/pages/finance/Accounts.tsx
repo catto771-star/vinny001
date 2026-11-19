@@ -1,9 +1,9 @@
 import { useState } from 'react';
+import { money } from '../../lib/money';
 import { ArrowLeftRight, Landmark, Pencil, Plus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { write } from '../../lib/useTable';
 import { formatDay, toDay } from '../../lib/dates';
-import { brl } from '../../lib/format';
 import { bankBalance, cardUsed, invoices, type Card, type Invoice } from '../../lib/finance';
 import { Empty, Field, Modal } from '../../components/ui';
 import { BankForm, CardForm, TransferForm } from './forms';
@@ -31,7 +31,7 @@ export default function Accounts({ f }: { f: Finance }) {
             {f.banks.rows.map((b) => (
               <li key={b.id} className="flex items-center gap-3 px-5 py-3 text-sm">
                 <span className="mr-auto">{b.name}</span>
-                <span className="figure text-base">{brl(bankBalance(b, f.txs.rows, f.transfers.rows, f.payments.rows, today))}</span>
+                <span className="figure text-base">{money(bankBalance(b, f.txs.rows, f.transfers.rows, f.payments.rows, today))}</span>
                 <button className="icon-btn" onClick={() => setBank(b)} aria-label={`Editar ${b.name}`}><Pencil {...I} /></button>
               </li>
             ))}
@@ -61,7 +61,7 @@ export default function Accounts({ f }: { f: Finance }) {
                 </div>
                 {c.credit_limit ? (
                   <>
-                    <div className="mb-1 flex text-sm"><span className="mr-auto text-fg2">Limite usado</span><span className="figure">{brl(used)}</span><span className="figure ml-1 text-fg3">/ {brl(c.credit_limit)}</span></div>
+                    <div className="mb-1 flex text-sm"><span className="mr-auto text-fg2">Limite usado</span><span className="figure">{money(used)}</span><span className="figure ml-1 text-fg3">/ {money(c.credit_limit)}</span></div>
                     <div className="mb-4 h-1.5 rounded-sm bg-raised"><div className="h-1.5 rounded-sm bg-brand" style={{ width: `${Math.min(100, (used / c.credit_limit) * 100)}%` }} /></div>
                   </>
                 ) : null}
@@ -70,7 +70,7 @@ export default function Accounts({ f }: { f: Finance }) {
                     {open.slice(0, 4).map((inv) => (
                       <li key={inv.dueDate} className="flex items-center gap-3 py-2">
                         <span className="mr-auto">Fatura de {formatDay(inv.dueDate)}<span className="ml-2 text-xs text-fg3">{inv.closeDate > today ? 'aberta' : 'fechada'} · {inv.items.length} {inv.items.length === 1 ? 'compra' : 'compras'}</span></span>
-                        <span className="figure">{brl(inv.total)}</span>
+                        <span className="figure">{money(inv.total)}</span>
                         <button className="btn-ghost h-8" onClick={() => setPaying({ card: c, inv })}>Pagar</button>
                       </li>
                     ))}
@@ -104,7 +104,7 @@ function PayInvoice({ f, card, inv, onClose }: { f: Finance; card: Card; inv: In
     <Modal title={`Pagar fatura ${card.name}`} onClose={onClose}>
       <p className="mb-4 text-sm text-fg2">Vencimento {formatDay(inv.dueDate)} · {inv.items.length} {inv.items.length === 1 ? 'compra' : 'compras'}</p>
       <ul className="mb-4 max-h-40 overflow-y-auto text-sm">
-        {inv.items.map((t) => <li key={t.id} className="flex border-t border-line py-1.5"><span className="mr-auto truncate">{t.description}</span><span className="figure text-fg2">{brl(t.amount)}</span></li>)}
+        {inv.items.map((t) => <li key={t.id} className="flex border-t border-line py-1.5"><span className="mr-auto truncate">{t.description}</span><span className="figure text-fg2">{money(t.amount)}</span></li>)}
       </ul>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Valor (R$)"><input className="input figure" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>

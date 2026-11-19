@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react';
+import { money } from '../../lib/money';
 import { CreditCard, FastForward, Plus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { write } from '../../lib/useTable';
 import { formatDay, toDay } from '../../lib/dates';
-import { brl } from '../../lib/format';
 import { cents, installmentSchedule, invoiceFor, reais } from '../../lib/finance';
 import { Empty, Field, Modal } from '../../components/ui';
 import { CategoryField } from './forms';
@@ -17,7 +17,7 @@ export default function Installments({ f }: { f: Finance }) {
 
   async function anticipate(p: InstallmentPurchase) {
     const future = parts(p).filter((t) => t.date > today);
-    if (!future.length || !confirm(`Antecipar ${future.length} parcelas (${brl(reais(future.reduce((s, t) => s + cents(t.amount), 0)))}) para hoje?`)) return;
+    if (!future.length || !confirm(`Antecipar ${future.length} parcelas (${money(reais(future.reduce((s, t) => s + cents(t.amount), 0)))}) para hoje?`)) return;
     const ok = await write(supabase.from('transactions').update({ date: today, is_advance_payment: true }).in('id', future.map((t) => t.id)));
     if (ok) { await write(supabase.from('installment_purchases').update({ status: 'finished' }).eq('id', p.id)); await Promise.all([f.txs.reload(), f.purchases.reload()]); }
   }
@@ -43,11 +43,11 @@ export default function Installments({ f }: { f: Finance }) {
                 <div className="mb-3 flex flex-wrap items-start gap-3">
                   <div className="mr-auto">
                     <div className="font-medium">{p.description}</div>
-                    <div className="text-[13px] text-fg3">{[card?.name, p.category, `${p.installments_count}x de ${brl(ps[ps.length - 1]?.amount ?? p.total_amount / p.installments_count)}`].filter(Boolean).join(' · ')}</div>
+                    <div className="text-[13px] text-fg3">{[card?.name, p.category, `${p.installments_count}x de ${money(ps[ps.length - 1]?.amount ?? p.total_amount / p.installments_count)}`].filter(Boolean).join(' · ')}</div>
                   </div>
                   <div className="text-right">
-                    <div className="figure">{brl(p.total_amount)}</div>
-                    <div className="text-xs text-fg3">{left ? `${brl(left)} a pagar` : 'quitada'}</div>
+                    <div className="figure">{money(p.total_amount)}</div>
+                    <div className="text-xs text-fg3">{left ? `${money(left)} a pagar` : 'quitada'}</div>
                   </div>
                 </div>
                 <div className="mb-2 flex gap-1">
@@ -112,7 +112,7 @@ function PurchaseForm({ f, onClose }: { f: Finance; onClose: () => void }) {
           </select>
         </Field>
         <CategoryField type="expense" value={category} onChange={setCategory} />
-        {preview.length > 0 && <p className="mb-4 text-sm text-fg2"><span className="figure">{preview.length}x</span> de <span className="figure">{brl(preview[preview.length - 1].amount)}</span>{preview[0].amount !== preview[preview.length - 1].amount ? ` (a 1ª de ${brl(preview[0].amount)})` : ''}, até {formatDay(preview[preview.length - 1].date)}</p>}
+        {preview.length > 0 && <p className="mb-4 text-sm text-fg2"><span className="figure">{preview.length}x</span> de <span className="figure">{money(preview[preview.length - 1].amount)}</span>{preview[0].amount !== preview[preview.length - 1].amount ? ` (a 1ª de ${money(preview[0].amount)})` : ''}, até {formatDay(preview[preview.length - 1].date)}</p>}
         <button className="btn-primary w-full">Salvar</button>
       </form>
     </Modal>

@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react';
+import { money } from '../../lib/money';
 import { Plus, Repeat } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { write } from '../../lib/useTable';
 import { formatDay, toDay } from '../../lib/dates';
-import { brl } from '../../lib/format';
 import { recurringInMonth, type PaymentMethod, type RecurringTemplate, type TxType } from '../../lib/finance';
 import { Empty, Field, Modal } from '../../components/ui';
 import { CategoryField, PaymentFields, TypeToggle } from './forms';
@@ -24,7 +24,7 @@ export default function Recurring({ f, year, month, onPay }: { f: Finance; year:
   return (
     <>
       <div className="mb-4 flex items-center gap-2">
-        <p className="mr-auto text-sm text-fg2">Assinaturas e contas fixas: cadastre uma vez e marque como pagas a cada mês{monthly > 0 ? ` · ${brl(monthly)} por mês em saídas fixas` : ''}</p>
+        <p className="mr-auto text-sm text-fg2">Assinaturas e contas fixas: cadastre uma vez e marque como pagas a cada mês{monthly > 0 ? ` · ${money(monthly)} por mês em saídas fixas` : ''}</p>
         <button className="btn-primary" onClick={() => setEditing({})}><Plus size={16} strokeWidth={1.5} />Recorrente</button>
       </div>
       {!occ.length && !f.activeTemplates.length ? (
@@ -37,7 +37,7 @@ export default function Recurring({ f, year, month, onPay }: { f: Finance; year:
                 <span className="block truncate">{o.template.description}</span>
                 <span className="block text-xs text-fg3">{formatDay(o.date)}{o.template.category ? ` · ${o.template.category}` : ''}</span>
               </button>
-              <span className={`figure ${o.template.type === 'income' ? 'text-positive' : ''}`}>{brl(o.template.amount)}</span>
+              <span className={`figure ${o.template.type === 'income' ? 'text-positive' : ''}`}>{money(o.template.amount)}</span>
               {o.paid ? <span className="w-28 text-right text-xs text-positive">{o.template.type === 'income' ? 'recebido' : 'pago'}</span>
                 : o.skipped ? <button className="btn-ghost h-8 w-28" onClick={() => skip(o.template.id, o.date, true)}>Pulado · desfazer</button>
                   : (

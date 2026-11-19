@@ -1,4 +1,6 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { CURRENCIES, formatIn, symbolOf, toBRL, type Currency } from '../../lib/money';
+import { useRates } from './useRates';
 import { supabase } from '../../lib/supabase';
 import { write } from '../../lib/useTable';
 import { toDay } from '../../lib/dates';
@@ -72,12 +74,28 @@ export function TxForm({ f, tx, defaults, onClose }: { f: Finance; tx?: Partial<
   const [bankId, setBankId] = useState(base.bank_id ?? f.banks.rows[0]?.id ?? '');
   const [cardId, setCardId] = useState(base.card_id ?? '');
   const [pending, setPending] = useState(base.is_pending ?? false);
+  // In another currency: the amount typed is in that currency and the rate (reais per unit) comes
+  // from the transaction's date, unless edited by hand (then it stays as typed).
+  const [currency, setCurrency] = useState<Currency>(base.currency ?? 'BRL');
+  const [original, setOriginal] = useState(base.original_amount?.toString() ?? '');
+  const [rateText, setRateText] = useState(base.fx_rate?.toString() ?? '');
+  const [rateEdited, setRateEdited] = useState(!!base.fx_rate);
+  const quote = useRates(currency === 'BRL' ? null : date < toDay(new Date()) ? date : null);
+  const quoted = currency === 'BRL' ? null : quote.rates?.[currency] ?? null;
+  useEffect(() => { if (!rateEdited && quoted) setRateText(String(quoted)); }, [quoted, rateEdited]);
+  const rate = Number(rateText.replace(',', '.'));
+  const foreign = Number(original.replace(',', '.'));
+  const inReais = currency !== 'BRL' && foreign > 0 && rate > 0 ? toBRL(foreign, rate) : null;
 
   async function save(e: FormEvent) {
     e.preventDefault();
     const credit = method === 'credito';
+    if (currency !== 'BRL' && inReais === null) { alert('Informe o valor e a cotação.'); return; }
+    const money: { amount: number; currency: Currency; original_amount: number | null; fx_rate: number | null } = currency === 'BRL'
+      ? { amount: Number(amount), currency, original_amount: null, fx_rate: null }
+      : { amount: inReais!, currency, original_amount: foreign, fx_rate: rate };
     const row = {
-      type, amount: Number(amount), description, date, category: category || null, payment_method: method,
+      type, ...money, description, date, category: category || null, payment_method: method,
       bank_id: credit ? null : bankId || null, card_id: credit ? cardId || null : null, is_pending: credit ? false : pending,
       recurring_template_id: base.recurring_template_id ?? null,
     };
@@ -92,10 +110,40 @@ export function TxForm({ f, tx, defaults, onClose }: { f: Finance; tx?: Partial<
     <Modal title={tx?.id ? 'Editar lançamento' : 'Novo lançamento'} onClose={onClose}>
       <form onSubmit={save}>
         <TypeToggle value={type} onChange={(t) => { setType(t); if (t === 'income' && method === 'credito') setMethod('pix'); }} />
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Valor (R$)"><input className="input figure" type="number" min={0.01} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required autoFocus /></Field>
-          <Field label="Data"><input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></Field>
+        <div className="mb-4 flex items-center gap-2" role="group" aria-label="Moeda">
+          <span className="text-[13px] text-fg2">Moeda</span>
+          <div className="segmented">
+            {CURRENCIES.map((c) => (
+              <button key={c.code} type="button" className={currency === c.code ? 'tab-active' : 'tab'} aria-pressed={currency === c.code} title={c.name}
+                onClick={() => { setCurrency(c.code); setRateEdited(false); if (c.code !== 'BRL' && !original && amount) setOriginal(amount); }}>{c.symbol}</button>
+            ))}
+          </div>
         </div>
+        <div className="grid grid-cols-2 gap-3">
+          {currency === 'BRL'
+            ? <Field label="Valor (R$)"><input className="input figure" type="number" min={0.01} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required autoFocus /></Field>
+            : <Field label={`Valor (${symbolOf(currency)})`}><input className="input figure" type="number" min={0.01} step="0.01" value={original} onChange={(e) => setOriginal(e.target.value)} required autoFocus /></Field>}
+          <Field label="Data"><input className="input" type="date" value={date} onChange={(e) => { setDate(e.target.value); if (currency !== 'BRL') setRateEdited(false); }} required /></Field>
+        </div>
+        {currency !== 'BRL' && (
+          <div className="mb-4 rounded-xl border border-line p-3">
+            <div className="grid grid-cols-2 items-end gap-3">
+              <Field label={`Cotação (R$ por 1 ${symbolOf(currency)})`}>
+                <input className="input figure" inputMode="decimal" value={rateText} onChange={(e) => { setRateText(e.target.value); setRateEdited(true); }} required />
+              </Field>
+              <div className="mb-4">
+                <div className="text-[13px] text-fg2">Em reais</div>
+                <div className="figure text-lg">{inReais === null ? '—' : formatIn(inReais, 'BRL')}</div>
+              </div>
+            </div>
+            <p className="text-xs text-fg3">
+              {quote.error ? `Sem cotação automática (${quote.error}); digite a cotação.`
+                : quoted ? `${rateEdited && Number(rateText) !== quoted ? `Cotação editada. A de ${quote.date?.split('-').reverse().join('/')} é ${quoted}. ` : `Cotação de ${quote.date?.split('-').reverse().join('/')}${quote.at ? `, ${quote.at.slice(11)}` : ''} (${quote.source}). `}`
+                  : 'Buscando a cotação…'}
+              {rateEdited && quoted && Number(rateText) !== quoted && <button type="button" className="underline" onClick={() => { setRateEdited(false); setRateText(String(quoted)); }}>Usar a do dia</button>}
+            </p>
+          </div>
+        )}
         <Field label="Descrição"><input className="input" value={description} onChange={(e) => setDescription(e.target.value)} required placeholder={type === 'expense' ? 'Mercado' : 'Salário'} /></Field>
         <CategoryField type={type} value={category} onChange={setCategory} />
         <PaymentFields f={f} type={type} method={method} setMethod={setMethod} bankId={bankId} setBankId={setBankId} cardId={cardId} setCardId={setCardId} />

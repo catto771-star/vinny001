@@ -1,6 +1,6 @@
 import { useState } from 'react';
+import { formatIn, money } from '../../lib/money';
 import { ArrowDownLeft, ArrowUpRight, ListOrdered, Search } from 'lucide-react';
-import { brl } from '../../lib/format';
 import { formatDay } from '../../lib/dates';
 import { monthKey, PAYMENT_LABEL, type PaymentMethod, type Tx } from '../../lib/finance';
 import { searchKey } from '../../lib/text';
@@ -44,7 +44,12 @@ export default function Statement({ f, year, month }: { f: Finance; year: number
                         t.installment_number ? `parcela ${t.installment_number}` : null, t.is_pending ? 'pendente' : null].filter(Boolean).join(' · ')}
                     </span>
                   </span>
-                  <span className={`figure ${t.type === 'income' ? 'text-positive' : ''}`}>{t.type === 'income' ? '+' : '−'}{brl(t.amount)}</span>
+                  <span className="text-right">
+                    <span className={`figure block ${t.type === 'income' ? 'text-positive' : ''}`}>{t.type === 'income' ? '+' : '−'}{money(t.amount)}</span>
+                    {t.currency && t.currency !== 'BRL' && t.original_amount != null && (
+                      <span className="figure block text-[11px] text-fg3" title="Valor e cotação do lançamento">{formatIn(Number(t.original_amount), t.currency)} · {String(t.fx_rate).replace('.', ',')}</span>
+                    )}
+                  </span>
                 </button>
               </li>
             ))}
