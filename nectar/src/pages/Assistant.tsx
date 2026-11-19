@@ -51,6 +51,10 @@ export default function Assistant() {
       setError({ missingKey: body?.error === 'missing_key', message: body?.message ?? 'Não consegui falar com o assistente agora. Tente de novo.' });
       messages.setRows((rows) => rows.filter((r) => r.id !== local.id));
       setText(content);
+    } else if (data?.saved === false) {
+      // Answered but not stored: keep it on screen and say so.
+      messages.setRows((rows) => [...rows, { id: `local-${Date.now()}-a`, content: data.reply, is_user: false, created_at: new Date().toISOString(), metadata: { actions: data.actions } }]);
+      setError({ missingKey: false, message: `A resposta não foi salva no histórico (${data.saveError ?? 'erro desconhecido'}).` });
     } else if (data) {
       await messages.reload();
     }
@@ -71,7 +75,7 @@ export default function Assistant() {
   return (
     <div className="flex h-[calc(100dvh-9rem)] flex-col md:h-[calc(100dvh-5rem)]">
       <PageHeader
-        title="Assistente" subtitle="DeepSeek, com acesso às suas tarefas, hábitos, finanças, metas, projetos e notas"
+        title="Assistente" subtitle="IA pelo OpenRouter (DeepSeek com crédito; modelos gratuitos sem), com acesso às suas tarefas, hábitos, finanças, metas, projetos e notas"
         action={list.length > 0 ? <button className="btn-ghost" onClick={clear}><Trash2 size={16} strokeWidth={1.5} />Limpar conversa</button> : undefined}
       />
       <section className="card flex min-h-0 flex-1 flex-col p-0" aria-label="Conversa">

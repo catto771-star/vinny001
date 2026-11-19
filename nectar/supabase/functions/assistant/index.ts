@@ -5,7 +5,7 @@
 // Supabase secret (OPENROUTER_API_KEY) and never reaches the browser.
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import {
-  TOOLS, WRITES, addDays, checkArgs, cleanKey, history, keyHint, maskKey, modelCandidates, localNow, systemPrompt, textToBlocks, zonedToUtc,
+  TOOLS, WRITES, addDays, checkArgs, cleanKey, history, keyHint, maskKey, modelCandidates, pickFreeModels, exchangeRows, matchByName, skipFor, withoutSkipped, localNow, systemPrompt, textToBlocks, zonedToUtc,
   type LocalNow, type StoredMessage, type ToolArgs,
 } from './lib.ts';
 
@@ -15,6 +15,8 @@ const CORS = {
 };
 // Tried in order until one answers (see modelCandidates); OPENROUTER_MODEL overrides.
 let workingModel: string | null = null;
+// Models that failed lately, left aside until the time stored here.
+const skipped = new Map<string, number>();
 
 type Msg = { role: string; content: string | null; tool_calls?: unknown[]; tool_call_id?: string };
 
@@ -72,20 +74,21 @@ Deno.serve(async (req) => {
   }
   if (!reply) reply = actions.length ? 'Pronto.' : 'Não consegui responder agora. Tente de novo.';
   // Both sides are saved only once there is an answer, so a failed call leaves no orphan question.
-  const sent = new Date();
-  await db.from('chat_messages').insert([
-    { content: message, is_user: true, created_at: sent.toISOString() },
-    { content: reply, is_user: false, metadata: { model, actions }, created_at: new Date(sent.getTime() + 1).toISOString() },
-  ]);
-  return json({ reply, actions, model });
+  const { error: saveError } = await db.from('chat_messages').insert(exchangeRows(message, reply, { model, actions }));
+  return json({ reply, actions, model, saved: !saveError, ...(saveError ? { saveError: saveError.message } : {}) });
 });
 
 /** One call to OpenRouter; finds a DeepSeek model that answers and keeps it. */
 async function complete(key: string, messages: Msg[]): Promise<{ model: string; message: Msg }> {
-  const candidates = modelCandidates(Deno.env.get('OPENROUTER_MODEL') || undefined, workingModel);
+  const preferred = Deno.env.get('OPENROUTER_MODEL') || undefined;
+  const candidates = withoutSkipped(modelCandidates(preferred, workingModel), skipped, Date.now());
   let last = '';
   let noCredits = false;
-  for (const model of candidates) {
+  let rateLimited = false;
+  let catalogChecked = false;
+  let retriedWorking = false;
+  for (let i = 0; i < candidates.length; i++) {
+    const model = candidates[i];
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'X-Title': 'Painel' },
@@ -101,14 +104,40 @@ async function complete(key: string, messages: Msg[]): Promise<{ model: string; 
       const hint = keyHint(key);
       throw new Error(`A chave do OpenRouter foi recusada (${detail})${hint ? `: ${hint}` : ''}. Chave salva: ${maskKey(key)}. Confira o valor salvo no Supabase.`);
     }
-    // No credits: a free variant may still answer.
-    if (res.status === 402) { noCredits = true; last = `${model}: ${detail}`; continue; }
-    if (res.status === 429) throw new Error('Muitas mensagens em pouco tempo. Espere um minuto e tente de novo.');
+    // No credits (a free model may still answer), busy (free models are often
+    // rate limited upstream), unknown or without tools: try the next one. When
+    // the list runs out, ask OpenRouter which free models take tools today.
+    // The model that answered last is only busy for a moment: one more try.
+    if (res.status === 429 && model === workingModel && !retriedWorking) {
+      retriedWorking = true;
+      await new Promise((r) => setTimeout(r, 1500));
+      i--;
+      continue;
+    }
+    if (skipFor(res.status)) skipped.set(model, Date.now() + skipFor(res.status));
+    if (res.status === 402) noCredits = true;
+    if (res.status === 429) rateLimited = true;
     last = `${model}: ${detail}`;
-    // An unknown model or one without tools: try the next one.
+    if (i === candidates.length - 1 && !preferred && !catalogChecked) {
+      catalogChecked = true;
+      for (const free of withoutSkipped(await freeModels(), skipped, Date.now())) if (!candidates.includes(free)) candidates.push(free);
+    }
   }
-  if (noCredits) throw new Error(`A conta do OpenRouter está sem créditos e nenhum modelo gratuito do DeepSeek respondeu (${last}).`);
+  if (rateLimited) throw new Error(`Os modelos gratuitos estão ocupados agora. Espere um minuto e tente de novo (${last}).`);
+  if (noCredits) throw new Error(`A conta do OpenRouter está sem créditos e nenhum modelo gratuito respondeu agora; tente de novo em um minuto (${last}).`);
   throw new Error(`Nenhum modelo DeepSeek respondeu (${last}).`);
+}
+
+let freeCache: { at: number; ids: string[] } | null = null;
+
+/** Free models that take tools, from OpenRouter's public catalog; kept for an hour. */
+async function freeModels(): Promise<string[]> {
+  if (freeCache && Date.now() - freeCache.at < 3_600_000) return freeCache.ids;
+  const res = await fetch('https://openrouter.ai/api/v1/models').catch(() => null);
+  const data = res?.ok ? await res.json().catch(() => null) : null;
+  const ids = pickFreeModels(Array.isArray(data?.data) ? data.data : []);
+  freeCache = { at: Date.now(), ids };
+  return ids;
 }
 
 /** A short picture of the day for the system prompt. */
@@ -155,6 +184,13 @@ async function run(db: SupabaseClient, name: string, a: ToolArgs, now: LocalNow,
       return error ? fail(error) : { feito: `Tarefa criada: ${a.titulo}${a.data ? ` (${String(a.data).split('-').reverse().join('/')})` : ''}` };
     }
     case 'concluir_tarefa': {
+      if (!a.id) {
+        const { data: open } = await db.from('tasks').select('id,title').eq('completed', false).eq('is_archived', false).limit(500);
+        const found = matchByName((open ?? []).map((t) => ({ id: t.id, name: t.title })), String(a.titulo));
+        if (!found.length) return { erro: `nenhuma tarefa aberta com "${a.titulo}"` };
+        if (found.length > 1) return { erro: 'mais de uma tarefa combina; pergunte qual', opcoes: found.slice(0, 8).map((t) => t.name) };
+        a = { ...a, id: found[0].id };
+      }
       const { data, error } = await db.from('tasks').update({ completed: true, status: 'completed', completed_at: new Date().toISOString() }).eq('id', a.id).select('title');
       if (error) return fail(error);
       return data?.length ? { feito: `Tarefa concluída: ${data[0].title}` } : { erro: 'tarefa não encontrada' };
@@ -177,6 +213,13 @@ async function run(db: SupabaseClient, name: string, a: ToolArgs, now: LocalNow,
       };
     }
     case 'marcar_habito': {
+      if (!a.id) {
+        const { data: all } = await db.from('habits').select('id,name').eq('is_archived', false);
+        const found = matchByName(all ?? [], String(a.nome));
+        if (!found.length) return { erro: `nenhum hábito com "${a.nome}"` };
+        if (found.length > 1) return { erro: 'mais de um hábito combina; pergunte qual', opcoes: found.slice(0, 8).map((h) => h.name) };
+        a = { ...a, id: found[0].id };
+      }
       const { data: h } = await db.from('habits').select('name,target_value').eq('id', a.id).maybeSingle();
       if (!h) return { erro: 'hábito não encontrado' };
       const value = a.valor ?? h.target_value ?? 1;

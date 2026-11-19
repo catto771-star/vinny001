@@ -47,10 +47,10 @@ const fn = (name: string, description: string, properties: Record<string, unknow
 export const TOOLS = [
   fn('listar_tarefas', 'Lista tarefas abertas do usuário.', { periodo: { type: 'string', enum: ['hoje', 'atrasadas', 'semana', 'todas'], description: 'hoje inclui as atrasadas' } }, ['periodo']),
   fn('criar_tarefa', 'Cria uma tarefa.', { titulo: str('Título curto'), data: str('YYYY-MM-DD, opcional'), prioridade: { type: 'string', enum: ['alta', 'media', 'baixa'] } }, ['titulo']),
-  fn('concluir_tarefa', 'Marca uma tarefa como concluída. Use o id vindo de listar_tarefas.', { id: str('id da tarefa') }, ['id']),
+  fn('concluir_tarefa', 'Marca uma tarefa aberta como concluída, pelo id (de listar_tarefas) ou pelo título.', { id: str('id da tarefa, se souber'), titulo: str('título ou parte dele') }),
   fn('criar_lembrete', 'Cria um lembrete num dia e hora.', { titulo: str('O que lembrar'), data: str('YYYY-MM-DD'), hora: str('HH:MM, 24 h') }, ['titulo', 'data', 'hora']),
   fn('listar_habitos', 'Lista os hábitos de hoje e se já foram feitos.'),
-  fn('marcar_habito', 'Registra um hábito como feito hoje (ou com um valor, para quantidade e medição).', { id: str('id do hábito'), valor: { type: 'number', description: 'opcional' } }, ['id']),
+  fn('marcar_habito', 'Registra um hábito como feito hoje (ou com um valor, para quantidade e medição), pelo id ou pelo nome.', { id: str('id do hábito, se souber'), nome: str('nome do hábito'), valor: { type: 'number', description: 'opcional' } }),
   fn('resumo_financeiro', 'Receitas, despesas e principais categorias de um mês.', { ano: { type: 'integer' }, mes: { type: 'integer', description: '1 a 12' } }, ['ano', 'mes']),
   fn('registrar_transacao', 'Registra um gasto ou uma receita.', {
     descricao: str('Descrição'), valor: { type: 'number', description: 'Em reais, positivo' }, tipo: { type: 'string', enum: ['despesa', 'receita'] },
@@ -90,10 +90,13 @@ export function checkArgs(name: string, raw: unknown): { ok: true; args: ToolArg
     case 'concluir_tarefa':
     case 'marcar_habito': {
       const id = text('id', 64);
-      if (!/^[0-9a-f-]{36}$/i.test(id)) return fail('id inválido: use o id que veio da listagem');
+      const label = text(name === 'concluir_tarefa' ? 'titulo' : 'nome', 200);
+      const validId = /^[0-9a-f-]{36}$/i.test(id);
       const valor = a.valor === undefined || a.valor === null ? null : Number(a.valor);
       if (valor !== null && !(Number.isFinite(valor) && valor >= 0)) return fail('valor deve ser um número positivo');
-      return { ok: true, args: name === 'marcar_habito' ? { id, valor } : { id } };
+      if (validId) return { ok: true, args: name === 'marcar_habito' ? { id, valor } : { id } };
+      if (!label) return fail(id ? 'id inválido: use o id que veio da listagem' : `informe o id ou o ${name === 'concluir_tarefa' ? 'título' : 'nome'}`);
+      return { ok: true, args: name === 'marcar_habito' ? { id: null, nome: label, valor } : { id: null, titulo: label } };
     }
     case 'criar_lembrete': {
       const titulo = text('titulo');
@@ -169,7 +172,7 @@ export function systemPrompt(now: LocalNow, tz: string, s: Snapshot): string {
     'Você é o assistente do Painel, o app pessoal de organização do usuário: tarefas, hábitos, lembretes, saúde, finanças, projetos, metas e notas.',
     `Hoje é ${WEEKDAYS[now.weekday]}, ${now.date.split('-').reverse().join('/')}, ${now.time} (${tz}).${s.name ? ` O usuário se chama ${s.name}.` : ''}`,
     'Responda em português do Brasil, curto e direto, sem enrolação. Use listas só quando ajudarem.',
-    'Use as ferramentas para consultar e alterar os dados; nunca invente dados nem ids. Para concluir tarefas ou marcar hábitos, liste antes para pegar o id.',
+    'Use as ferramentas para consultar e alterar os dados; nunca invente dados nem ids. Para concluir uma tarefa ou marcar um hábito, passe o título ou o nome. Nunca diga que algo não existe sem consultar antes (listar_tarefas com periodo "todas").',
     'Datas relativas (amanhã, sexta) você converte para YYYY-MM-DD a partir de hoje. Valores em reais.',
     'Se faltar algo essencial para uma ação (ex.: valor de um gasto), pergunte antes de agir. Depois de alterar algo, confirme em uma frase o que foi feito.',
     'Você não dá diagnóstico médico nem recomendação de investimento específica; pode organizar informações e sugerir hábitos razoáveis.',
@@ -240,4 +243,58 @@ export function modelCandidates(preferred?: string, working?: string | null): st
   if (preferred) return [preferred];
   const all = [...PAID_MODELS, ...FREE_MODELS];
   return working && all.includes(working) ? [working, ...all.filter((m) => m !== working)] : all;
+}
+
+export interface CatalogModel { id: string; context_length?: number; supported_parameters?: string[] }
+
+// Families that follow instructions and call tools well, best first.
+const FAMILIES = ['deepseek/', 'qwen/', 'meta-llama/', 'mistralai/', 'google/', 'z-ai/', 'moonshotai/', 'openai/'];
+
+/** From OpenRouter's catalog: free models that take tools, DeepSeek first, then good families, bigger context first. At most 8. */
+export function pickFreeModels(catalog: CatalogModel[]): string[] {
+  const rank = (id: string) => { const i = FAMILIES.findIndex((f) => id.startsWith(f)); return i < 0 ? FAMILIES.length : i; };
+  return catalog
+    .filter((m) => typeof m?.id === 'string' && m.id.endsWith(':free') && m.supported_parameters?.includes('tools'))
+    .sort((a, b) => rank(a.id) - rank(b.id) || (b.context_length ?? 0) - (a.context_length ?? 0))
+    .slice(0, 8)
+    .map((m) => m.id);
+}
+
+/** How long to leave a model aside after a failure: no credits 10 min, gone, restricted or unsupported 1 h, busy 1 min. */
+export function skipFor(status: number): number {
+  if (status === 402) return 10 * 60_000;
+  if (status === 404 || status === 400 || status === 403) return 60 * 60_000;
+  if (status === 429) return 60_000;
+  return 0;
+}
+
+/** Candidates whose wait is over; all of them if every one is waiting. */
+export function withoutSkipped(candidates: string[], skip: Map<string, number>, now: number): string[] {
+  const ready = candidates.filter((m) => (skip.get(m) ?? 0) <= now);
+  return ready.length ? ready : candidates;
+}
+
+/**
+ * The question and the answer as rows for chat_messages. Both carry the same
+ * columns: in a bulk insert a column missing from one row is sent as null,
+ * which the not-null metadata column refuses.
+ */
+export function exchangeRows(question: string, reply: string, metadata: Record<string, unknown>, at = new Date()) {
+  return [
+    { content: question, is_user: true, metadata: {}, created_at: at.toISOString() },
+    { content: reply, is_user: false, metadata, created_at: new Date(at.getTime() + 1).toISOString() },
+  ];
+}
+
+const fold = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+/** Items whose name matches: an exact match alone; else names that start with it, then those that contain it. */
+export function matchByName<T extends { name: string }>(rows: T[], query: string): T[] {
+  const q = fold(query);
+  if (!q) return [];
+  const exact = rows.filter((r) => fold(r.name) === q);
+  if (exact.length) return exact;
+  const starts = rows.filter((r) => fold(r.name).startsWith(q));
+  const contains = rows.filter((r) => !starts.includes(r) && fold(r.name).includes(q));
+  return [...starts, ...contains];
 }

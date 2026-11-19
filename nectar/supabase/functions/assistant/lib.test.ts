@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TOOLS, addDays, checkArgs, cleanKey, history, keyHint, maskKey, modelCandidates, localNow, systemPrompt, textToBlocks, zonedToUtc } from './lib';
+import { TOOLS, addDays, checkArgs, cleanKey, history, keyHint, maskKey, modelCandidates, pickFreeModels, exchangeRows, matchByName, skipFor, withoutSkipped, localNow, systemPrompt, textToBlocks, zonedToUtc } from './lib';
 
 const SP = 'America/Sao_Paulo';
 
@@ -98,5 +98,66 @@ describe('models', () => {
     expect(modelCandidates(undefined, 'deepseek/deepseek-chat:free')[0]).toBe('deepseek/deepseek-chat:free');
     expect(new Set(modelCandidates(undefined, 'deepseek/deepseek-chat:free')).size).toBe(modelCandidates().length);
     expect(modelCandidates('deepseek/deepseek-r1')).toEqual(['deepseek/deepseek-r1']);
+  });
+});
+
+describe('free models', () => {
+  const m = (id: string, tools = true, context_length = 32000) => ({ id, context_length, supported_parameters: tools ? ['tools', 'temperature'] : ['temperature'] });
+  it('keeps free models that take tools, DeepSeek first, then the preferred families, larger context first', () => {
+    const picked = pickFreeModels([
+      m('openai/gpt-4o'), m('meta-llama/llama-3.3-70b-instruct:free', true, 131072), m('qwen/qwen3-235b-a22b:free', true, 40960),
+      m('google/gemma-3-27b-it:free', false), m('deepseek/deepseek-r1:free', false), m('mistralai/mistral-small-3.2-24b-instruct:free', true, 96000),
+      m('deepseek/deepseek-v3.2:free', true, 64000), m('some/tiny-1b:free', true, 8000),
+    ]);
+    expect(picked).toEqual([
+      'deepseek/deepseek-v3.2:free', 'qwen/qwen3-235b-a22b:free', 'meta-llama/llama-3.3-70b-instruct:free',
+      'mistralai/mistral-small-3.2-24b-instruct:free', 'some/tiny-1b:free',
+    ]);
+  });
+  it('offers up to 8', () => {
+    expect(pickFreeModels(Array.from({ length: 12 }, (_, i) => m(`x/m${i}:free`))).length).toBe(8);
+  });
+  it('copes with an empty or odd catalog', () => {
+    expect(pickFreeModels([])).toEqual([]);
+    expect(pickFreeModels([{ id: 'x:free' } as never])).toEqual([]);
+  });
+});
+
+describe('skipping models that just failed', () => {
+  const NOW = 1_000_000;
+  it('waits longer for no credits or a gone model than for a busy one', () => {
+    expect(skipFor(402)).toBe(10 * 60_000);
+    expect(skipFor(404)).toBe(60 * 60_000);
+    expect(skipFor(429)).toBe(60_000);
+    expect(skipFor(403)).toBe(60 * 60_000); // restricted, e.g. "only available on agentic harnesses"
+    expect(skipFor(500)).toBe(0);
+  });
+  it('leaves out models still in their wait, but never all of them', () => {
+    const skip = new Map([['a', NOW + 5000], ['b', NOW - 1]]);
+    expect(withoutSkipped(['a', 'b', 'c'], skip, NOW)).toEqual(['b', 'c']);
+    expect(withoutSkipped(['a'], skip, NOW)).toEqual(['a']);
+  });
+});
+
+describe('saving the exchange', () => {
+  it('writes both rows with the same columns, so none is sent as null', () => {
+    const [q, a] = exchangeRows('oi', 'olá', { model: 'm', actions: [] }, new Date('2026-11-19T10:00:00Z'));
+    expect(Object.keys(q).sort()).toEqual(Object.keys(a).sort());
+    expect(q).toEqual({ content: 'oi', is_user: true, metadata: {}, created_at: '2026-11-19T10:00:00.000Z' });
+    expect(a).toEqual({ content: 'olá', is_user: false, metadata: { model: 'm', actions: [] }, created_at: '2026-11-19T10:00:00.001Z' });
+  });
+});
+
+describe('acting by name', () => {
+  it('takes a task or habit by name when there is no id', () => {
+    expect(checkArgs('concluir_tarefa', { titulo: 'ligar para o contador' })).toEqual({ ok: true, args: { id: null, titulo: 'ligar para o contador' } });
+    expect(checkArgs('marcar_habito', { nome: 'Ler', valor: 1 })).toEqual({ ok: true, args: { id: null, nome: 'Ler', valor: 1 } });
+    expect(checkArgs('concluir_tarefa', {})).toEqual({ ok: false, error: 'informe o id ou o título' });
+  });
+  it('matches names without accents or case, the closest first', () => {
+    const rows = [{ id: '1', name: 'Ligar para o banco' }, { id: '2', name: 'Ligar para o Contador' }, { id: '3', name: 'Contador de passos' }];
+    expect(matchByName(rows, 'ligar para o contador').map((r) => r.id)).toEqual(['2']);
+    expect(matchByName(rows, 'contador').map((r) => r.id)).toEqual(['3', '2']);
+    expect(matchByName(rows, 'academia')).toEqual([]);
   });
 });
