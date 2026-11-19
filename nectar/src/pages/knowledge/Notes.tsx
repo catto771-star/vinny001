@@ -42,7 +42,7 @@ export function Notes({ data, selected, onSelect }: { data: KnowledgeData; selec
 
   return (
     <div className="grid gap-6 lg:grid-cols-[220px_300px_1fr]">
-      <aside className={note ? 'hidden lg:block' : ''} aria-label="Áreas">
+      <aside className={note ? 'hidden min-w-0 lg:block' : 'min-w-0'} aria-label="Áreas">
         <ul className="flex gap-1 overflow-x-auto pb-1 lg:block lg:space-y-0.5 lg:overflow-visible">
           {chip('all', 'Todas as notas', notes.length)}
           {chip('fav', 'Favoritas', notes.filter((n) => n.is_favorite).length, '#eab308')}
@@ -52,7 +52,7 @@ export function Notes({ data, selected, onSelect }: { data: KnowledgeData; selec
         <button className="btn-ghost mt-2 w-full justify-start" onClick={() => setAreaForm({})}><Plus size={16} strokeWidth={1.5} />Nova área</button>
       </aside>
 
-      <section className={note ? 'hidden lg:block' : ''} aria-label="Lista de notas">
+      <section className={note ? 'hidden min-w-0 lg:block' : 'min-w-0'} aria-label="Lista de notas">
         <div className="mb-3 flex gap-2">
           <label className="relative flex-1">
             <Search size={16} strokeWidth={1.5} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-fg3" />

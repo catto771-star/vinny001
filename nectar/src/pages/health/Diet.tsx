@@ -41,7 +41,7 @@ export default function Diet({ h }: { h: Health }) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-        <div>
+        <div className="min-w-0">
           {MEALS.map((meal) => {
             const items = logs.filter((l) => l.meal === meal);
             const sub = sumNutrients(items);
