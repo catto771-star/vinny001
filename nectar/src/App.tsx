@@ -14,6 +14,7 @@ import Health from './pages/health/Health';
 import Finance from './pages/finance/Finance';
 import Agenda from './pages/Agenda';
 import Projects from './pages/projects/Projects';
+import Goals from './pages/Goals';
 
 const READY: Record<string, ReactElement> = {
   inicio: <Home />,
@@ -24,6 +25,7 @@ const READY: Record<string, ReactElement> = {
   financas: <Finance />,
   agenda: <Agenda />,
   projetos: <Projects />,
+  metas: <Goals />,
 };
 
 export default function App() {
