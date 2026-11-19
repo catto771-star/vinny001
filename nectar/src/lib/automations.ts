@@ -16,7 +16,7 @@ export interface Automation {
   created_at: string;
 }
 
-export interface Run { id: string; automation_id: string; ran_at: string; status: 'ok' | 'waiting_ai' | 'error'; output: string }
+export interface Run { id: string; automation_id: string; ran_at: string; status: 'ok' | 'waiting_ai' | 'running' | 'error'; output: string }
 
 /** "Todo dia às 07:00", "Dias úteis às 08:30", "Dom às 19:00", "Seg, qua e sex às 07:00". */
 export function scheduleText(a: Pick<Automation, 'weekdays' | 'time_of_day'>): string {

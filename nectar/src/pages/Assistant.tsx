@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
-import { ArrowUp, Bot, CheckCircle2, KeyRound, Sunrise, Trash2 } from 'lucide-react';
+import { ArrowUp, Bot, CheckCircle2, KeyRound, Sunrise, Trash2, Workflow } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTable, write } from '../lib/useTable';
 import { formatDay, formatTime, sentence, toDay } from '../lib/dates';
@@ -11,7 +11,7 @@ interface Message {
   content: string;
   is_user: boolean;
   created_at: string;
-  metadata: { kind?: string; actions?: { tool: string; summary: string }[]; model?: string } | null;
+  metadata: { kind?: string; title?: string; actions?: { tool: string; summary: string }[]; model?: string } | null;
 }
 
 const SUGGESTIONS = [
@@ -143,11 +143,12 @@ function Bubble({ m }: { m: Message }) {
     );
   }
   const briefing = m.metadata?.kind === 'briefing';
+  const auto = m.metadata?.kind === 'automation';
   return (
-    <div className={`max-w-[92%] ${briefing ? 'rounded-2xl border border-line bg-raised/40 px-4 py-3' : ''}`}>
+    <div className={`max-w-[92%] ${briefing || auto ? 'rounded-2xl border border-line bg-raised/40 px-4 py-3' : ''}`}>
       <div className="mb-1 flex items-center gap-1.5 text-xs text-fg3">
-        {briefing ? <Sunrise size={14} strokeWidth={1.5} className="text-brand-ink" /> : <Bot size={14} strokeWidth={1.5} />}
-        {briefing ? 'Resumo do dia · Piloto automático' : 'Assistente'} · {time}
+        {briefing ? <Sunrise size={14} strokeWidth={1.5} className="text-brand-ink" /> : auto ? <Workflow size={14} strokeWidth={1.5} className="text-brand-ink" /> : <Bot size={14} strokeWidth={1.5} />}
+        {briefing ? 'Resumo do dia · Piloto automático' : auto ? `Piloto automático · ${m.metadata?.title ?? 'pedido à IA'}` : 'Assistente'} · {time}
       </div>
       <Rich text={m.content} />
       {!!m.metadata?.actions?.length && (

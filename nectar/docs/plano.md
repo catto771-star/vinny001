@@ -78,11 +78,18 @@ seguintes acrescentam telas e regras.
 | Conhecimento | Notas em blocos no formato do Néctar (títulos, listas, checklist, citação, código, negrito e itálico), áreas, busca sem acento, fixadas e favoritas, conexões por [[Título]] e mapa; diário com humor; captura rápida que vira nota ou tarefa |
 | Piloto automático | Automações que rodam no servidor (pg_cron, a cada 5 minutos, com o app fechado) nos dias e horários escolhidos: criar tarefa, criar lembrete, resumo do dia e pedido à IA (este espera o assistente); histórico de execuções |
 
+## Fase 5: Assistente, pronto
+
+| Parte | O que funciona |
+|---|---|
+| Chat | IA pelo OpenRouter (DeepSeek com crédito; sem crédito, modelos gratuitos que aceitam ferramentas, escolhidos do catálogo da OpenRouter). Consulta e altera os dados: tarefas, lembretes, hábitos, gastos e receitas, resumo do mês, notas, metas e projetos. A chave fica nos secrets do Supabase |
+| Piloto automático | Os pedidos à IA rodam no horário pelo próprio servidor (cron → banco → função, com segredo guardado no Vault) ou em "Rodar agora"; a resposta aparece no Assistente e no histórico |
+| Segurança | Toda consulta das ferramentas é limitada ao dono, testada uma a uma, para valer também quando a função roda como administrador |
+
 ## Próximas fases
 
 | Fase | Módulo | O que falta |
 |---|---|---|
-| 5 | Assistente | Chat com IA (DeepSeek por Groq ou OpenRouter) que consulta e altera os módulos; liga os pedidos à IA do Piloto automático e mostra os resumos do dia |
 | 6 | Notificações | Push, e-mail ou Telegram/WhatsApp para lembretes, tarefas e faturas (as integrações ficam em Configurações; o Piloto automático usa o que estiver conectado) |
 | 7 | Google Agenda | Sincronizar os compromissos com o Google Agenda (por último, a pedido) |
 | 8 | Manual | Guia curto e direto: o que registrar e onde, para tirar o máximo do app |

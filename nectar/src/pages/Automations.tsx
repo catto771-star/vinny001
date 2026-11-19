@@ -9,7 +9,8 @@ const TABS = ['Automações', 'Histórico'] as const;
 type Tab = (typeof TABS)[number];
 const ICON: Record<Action, typeof Bot> = { briefing: Sunrise, task: CheckSquare, reminder: Bell, ai: Bot };
 const STATUS: Record<Run['status'], { label: string; tone: string }> = {
-  ok: { label: 'Feito', tone: 'text-positive' }, waiting_ai: { label: 'Aguardando a IA', tone: 'text-brand-ink' }, error: { label: 'Erro', tone: 'text-negative' },
+  ok: { label: 'Feito', tone: 'text-positive' }, waiting_ai: { label: 'Na fila da IA', tone: 'text-brand-ink' },
+  running: { label: 'A IA está respondendo', tone: 'text-brand-ink' }, error: { label: 'Erro', tone: 'text-negative' },
 };
 
 const when = runTimeText;
@@ -31,6 +32,11 @@ export default function Automations() {
     setRunning(a.id);
     const { error } = await supabase.rpc('run_automation_now', { p_id: a.id });
     if (error) alert(`Não foi possível rodar: ${error.message}`);
+    else if (a.action === 'ai') {
+      // The request waits for the AI: show it waiting, then ask the assistant to answer now.
+      await runs.reload();
+      await supabase.functions.invoke('assistant', { body: { process_runs: true } });
+    }
     await Promise.all([runs.reload(), automations.reload()]);
     setRunning(null);
   }
@@ -176,7 +182,7 @@ function AutomationForm({ automation, onClose, onSaved, onDeleted }: {
         {action === 'ai' && (
           <>
             <Field label="Pedido"><textarea className="input" rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} required /></Field>
-            <p className="-mt-2 mb-4 text-xs text-fg3">Fica guardado e passa a rodar quando o assistente de IA for ligado (próxima etapa).</p>
+            <p className="-mt-2 mb-4 text-xs text-fg3">A IA responde no horário, com acesso aos seus dados (pode criar tarefas, lembretes etc.). A resposta aparece no Assistente e no histórico.</p>
           </>
         )}
         {action === 'briefing' && <p className="-mt-2 mb-4 text-xs text-fg3">O resumo aparece no histórico e, depois, no chat do assistente.</p>}

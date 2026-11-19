@@ -1,13 +1,19 @@
-// The assistant: takes a message from the signed-in user, talks to DeepSeek
-// through OpenRouter with tools over the user's own data, saves both sides of
-// the conversation and returns the reply. Every query runs with the user's
-// token, so row level security applies as in the app. The OpenRouter key is a
+// The assistant. Two ways in:
+// - Chat: the signed-in user sends a message; the reply comes back and both
+//   sides are saved to chat_messages.
+// - Autopilot: AI requests from the Piloto automático wait in automation_runs
+//   as 'waiting_ai'. The database calls this function with a shared secret
+//   (x-automation-secret) and it answers every waiting request with the
+//   service role; or the user presses "Rodar agora" and it answers theirs.
+// Every tool query is limited to the owner explicitly (tools.ts), so the
+// service role never reaches another user's data. The OpenRouter key is a
 // Supabase secret (OPENROUTER_API_KEY) and never reaches the browser.
-import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
+import { createClient } from 'jsr:@supabase/supabase-js@2';
 import {
-  TOOLS, WRITES, addDays, checkArgs, cleanKey, history, keyHint, maskKey, modelCandidates, pickFreeModels, exchangeRows, matchByName, skipFor, withoutSkipped, localNow, systemPrompt, textToBlocks, zonedToUtc,
-  type LocalNow, type StoredMessage, type ToolArgs,
+  TOOLS, WRITES, checkArgs, cleanKey, history, keyHint, maskKey, modelCandidates, pickFreeModels, exchangeRows, skipFor, withoutSkipped,
+  localNow, systemPrompt, type StoredMessage,
 } from './lib.ts';
+import { runTool, scoped, snapshot, type Db } from './tools.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -17,66 +23,121 @@ const CORS = {
 let workingModel: string | null = null;
 // Models that failed lately, left aside until the time stored here.
 const skipped = new Map<string, number>();
+// AI requests answered per call: free models are slow and a call has a time limit.
+const RUNS_PER_CALL = 3;
 
 type Msg = { role: string; content: string | null; tool_calls?: unknown[]; tool_call_id?: string };
+type Reply = { reply: string; actions: { tool: string; summary: string }[]; model: string };
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
-
-  const auth = req.headers.get('Authorization') ?? '';
-  const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: auth } } });
-  const { data: { user } } = await db.auth.getUser(auth.replace(/^Bearer /, ''));
-  if (!user) return json({ error: 'unauthorized' }, 401);
-
   const body = await req.json().catch(() => ({}));
-  const message = String(body.message ?? '').trim();
-  if (!message || message.length > 4000) return json({ error: 'A mensagem precisa ter de 1 a 4000 caracteres.' }, 400);
+  const url = Deno.env.get('SUPABASE_URL')!;
 
   const key = cleanKey(Deno.env.get('OPENROUTER_API_KEY') ?? '');
   if (!key) {
     return json({ error: 'missing_key', message: 'A chave do OpenRouter ainda não foi salva no Supabase (Edge Functions → Secrets → OPENROUTER_API_KEY).' }, 503);
   }
 
-  const { data: settings } = await db.from('user_settings').select('timezone,display_name').maybeSingle();
-  const tz = settings?.timezone ?? 'America/Sao_Paulo';
-  const now = localNow(tz);
-  const { data: past } = await db.from('chat_messages').select('content,is_user,created_at,metadata').order('created_at', { ascending: false }).limit(30);
+  // The database, on schedule: every waiting AI request, each as its owner.
+  const secret = Deno.env.get('AUTOMATION_SECRET');
+  const given = req.headers.get('x-automation-secret');
+  if (given !== null) {
+    if (!secret || given !== secret) return json({ error: 'unauthorized' }, 401);
+    const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
+    return json(await processRuns(admin, key, null));
+  }
 
-  const messages: Msg[] = [
-    { role: 'system', content: systemPrompt(now, tz, { name: settings?.display_name, ...await snapshot(db, now, tz) }) },
-    ...history((past ?? []) as StoredMessage[]),
-    { role: 'user', content: message },
-  ];
+  // Everyone else signs in.
+  const auth = req.headers.get('Authorization') ?? '';
+  const db = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: auth } } });
+  const { data: { user } } = await db.auth.getUser(auth.replace(/^Bearer /, ''));
+  if (!user) return json({ error: 'unauthorized' }, 401);
 
-  const actions: { tool: string; summary: string }[] = [];
-  let reply = '';
-  let model = '';
+  if (body.process_runs === true) return json(await processRuns(db, key, user.id));
+
+  const message = String(body.message ?? '').trim();
+  if (!message || message.length > 4000) return json({ error: 'A mensagem precisa ter de 1 a 4000 caracteres.' }, 400);
+  const { data: past } = await scoped(db, user.id).select('chat_messages', 'content,is_user,created_at,metadata').order('created_at', { ascending: false }).limit(30);
+  let out: Reply;
   try {
-    for (let round = 0; round < 6; round++) {
-      const res = await complete(key, messages);
-      model = res.model;
-      const choice = res.message;
-      if (!choice.tool_calls?.length) { reply = (choice.content ?? '').trim(); break; }
-      messages.push({ role: 'assistant', content: choice.content ?? '', tool_calls: choice.tool_calls });
-      for (const call of choice.tool_calls as { id: string; function: { name: string; arguments: string } }[]) {
-        let parsed: unknown = {};
-        try { parsed = JSON.parse(call.function.arguments || '{}'); } catch { /* checked below */ }
-        const checked = checkArgs(call.function.name, parsed);
-        const result = checked.ok ? await run(db, call.function.name, checked.args, now, tz) : { erro: checked.error };
-        if (checked.ok && WRITES.has(call.function.name) && !('erro' in result)) actions.push({ tool: call.function.name, summary: String(result.feito ?? '') });
-        messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result).slice(0, 12000) });
-      }
-    }
+    out = await converse(db, user.id, key, message, (past ?? []) as StoredMessage[]);
   } catch (e) {
     return json({ error: 'ai_failed', message: (e as Error).message }, 502);
   }
-  if (!reply) reply = actions.length ? 'Pronto.' : 'Não consegui responder agora. Tente de novo.';
   // Both sides are saved only once there is an answer, so a failed call leaves no orphan question.
-  const { error: saveError } = await db.from('chat_messages').insert(exchangeRows(message, reply, { model, actions }));
-  return json({ reply, actions, model, saved: !saveError, ...(saveError ? { saveError: saveError.message } : {}) });
+  const rows = exchangeRows(message, out.reply, { model: out.model, actions: out.actions }).map((r) => ({ ...r, user_id: user.id }));
+  const { error: saveError } = await db.from('chat_messages').insert(rows);
+  return json({ ...out, saved: !saveError, ...(saveError ? { saveError: saveError.message } : {}) });
 });
+
+/** One request to the model with tools, for one user, until it answers in words. */
+async function converse(db: Db, uid: string, key: string, message: string, past: StoredMessage[]): Promise<Reply> {
+  const { data: settings } = await scoped(db, uid).select('user_settings', 'timezone,display_name').maybeSingle();
+  const tz = settings?.timezone ?? 'America/Sao_Paulo';
+  const now = localNow(tz);
+  const messages: Msg[] = [
+    { role: 'system', content: systemPrompt(now, tz, { name: settings?.display_name, ...await snapshot(db, uid, now, tz) }) },
+    ...history(past),
+    { role: 'user', content: message },
+  ];
+  const actions: { tool: string; summary: string }[] = [];
+  let reply = '';
+  let model = '';
+  for (let round = 0; round < 6; round++) {
+    const res = await complete(key, messages);
+    model = res.model;
+    const choice = res.message;
+    if (!choice.tool_calls?.length) { reply = (choice.content ?? '').trim(); break; }
+    messages.push({ role: 'assistant', content: choice.content ?? '', tool_calls: choice.tool_calls });
+    for (const call of choice.tool_calls as { id: string; function: { name: string; arguments: string } }[]) {
+      let parsed: unknown = {};
+      try { parsed = JSON.parse(call.function.arguments || '{}'); } catch { /* checked below */ }
+      const checked = checkArgs(call.function.name, parsed);
+      const result = checked.ok ? await runTool(db, uid, call.function.name, checked.args, now, tz) : { erro: checked.error };
+      if (checked.ok && WRITES.has(call.function.name) && !('erro' in result)) actions.push({ tool: call.function.name, summary: String(result.feito ?? '') });
+      messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result).slice(0, 12000) });
+    }
+  }
+  if (!reply) reply = actions.length ? 'Pronto.' : 'Não consegui responder agora. Tente de novo.';
+  return { reply, actions, model };
+}
+
+/**
+ * Answers waiting AI requests of the autopilot: all users' (uid null, service
+ * role) or one user's. Each run is claimed first, so two calls never answer
+ * the same one; the answer goes to the chat and to the run's log.
+ */
+async function processRuns(db: Db, key: string, uid: string | null) {
+  let q = db.from('automation_runs').select('id,automation_id,user_id').eq('status', 'waiting_ai').order('ran_at').limit(RUNS_PER_CALL);
+  if (uid) q = q.eq('user_id', uid);
+  const { data: waiting } = await q;
+  const done: { id: string; status: string }[] = [];
+  for (const run of (waiting ?? []) as { id: string; automation_id: string; user_id: string }[]) {
+    const { data: claimed } = await db.from('automation_runs').update({ status: 'running' }).eq('id', run.id).eq('user_id', run.user_id).eq('status', 'waiting_ai').select('id');
+    if (!claimed?.length) continue;
+    const { data: a } = await scoped(db, run.user_id).select('automations', 'title,prompt').eq('id', run.automation_id).maybeSingle();
+    let status = 'ok';
+    let output = '';
+    try {
+      if (!a?.prompt) throw new Error('A automação não tem pedido.');
+      const out = await converse(db, run.user_id, key, a.prompt, []);
+      output = out.reply;
+      await scoped(db, run.user_id).insert('chat_messages', {
+        content: out.reply, is_user: false,
+        metadata: { kind: 'automation', automation_id: run.automation_id, title: a.title, prompt: a.prompt, model: out.model, actions: out.actions },
+      });
+    } catch (e) {
+      status = 'error';
+      output = (e as Error).message;
+    }
+    await db.from('automation_runs').update({ status, output: output.slice(0, 4000) }).eq('id', run.id).eq('user_id', run.user_id);
+    done.push({ id: run.id, status });
+  }
+  return { processed: done };
+}
 
 /** One call to OpenRouter; finds a DeepSeek model that answers and keeps it. */
 async function complete(key: string, messages: Msg[]): Promise<{ model: string; message: Msg }> {
@@ -138,157 +199,4 @@ async function freeModels(): Promise<string[]> {
   const ids = pickFreeModels(Array.isArray(data?.data) ? data.data : []);
   freeCache = { at: Date.now(), ids };
   return ids;
-}
-
-/** A short picture of the day for the system prompt. */
-async function snapshot(db: SupabaseClient, now: LocalNow, tz: string) {
-  const endToday = zonedToUtc(now.date, '23:59', tz);
-  const startToday = zonedToUtc(now.date, '00:00', tz);
-  const [{ data: tasks }, { data: habits }, { data: goals }] = await Promise.all([
-    db.from('tasks').select('title,due_date').eq('completed', false).eq('is_archived', false).not('due_date', 'is', null).lte('due_date', endToday).limit(40),
-    db.from('habits').select('name,schedule_days,frequency').eq('is_archived', false),
-    db.from('goals').select('title').eq('status', 'active').limit(10),
-  ]);
-  const today = (tasks ?? []).filter((t) => t.due_date >= startToday);
-  return {
-    tasksToday: today.slice(0, 10).map((t) => t.title),
-    tasksLate: (tasks ?? []).length - today.length,
-    habitsToday: (habits ?? []).filter((h) => dueToday(h, now)).map((h) => h.name).slice(0, 15),
-    goals: (goals ?? []).map((g) => g.title),
-  };
-}
-
-function dueToday(h: { schedule_days: number[] | null; frequency?: string | null }, now: LocalNow) {
-  return h.frequency === 'weekly' || !h.schedule_days?.length || h.schedule_days.includes(now.weekday);
-}
-
-const localDay = (iso: string, tz: string) => localNow(tz, new Date(iso)).date;
-const PRIORITY_PT: Record<string, string> = { high: 'alta', medium: 'média', low: 'baixa' };
-
-/** Runs one checked tool call as the user. Results are short and in Portuguese. */
-async function run(db: SupabaseClient, name: string, a: ToolArgs, now: LocalNow, tz: string): Promise<Record<string, unknown>> {
-  const fail = (e: { message: string } | null) => ({ erro: e?.message ?? 'falhou' });
-  switch (name) {
-    case 'listar_tarefas': {
-      let q = db.from('tasks').select('id,title,priority,due_date').eq('completed', false).eq('is_archived', false).order('due_date', { ascending: true, nullsFirst: false }).limit(50);
-      if (a.periodo === 'hoje') q = q.not('due_date', 'is', null).lte('due_date', zonedToUtc(now.date, '23:59', tz));
-      if (a.periodo === 'atrasadas') q = q.lt('due_date', zonedToUtc(now.date, '00:00', tz));
-      if (a.periodo === 'semana') q = q.not('due_date', 'is', null).lte('due_date', zonedToUtc(addDays(now.date, 7), '23:59', tz));
-      const { data, error } = await q;
-      if (error) return fail(error);
-      return { tarefas: (data ?? []).map((t) => ({ id: t.id, titulo: t.title, prioridade: PRIORITY_PT[t.priority], data: t.due_date ? localDay(t.due_date, tz) : null })) };
-    }
-    case 'criar_tarefa': {
-      const due = a.data ? zonedToUtc(String(a.data), '23:59', tz) : null;
-      const { error } = await db.from('tasks').insert({ title: a.titulo, priority: a.prioridade, due_date: due, due_all_day: !!due });
-      return error ? fail(error) : { feito: `Tarefa criada: ${a.titulo}${a.data ? ` (${String(a.data).split('-').reverse().join('/')})` : ''}` };
-    }
-    case 'concluir_tarefa': {
-      if (!a.id) {
-        const { data: open } = await db.from('tasks').select('id,title').eq('completed', false).eq('is_archived', false).limit(500);
-        const found = matchByName((open ?? []).map((t) => ({ id: t.id, name: t.title })), String(a.titulo));
-        if (!found.length) return { erro: `nenhuma tarefa aberta com "${a.titulo}"` };
-        if (found.length > 1) return { erro: 'mais de uma tarefa combina; pergunte qual', opcoes: found.slice(0, 8).map((t) => t.name) };
-        a = { ...a, id: found[0].id };
-      }
-      const { data, error } = await db.from('tasks').update({ completed: true, status: 'completed', completed_at: new Date().toISOString() }).eq('id', a.id).select('title');
-      if (error) return fail(error);
-      return data?.length ? { feito: `Tarefa concluída: ${data[0].title}` } : { erro: 'tarefa não encontrada' };
-    }
-    case 'criar_lembrete': {
-      const { error } = await db.from('reminders').insert({ title: a.titulo, datetime: zonedToUtc(String(a.data), String(a.hora), tz) });
-      return error ? fail(error) : { feito: `Lembrete: ${a.titulo}, ${String(a.data).split('-').reverse().join('/')} às ${a.hora}` };
-    }
-    case 'listar_habitos': {
-      const [{ data: habits, error }, { data: done }] = await Promise.all([
-        db.from('habits').select('id,name,habit_type,unit,target_value,schedule_days,frequency,times_per_week').eq('is_archived', false),
-        db.from('habit_completions').select('habit_id,value').eq('completed_date', now.date),
-      ]);
-      if (error) return fail(error);
-      return {
-        habitos: (habits ?? []).filter((h) => dueToday(h, now)).map((h) => {
-          const c = (done ?? []).find((x) => x.habit_id === h.id);
-          return { id: h.id, nome: h.name, tipo: h.habit_type, meta: h.target_value, unidade: h.unit, feito_hoje: !!c && (h.target_value == null ? c.value > 0 : c.value >= h.target_value), valor_hoje: c?.value ?? 0 };
-        }),
-      };
-    }
-    case 'marcar_habito': {
-      if (!a.id) {
-        const { data: all } = await db.from('habits').select('id,name').eq('is_archived', false);
-        const found = matchByName(all ?? [], String(a.nome));
-        if (!found.length) return { erro: `nenhum hábito com "${a.nome}"` };
-        if (found.length > 1) return { erro: 'mais de um hábito combina; pergunte qual', opcoes: found.slice(0, 8).map((h) => h.name) };
-        a = { ...a, id: found[0].id };
-      }
-      const { data: h } = await db.from('habits').select('name,target_value').eq('id', a.id).maybeSingle();
-      if (!h) return { erro: 'hábito não encontrado' };
-      const value = a.valor ?? h.target_value ?? 1;
-      const { error } = await db.from('habit_completions').upsert({ habit_id: a.id, completed_date: now.date, value }, { onConflict: 'habit_id,completed_date' });
-      return error ? fail(error) : { feito: `Hábito marcado: ${h.name}` };
-    }
-    case 'resumo_financeiro': {
-      const from = `${a.ano}-${String(a.mes).padStart(2, '0')}-01`;
-      const to = addDays(Number(a.mes) === 12 ? `${Number(a.ano) + 1}-01-01` : `${a.ano}-${String(Number(a.mes) + 1).padStart(2, '0')}-01`, -1);
-      const { data, error } = await db.from('transactions').select('type,amount,category,is_pending').gte('date', from).lte('date', to);
-      if (error) return fail(error);
-      const rows = data ?? [];
-      const sum = (t: string) => Math.round(rows.filter((r) => r.type === t).reduce((s, r) => s + Number(r.amount), 0) * 100) / 100;
-      const byCat = new Map<string, number>();
-      for (const r of rows.filter((x) => x.type === 'expense')) byCat.set(r.category ?? 'Sem categoria', (byCat.get(r.category ?? 'Sem categoria') ?? 0) + Number(r.amount));
-      return {
-        mes: `${String(a.mes).padStart(2, '0')}/${a.ano}`, receitas: sum('income'), despesas: sum('expense'), saldo: Math.round((sum('income') - sum('expense')) * 100) / 100,
-        pendentes: rows.filter((r) => r.is_pending).length,
-        maiores_categorias: [...byCat].sort((x, y) => y[1] - x[1]).slice(0, 5).map(([categoria, valor]) => ({ categoria, valor: Math.round(valor * 100) / 100 })),
-        observacao: 'Regime de competência: conta pela data do lançamento.',
-      };
-    }
-    case 'registrar_transacao': {
-      const { error } = await db.from('transactions').insert({
-        description: a.descricao, amount: a.valor, type: a.tipo === 'receita' ? 'income' : 'expense', category: a.categoria, date: a.data ?? now.date,
-      });
-      const money = `R$ ${Number(a.valor).toFixed(2).replace('.', ',')}`;
-      return error ? fail(error) : { feito: `${a.tipo === 'receita' ? 'Receita' : 'Gasto'} registrado: ${a.descricao}, ${money}` };
-    }
-    case 'buscar_notas': {
-      const like = `%${String(a.texto).replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
-      const { data, error } = await db.from('knowledge_blocks').select('id,title,content_text').or(`title.ilike.${like},content_text.ilike.${like}`).limit(8);
-      if (error) return fail(error);
-      return { notas: (data ?? []).map((n) => ({ titulo: n.title, trecho: n.content_text.slice(0, 400) })) };
-    }
-    case 'criar_nota': {
-      const texto = String(a.texto ?? '');
-      const { error } = await db.from('knowledge_blocks').insert({ title: a.titulo, content: textToBlocks(texto), content_text: texto, source_type: 'assistant' });
-      return error ? fail(error) : { feito: `Nota criada: ${a.titulo}` };
-    }
-    case 'listar_metas': {
-      const [{ data: goals, error }, { data: entries }] = await Promise.all([
-        db.from('goals').select('id,title,goal_type,unit,start_value,target_value,measure,target_date,linked_bank_id').eq('status', 'active'),
-        db.from('goal_entries').select('goal_id,date,value').order('date'),
-      ]);
-      if (error) return fail(error);
-      return {
-        metas: (goals ?? []).map((g) => {
-          const mine = (entries ?? []).filter((e) => e.goal_id === g.id);
-          const manual = g.goal_type === 'custom' || (g.goal_type === 'financial' && !g.linked_bank_id);
-          const atual = !manual ? null : g.measure === 'last' ? Number(mine.at(-1)?.value ?? g.start_value) : Number(g.start_value) + mine.reduce((s, e) => s + Number(e.value), 0);
-          return { titulo: g.title, tipo: g.goal_type, atual, alvo: g.target_value, unidade: g.goal_type === 'financial' ? 'R$' : g.unit, prazo: g.target_date, observacao: manual ? undefined : 'valor calculado no app' };
-        }),
-      };
-    }
-    case 'listar_projetos': {
-      const [{ data: projects, error }, { data: links }, { data: open }] = await Promise.all([
-        db.from('projects').select('id,name,status,due_date').eq('is_template', false).is('archived_at', null).in('status', ['active', 'planning']),
-        db.from('project_tasks').select('project_id,task_id'),
-        db.from('tasks').select('id').eq('completed', false),
-      ]);
-      if (error) return fail(error);
-      const openIds = new Set((open ?? []).map((t) => t.id));
-      return {
-        projetos: (projects ?? []).map((p) => ({
-          nome: p.name, prazo: p.due_date, tarefas_abertas: (links ?? []).filter((l) => l.project_id === p.id && openIds.has(l.task_id)).length,
-        })),
-      };
-    }
-  }
-  return { erro: 'ferramenta desconhecida' };
 }
