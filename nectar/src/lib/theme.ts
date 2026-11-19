@@ -24,4 +24,6 @@ export function applyTheme(theme: Theme) {
   } catch {
     /* storage unavailable: the choice lasts for this visit */
   }
+  // Other parts of the screen showing the theme (the sidebar button) follow along.
+  window.dispatchEvent(new CustomEvent('painel-theme', { detail: theme }));
 }

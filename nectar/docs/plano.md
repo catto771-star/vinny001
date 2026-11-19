@@ -94,6 +94,14 @@ seguintes acrescentam telas e regras.
 | Notificações | Push do navegador por aparelho, mesmo com o app fechado: lembretes (na hora e com antecedência), tarefas com horário, resumo do dia (tarefas, atrasadas, hábitos e contas) e respostas do Piloto automático; preferências e "Enviar teste" em Configurações |
 | Servidor | Função notify a cada 5 minutos (cron → banco → função), mensagens cifradas no padrão Web Push, nenhuma notificação repetida (registro por chave) e aparelhos desinstalados removidos sozinhos |
 
+## Ajustes pedidos depois da fase 6, prontos
+
+| Parte | O que funciona |
+|---|---|
+| Avaliação corporal | Página própria com dados, medidas, as três fotos (enviadas ao salvar, com a pose anterior como guia) e observações; edição; comparação com qualquer avaliação, lado a lado ou sobrepostas |
+| Moedas | Lançamentos em real, dólar ou euro com a cotação do dia (PTAX do Banco Central, editável); "Ver em R$ / US$ / €" converte as finanças pela cotação de hoje |
+| Configurações | Seções Conta (nome, senha, sair de todos os aparelhos), Preferências (tema, tela inicial, fuso, moeda), Saúde, Notificações, Conectores (status da IA, cotações, alimentos, Google Agenda), App no aparelho e Dados e privacidade (exportar tudo em JSON, apagar a conversa) |
+
 ## Próximas fases
 
 | Fase | Módulo | O que falta |

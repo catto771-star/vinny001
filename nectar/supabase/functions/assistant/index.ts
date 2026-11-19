@@ -37,15 +37,14 @@ Deno.serve(async (req) => {
   const url = Deno.env.get('SUPABASE_URL')!;
 
   const key = cleanKey(Deno.env.get('OPENROUTER_API_KEY') ?? '');
-  if (!key) {
-    return json({ error: 'missing_key', message: 'A chave do OpenRouter ainda não foi salva no Supabase (Edge Functions → Secrets → OPENROUTER_API_KEY).' }, 503);
-  }
+  const missingKey = () => json({ error: 'missing_key', message: 'A chave do OpenRouter ainda não foi salva no Supabase (Edge Functions → Secrets → OPENROUTER_API_KEY).' }, 503);
 
   // The database, on schedule: every waiting AI request, each as its owner.
   const secret = Deno.env.get('AUTOMATION_SECRET');
   const given = req.headers.get('x-automation-secret');
   if (given !== null) {
     if (!secret || given !== secret) return json({ error: 'unauthorized' }, 401);
+    if (!key) return missingKey();
     const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
     return json(await processRuns(admin, key, null));
   }
@@ -55,6 +54,10 @@ Deno.serve(async (req) => {
   const db = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: auth } } });
   const { data: { user } } = await db.auth.getUser(auth.replace(/^Bearer /, ''));
   if (!user) return json({ error: 'unauthorized' }, 401);
+
+  // For Configurações › Conectores: is the key saved, and which model answered last.
+  if (body.status === true) return json({ configured: !!key, model: workingModel });
+  if (!key) return missingKey();
 
   if (body.process_runs === true) return json(await processRuns(db, key, user.id));
 

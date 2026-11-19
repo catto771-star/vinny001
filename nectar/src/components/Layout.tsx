@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import {
   Bell, CalendarDays, CheckSquare, Dumbbell, FolderKanban, Gauge, LogOut, Menu, Moon, Notebook, Repeat,
@@ -38,6 +38,11 @@ export function Mark({ size = 20 }: { size?: number }) {
 
 export default function Layout({ email }: { email: string }) {
   const [theme, setTheme] = useState<Theme>(readTheme());
+  useEffect(() => {
+    const follow = (e: Event) => setTheme((e as CustomEvent<Theme>).detail);
+    window.addEventListener('painel-theme', follow);
+    return () => window.removeEventListener('painel-theme', follow);
+  }, []);
   const [more, setMore] = useState(false);
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark';

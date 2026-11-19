@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
 import { isConfigured, supabase } from './lib/supabase';
 import Layout, { SECTIONS } from './components/Layout';
+import { readStart } from './lib/prefs';
 import Login from './pages/Login';
 import Home from './pages/Home';
 import Tasks from './pages/Tasks';
@@ -59,7 +60,7 @@ export default function App() {
   return (
     <Routes>
       <Route element={<Layout email={session.user.email ?? ''} />}>
-        <Route index element={<Navigate to="/inicio" replace />} />
+        <Route index element={<Navigate to={`/${readStart(SECTIONS.map((x) => x.path))}`} replace />} />
         {SECTIONS.map((s) => (
           <Route
             key={s.path}
