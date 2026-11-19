@@ -76,6 +76,6 @@ describe('api key', () => {
     // Built at run time: a literal key-shaped string trips secret scanners.
     expect(keyHint(`sk-or-v1-${'0'.repeat(64)}`)).toBeNull();
     expect(keyHint('openrouter.ai')).toBe('o valor salvo não parece uma chave do OpenRouter (deveria começar com sk-or-)');
-    expect(keyHint(`sk-or-v1-${'0'.repeat(64)}`)).toBe('a chave salva parece incompleta');
+    expect(keyHint('sk-or-v1-abc')).toBe('a chave salva parece incompleta');
   });
 });
