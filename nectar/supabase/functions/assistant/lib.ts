@@ -226,3 +226,18 @@ export function keyHint(key: string): string | null {
   if (key.length < 40) return 'a chave salva parece incompleta';
   return null;
 }
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+export const PAID_MODELS = ['deepseek/deepseek-chat-v3.1', 'deepseek/deepseek-chat-v3-0324', 'deepseek/deepseek-chat'];
+/** Free variants: no credits needed, a daily message limit. */
+export const FREE_MODELS = ['deepseek/deepseek-chat-v3.1:free', 'deepseek/deepseek-chat-v3-0324:free', 'deepseek/deepseek-chat:free'];
+
+/** Order to try: a chosen model alone; else the last that worked first, then paid, then free. */
+export function modelCandidates(preferred?: string, working?: string | null): string[] {
+  if (preferred) return [preferred];
+  const all = [...PAID_MODELS, ...FREE_MODELS];
+  return working && all.includes(working) ? [working, ...all.filter((m) => m !== working)] : all;
+}

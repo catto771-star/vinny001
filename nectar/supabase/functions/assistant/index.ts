@@ -5,7 +5,7 @@
 // Supabase secret (OPENROUTER_API_KEY) and never reaches the browser.
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import {
-  TOOLS, WRITES, addDays, checkArgs, cleanKey, history, keyHint, maskKey, localNow, systemPrompt, textToBlocks, zonedToUtc,
+  TOOLS, WRITES, addDays, checkArgs, cleanKey, history, keyHint, maskKey, modelCandidates, localNow, systemPrompt, textToBlocks, zonedToUtc,
   type LocalNow, type StoredMessage, type ToolArgs,
 } from './lib.ts';
 
@@ -13,8 +13,7 @@ const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-// Tried in order until one answers; OPENROUTER_MODEL overrides.
-const MODELS = ['deepseek/deepseek-chat-v3.1', 'deepseek/deepseek-chat-v3-0324', 'deepseek/deepseek-chat'];
+// Tried in order until one answers (see modelCandidates); OPENROUTER_MODEL overrides.
 let workingModel: string | null = null;
 
 type Msg = { role: string; content: string | null; tool_calls?: unknown[]; tool_call_id?: string };
@@ -83,9 +82,9 @@ Deno.serve(async (req) => {
 
 /** One call to OpenRouter; finds a DeepSeek model that answers and keeps it. */
 async function complete(key: string, messages: Msg[]): Promise<{ model: string; message: Msg }> {
-  const preferred = Deno.env.get('OPENROUTER_MODEL');
-  const candidates = preferred ? [preferred] : workingModel ? [workingModel] : MODELS;
+  const candidates = modelCandidates(Deno.env.get('OPENROUTER_MODEL') || undefined, workingModel);
   let last = '';
+  let noCredits = false;
   for (const model of candidates) {
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -102,11 +101,13 @@ async function complete(key: string, messages: Msg[]): Promise<{ model: string; 
       const hint = keyHint(key);
       throw new Error(`A chave do OpenRouter foi recusada (${detail})${hint ? `: ${hint}` : ''}. Chave salva: ${maskKey(key)}. Confira o valor salvo no Supabase.`);
     }
-    if (res.status === 402) throw new Error('A conta do OpenRouter está sem créditos para este modelo.');
+    // No credits: a free variant may still answer.
+    if (res.status === 402) { noCredits = true; last = `${model}: ${detail}`; continue; }
     if (res.status === 429) throw new Error('Muitas mensagens em pouco tempo. Espere um minuto e tente de novo.');
     last = `${model}: ${detail}`;
     // An unknown model or one without tools: try the next one.
   }
+  if (noCredits) throw new Error(`A conta do OpenRouter está sem créditos e nenhum modelo gratuito do DeepSeek respondeu (${last}).`);
   throw new Error(`Nenhum modelo DeepSeek respondeu (${last}).`);
 }
 

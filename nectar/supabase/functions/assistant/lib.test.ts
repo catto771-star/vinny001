@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TOOLS, addDays, checkArgs, cleanKey, history, keyHint, maskKey, localNow, systemPrompt, textToBlocks, zonedToUtc } from './lib';
+import { TOOLS, addDays, checkArgs, cleanKey, history, keyHint, maskKey, modelCandidates, localNow, systemPrompt, textToBlocks, zonedToUtc } from './lib';
 
 const SP = 'America/Sao_Paulo';
 
@@ -84,5 +84,19 @@ describe('api key', () => {
     expect(keyHint(`sk-or-v1-${'0'.repeat(64)}`)).toBeNull();
     expect(keyHint('openrouter.ai')).toBe('o valor salvo não parece uma chave do OpenRouter (deveria começar com sk-or-)');
     expect(keyHint('sk-or-v1-abc')).toBe('a chave salva parece incompleta');
+  });
+});
+
+describe('models', () => {
+  it('tries the paid DeepSeek models, then the free ones', () => {
+    const all = modelCandidates();
+    expect(all[0]).toBe('deepseek/deepseek-chat-v3.1');
+    expect(all.filter((m) => m.endsWith(':free')).length).toBeGreaterThan(0);
+    expect(all.findIndex((m) => m.endsWith(':free'))).toBeGreaterThan(all.findIndex((m) => !m.endsWith(':free')));
+  });
+  it('starts with the one that worked last, and a chosen model stands alone', () => {
+    expect(modelCandidates(undefined, 'deepseek/deepseek-chat:free')[0]).toBe('deepseek/deepseek-chat:free');
+    expect(new Set(modelCandidates(undefined, 'deepseek/deepseek-chat:free')).size).toBe(modelCandidates().length);
+    expect(modelCandidates('deepseek/deepseek-r1')).toEqual(['deepseek/deepseek-r1']);
   });
 });
