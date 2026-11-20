@@ -7,7 +7,7 @@ Sistema de operação dos Lodges (Amiens St. e Connolly), conforme a
 
 | Fase | Situação |
 |------|----------|
-| 0. Fundação | Banco, permissões, Assumir Posto, residentes/estadias, auditoria, idiomas, relógio e telas prontos e testados localmente. Falta: projeto Supabase, importação do DOCX, primeiro acesso da gestão. |
+| 0. Fundação | Pronta e publicada (Supabase `ds-lodge` na Irlanda + Vercel `ds-lodge.vercel.app`). Teste de ponta a ponta 18/18 contra o Supabase real. Falta: criar as contas reais da gestão. Importação do DOCX adiada por decisão da gestão. |
 | 1. Núcleo da operação | A fazer |
 | 2. Serviços | A fazer |
 | 3. Gestão | A fazer |
@@ -41,6 +41,18 @@ e as migrações:
 ```bash
 npm run db:reset
 npm run test:db
+```
+
+## Teste de ponta a ponta
+
+`tests/e2e/phase0.e2e.cjs` percorre a Fase 0 no navegador contra um projeto Supabase real
+(primeiro acesso, duas etapas, criação de usuários, Assumir Posto, admissão, Out, auditoria,
+idioma, desativação). Cria dados marcados com "[TESTE]". Veja o cabeçalho do arquivo.
+
+## Primeira conta
+
+```bash
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/bootstrap-account.mjs --role owner --name "Nome" --email e-mail
 ```
 
 ## Decisões tomadas na implementação (a confirmar com a gestão)
