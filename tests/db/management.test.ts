@@ -1,0 +1,217 @@
+// Fase 3 — Gestão: Compras, Distribuição/Transferências, Rota, Horas, Férias e Relatório
+// mensal por Lodge (spec s.8, s.4, B13, B31, B45, B49).
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { Db, type Actor } from "./helpers";
+
+let db: Db;
+let manager: Actor;
+let owner: Actor;
+let officeA: Actor;
+let officeC: Actor;
+let porter2: Actor;
+let amiens: string;
+let connolly: string;
+
+beforeEach(async () => {
+  db = await Db.open();
+  manager = await db.createStaff("manager", "Gestão");
+  owner = await db.createStaff("owner", "Dono");
+  officeA = await db.createStaff("porter", "Office Amiens");
+  officeC = await db.createStaff("porter", "Office Connolly");
+  porter2 = await db.createStaff("porter", "Porter Dois");
+  amiens = await db.lodgeId("AMIENS");
+  connolly = await db.lodgeId("CONNOLLY");
+  await db.as(officeA);
+  await db.query("select public.assume_post('office', $1)", [amiens]);
+  await db.as(officeC);
+  await db.query("select public.assume_post('office', $1)", [connolly]);
+});
+
+afterEach(async () => {
+  await db.close();
+});
+
+async function product(name = "Leite 1L") {
+  await db.as(manager);
+  return (await db.one<{ id: string }>("select public.upsert_product(null, $1, 'un', 'Cozinha') as id", [name])).id;
+}
+
+describe("Compras", () => {
+  it("só a gestão registra compras e vê preços; a equipe vê produtos e quantidades sem preço", async () => {
+    const p = await product();
+    await db.as(officeA);
+    expect(await db.error("select public.create_purchase('Musgrave', now()::date, 'NF-1', $1::jsonb)", [JSON.stringify([{ product_id: p, quantity: 3, unit_price: 0.333 }])])).toMatch(/not_authorised/);
+    await db.as(manager);
+    const id = (await db.one<{ id: string }>("select public.create_purchase('Musgrave', now()::date, 'NF-1', $1::jsonb) as id", [JSON.stringify([{ product_id: p, quantity: 3, unit_price: 0.333 }])])).id;
+    await db.as(officeA);
+    expect((await db.one("select quantity::text as q from public.purchase_lines where purchase_id = $1", [id])).q).toBe("3.000");
+    expect(await db.error("select unit_price from public.purchase_lines where purchase_id = $1", [id])).toMatch(/permission denied/);
+    expect(await db.error("select * from public.purchase_prices($1)", [id])).toMatch(/not_authorised/);
+  });
+
+  it("B49: 3 × € 0,333 → total da linha arredondado ao centavo (€ 1,00), não por unidade", async () => {
+    const p = await product();
+    await db.as(manager);
+    const id = (await db.one<{ id: string }>("select public.create_purchase('Musgrave', now()::date, null, $1::jsonb) as id", [JSON.stringify([{ product_id: p, quantity: 3, unit_price: 0.333 }])])).id;
+    const r = await db.one("select line_total::text as t, purchase_total::text as pt from public.purchase_prices($1)", [id]);
+    expect(r).toEqual({ t: "1.00", pt: "1.00" });
+  });
+
+  it("meio centavo arredonda para cima (0,005 → 0,01)", async () => {
+    const p = await product();
+    await db.as(manager);
+    const id = (await db.one<{ id: string }>("select public.create_purchase('X', now()::date, null, $1::jsonb) as id", [JSON.stringify([{ product_id: p, quantity: 1, unit_price: 0.005 }])])).id;
+    expect((await db.one("select line_total::text as t from public.purchase_prices($1)", [id])).t).toBe("0.01");
+  });
+});
+
+describe("Distribuição e transferências", () => {
+  it("alocação por Lodge (até a quantidade comprada); transferência não é nova despesa", async () => {
+    const p = await product();
+    await db.as(manager);
+    const purchase = (await db.one<{ id: string }>("select public.create_purchase('Musgrave', now()::date, null, $1::jsonb) as id", [JSON.stringify([{ product_id: p, quantity: 10, unit_price: 1.2 }])])).id;
+    const line = (await db.one<{ id: string }>("select id from public.purchase_lines where purchase_id = $1", [purchase])).id;
+    await db.as(officeA);
+    await db.query("select public.allocate_purchase_line($1, $2, 6)", [line, amiens]);
+    expect(await db.error("select public.allocate_purchase_line($1, $2, 5)", [line, amiens])).toMatch(/exceeds_purchased_quantity/);
+    await db.query("select public.transfer_product($1, $2, $3, 2, 'faltou em Connolly')", [p, amiens, connolly]);
+    await db.as(manager);
+    const before = (await db.one("select count(*)::int as n from public.purchases")).n;
+    expect(before).toBe(1); // a transferência não criou compra
+    const moves = await db.query("select kind, from_lodge_id, to_lodge_id, quantity::text as q from public.product_movements order by created_at");
+    expect(moves.rows.map((m) => [m.kind, m.q])).toEqual([["allocation", "6.000"], ["transfer", "2.000"]]);
+  });
+
+  it("Office só transfere envolvendo o próprio Lodge", async () => {
+    const p = await product();
+    await db.as(officeC);
+    expect(await db.error("select public.transfer_product($1, $2, $3, 1, null)", [p, amiens, amiens])).toMatch(/not_authorised|same_lodge/);
+    await db.as(officeA);
+    expect(await db.error("select public.transfer_product($1, $2, $2, 1, null)", [p, amiens])).toMatch(/same_lodge/);
+  });
+});
+
+describe("Rota", () => {
+  const at = (days: number, hm: string) => `public.slot_instant(public.operational_day(now()) + ${days}, '${hm}')`;
+
+  it("só a gestão edita; a equipe vê só a escala publicada", async () => {
+    await db.as(officeA);
+    expect(await db.error(`select public.save_rota_shift(null, $1, $2, 'office', ${at(1, "07:00")}, ${at(1, "19:00")})`, [officeA.staffId, amiens])).toMatch(/not_authorised/);
+    await db.as(manager);
+    await db.query(`select public.save_rota_shift(null, $1, $2, 'office', ${at(1, "07:00")}, ${at(1, "19:00")})`, [officeA.staffId, amiens]);
+    await db.as(officeA);
+    expect((await db.query("select * from public.rota_shifts")).rowCount).toBe(0);
+    await db.as(manager);
+    await db.query(`select public.publish_rota(${at(0, "07:00")}, ${at(7, "07:00")})`);
+    await db.as(officeA);
+    expect((await db.query("select * from public.rota_shifts")).rowCount).toBe(1);
+  });
+
+  it("Float é uma função do turno que qualquer Porter exerce, um por vez", async () => {
+    await db.as(manager);
+    await db.query(`select public.save_rota_shift(null, $1, null, 'float', ${at(1, "12:00")}, ${at(2, "00:00")})`, [officeA.staffId]);
+    expect(await db.error(`select public.save_rota_shift(null, $1, null, 'float', ${at(1, "18:00")}, ${at(1, "22:00")})`, [porter2.staffId])).toMatch(/float_overlap/);
+  });
+
+  it("uma pessoa não tem dois turnos sobrepostos", async () => {
+    await db.as(manager);
+    await db.query(`select public.save_rota_shift(null, $1, $2, 'office', ${at(1, "07:00")}, ${at(1, "19:00")})`, [officeA.staffId, amiens]);
+    expect(await db.error(`select public.save_rota_shift(null, $1, $2, 'office', ${at(1, "18:00")}, ${at(2, "07:00")})`, [officeA.staffId, connolly])).toMatch(/staff_overlap/);
+  });
+
+  it("B45: turno sem o mínimo de cobertura (1 Office por turno e Lodge; 1 Float 12h–24h) → alerta ao Manager", async () => {
+    await db.as(manager);
+    // Dia +1 em Amiens: só o Day coberto; Connolly e Float sem ninguém.
+    await db.query(`select public.save_rota_shift(null, $1, $2, 'office', ${at(1, "07:00")}, ${at(1, "19:00")})`, [officeA.staffId, amiens]);
+    const gaps = await db.query(`select lodge_code, kind from public.coverage_gaps(${at(1, "07:00")}, ${at(2, "07:00")}) order by 1 nulls last, 2`);
+    expect(gaps.rows).toEqual([
+      { lodge_code: "AMIENS", kind: "night" },
+      { lodge_code: "CONNOLLY", kind: "day" },
+      { lodge_code: "CONNOLLY", kind: "night" },
+      { lodge_code: null, kind: "float" },
+    ]);
+    await db.query(`select public.publish_rota(${at(1, "07:00")}, ${at(2, "07:00")})`);
+    await db.asSuperuser();
+    expect((await db.one("select (payload ->> 'gaps')::int as g from public.notifications where kind = 'coverage_below_minimum'")).g).toBe(4);
+  });
+
+  it("horários editáveis inclusive depois do fato (com histórico)", async () => {
+    await db.as(manager);
+    const id = (await db.one<{ id: string }>(`select public.save_rota_shift(null, $1, $2, 'office', ${at(-2, "07:00")}, ${at(-2, "19:00")}) as id`, [officeA.staffId, amiens])).id;
+    await db.query(`select public.save_rota_shift($1, $2, $3, 'office', ${at(-2, "07:00")}, ${at(-2, "21:00")})`, [id, officeA.staffId, amiens]);
+    await db.asSuperuser();
+    expect((await db.one("select count(*)::int as n from public.audit_log where table_name = 'rota_shifts' and record_id = $1", [id])).n).toBe(2);
+  });
+});
+
+describe("Horas", () => {
+  it("efetivas vêm do Assumir Posto; B13: Manager prolonga o fim em 2h → horas atualizadas, com histórico", async () => {
+    await db.asSuperuser();
+    const post = (await db.one<{ id: string }>(
+      "insert into public.duty_posts (staff_id, function, lodge_id, started_at, ended_at, end_reason) values ($1, 'office', $2, now() - interval '30 hours', now() - interval '20 hours', 'ended') returning id",
+      [porter2.staffId, amiens],
+    )).id;
+    await db.as(manager);
+    const range = "now() - interval '2 days', now() + interval '1 day'";
+    const before = await db.one(`select effective_minutes from public.staff_hours(${range}) where staff_id = $1`, [porter2.staffId]);
+    expect(before.effective_minutes).toBe(600);
+    await db.query("select public.adjust_work_interval($1, null, now() - interval '18 hours', 'Cobriu 2h a mais')", [post]);
+    const after = await db.one(`select effective_minutes from public.staff_hours(${range}) where staff_id = $1`, [porter2.staffId]);
+    expect(after.effective_minutes).toBe(720);
+    await db.asSuperuser();
+    const audit = await db.query("select new_data ->> 'adjust_reason' as r from public.audit_log where table_name = 'duty_posts' and record_id = $1 and action = 'UPDATE'", [post]);
+    expect(audit.rows.map((x) => x.r)).toContain("Cobriu 2h a mais");
+  });
+
+  it("planejadas vêm da Rota; Cleaners (sem login) têm horas lançadas pelo Manager", async () => {
+    const cleaner = await db.createStaff("cleaner", "Cleaner Um", { login: false });
+    await db.as(manager);
+    await db.query("select public.save_rota_shift(null, $1, $2, 'cleaner', now() - interval '10 hours', now() - interval '6 hours')", [cleaner.staffId, amiens]);
+    await db.query("select public.add_work_interval($1, $2, now() - interval '10 hours', now() - interval '5 hours', 'Ficou 1h a mais')", [cleaner.staffId, amiens]);
+    const h = await db.one("select planned_minutes, effective_minutes from public.staff_hours(now() - interval '1 day', now()) where staff_id = $1", [cleaner.staffId]);
+    expect(h).toEqual({ planned_minutes: 240, effective_minutes: 300 });
+  });
+
+  it("Office não vê nem edita horas", async () => {
+    await db.as(officeA);
+    expect(await db.error("select * from public.staff_hours(now() - interval '1 day', now())")).toMatch(/not_authorised/);
+  });
+});
+
+describe("Férias", () => {
+  it("Manager registra; conflito com a Rota gera alerta", async () => {
+    await db.as(manager);
+    await db.query("select public.save_rota_shift(null, $1, $2, 'office', public.slot_instant(public.operational_day(now()) + 5, '07:00'), public.slot_instant(public.operational_day(now()) + 5, '19:00'))", [officeA.staffId, amiens]);
+    const r = (await db.one("select public.register_vacation($1, public.operational_day(now()) + 4, public.operational_day(now()) + 6, 'Brasil') as r", [officeA.staffId])).r;
+    expect(r.conflicts).toBe(1);
+    await db.as(officeA);
+    expect(await db.error("select public.register_vacation($1, current_date, current_date + 1, null)", [officeA.staffId])).toMatch(/not_authorised/);
+  });
+});
+
+describe("Relatório mensal por Lodge", () => {
+  it("B31: cada número bate com os registros de origem", async () => {
+    // Uma admissão, um Out e um chamado no mês.
+    const [bed] = await db.freeBeds("AMIENS");
+    await db.as(manager);
+    const stay = (await db.one<{ id: string }>("select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => 'Ana', p_admitted_at => now() - interval '1 hour') as id", [amiens, bed])).id;
+    await db.query("select public.effect_out($1)", [stay]);
+    await db.query("select public.create_maintenance($1, 'Cozinha', 'Torneira', 'normal', gen_random_uuid())", [amiens]);
+    const month = (await db.one<{ m: string }>("select to_char(date_trunc('month', public.operational_day(now())), 'YYYY-MM-DD') as m")).m;
+    const rep = (await db.one("select public.report_monthly($1, $2::date) as r", [amiens, month])).r;
+    expect(rep.occupancy.admissions).toBe(1);
+    expect(rep.occupancy.outs).toBe(1);
+    expect(rep.maintenance.opened).toBe(1);
+    for (const metric of ["occupancy.admissions", "occupancy.outs", "maintenance.opened"]) {
+      const [block, key] = metric.split(".");
+      const details = await db.query("select * from public.report_details($1, $2::date, $3)", [amiens, month, metric]);
+      expect(details.rowCount, metric).toBe(rep[block][key]);
+    }
+    expect(rep.order.slice(0, 3)).toEqual(["occupancy", "maintenance", "no_shows"]);
+  });
+
+  it("só a gestão vê relatórios", async () => {
+    await db.as(officeA);
+    expect(await db.error("select public.report_monthly($1, date_trunc('month', now())::date)", [amiens])).toMatch(/not_authorised/);
+  });
+});
