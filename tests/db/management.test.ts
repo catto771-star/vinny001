@@ -5,7 +5,6 @@ import { Db, type Actor } from "./helpers";
 
 let db: Db;
 let manager: Actor;
-let owner: Actor;
 let officeA: Actor;
 let officeC: Actor;
 let porter2: Actor;
@@ -15,7 +14,6 @@ let connolly: string;
 beforeEach(async () => {
   db = await Db.open();
   manager = await db.createStaff("manager", "Gestão");
-  owner = await db.createStaff("owner", "Dono");
   officeA = await db.createStaff("porter", "Office Amiens");
   officeC = await db.createStaff("porter", "Office Connolly");
   porter2 = await db.createStaff("porter", "Porter Dois");

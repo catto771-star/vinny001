@@ -29,6 +29,12 @@ import { Residents } from "@/pages/Residents";
 import { TakePost } from "@/pages/TakePost";
 import { Today } from "@/pages/Today";
 import { Users } from "@/pages/Users";
+import { Distribution } from "@/pages/Distribution";
+import { Hours } from "@/pages/Hours";
+import { Purchases } from "@/pages/Purchases";
+import { Reports } from "@/pages/Reports";
+import { Rota } from "@/pages/Rota";
+import { Vacations } from "@/pages/Vacations";
 
 function Gate() {
   const { stage, isManagement, staff, post, signOut } = useAuth();
@@ -87,6 +93,12 @@ function Gate() {
         <Route path="dinner" element={<Dinner />} />
         <Route path="laundry" element={<Laundry />} />
         <Route path="notifications" element={<Notifications />} />
+        <Route path="rota" element={<Rota />} />
+        <Route path="distribution" element={<Distribution />} />
+        {isManagement && <Route path="purchases" element={<Purchases />} />}
+        {isManagement && <Route path="hours" element={<Hours />} />}
+        {isManagement && <Route path="vacations" element={<Vacations />} />}
+        {isManagement && <Route path="reports" element={<Reports />} />}
         {isManagement && <Route path="users" element={<Users />} />}
         {isManagement && <Route path="audit" element={<Audit />} />}
         <Route path="*" element={<Navigate to="/" replace />} />

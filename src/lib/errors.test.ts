@@ -12,4 +12,13 @@ describe("errorKey", () => {
     expect(errorKey({ message: "unmarked_residents" })).toBe("sheet.markAll");
     expect(errorKey({ message: "checks_pending" })).toBe("noShows.incomplete");
   });
+
+  it("mapeia erros da gestão (Fase 3)", () => {
+    expect(errorKey({ message: "staff_overlap" })).toBe("errors.staffOverlap");
+    expect(errorKey({ message: "float_overlap" })).toBe("errors.floatOverlap");
+    expect(errorKey({ message: "role_not_allowed" })).toBe("errors.roleNotAllowed");
+    expect(errorKey({ message: "exceeds_purchased_quantity" })).toBe("errors.exceedsPurchased");
+    expect(errorKey({ message: "same_lodge" })).toBe("errors.sameLodge");
+    expect(errorKey({ message: "invalid_period" })).toBe("errors.invalidPeriod");
+  });
 });
