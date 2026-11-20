@@ -156,6 +156,7 @@ async function changePassword(page) {
     await b.page.screenshot({ path: `${OUT}/06-occupied.png` });
     await b.page.getByRole("button", { name: "Confirmar e assumir o posto" }).click();
     await b.page.getByRole("heading", { name: "Hoje" }).waitFor({ timeout: 15000 });
+    await b.page.locator(".card").first().getByText("Carregando…").first().waitFor({ state: "detached", timeout: 15000 }).catch(() => {});
     const onDuty = await b.page.locator(".card").first().textContent();
     check("B43: ao confirmar, o posto anterior é encerrado e B assume", onDuty.includes(porterB.name) && !onDuty.includes(porterA.name), onDuty.slice(0, 160));
 

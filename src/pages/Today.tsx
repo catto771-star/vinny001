@@ -10,7 +10,7 @@ import { Notice } from "@/components/Notice";
 export function Today() {
   const { t, locale } = useI18n();
   const { lodges, post, isManagement, serverOffsetMs } = useAuth();
-  const { posts } = useOnDuty();
+  const { posts, loading: dutyLoading } = useOnDuty();
   const { beds } = useOccupancy();
   const now = new Date(Date.now() + serverOffsetMs);
   const opDay = operationalDay(now);
@@ -41,13 +41,25 @@ export function Today() {
               return (
                 <li key={l.id}>
                   <strong>{t("today.officeOf", { lodge: l.short_name })}:</strong>{" "}
-                  {p ? `${staffName(p.staff)} — ${t("today.since", { time: formatTime(p.started_at, locale) })}` : <span className="warn-text">{t("today.nobody")}</span>}
+                  {dutyLoading ? (
+                    <span className="muted">{t("app.loading")}</span>
+                  ) : p ? (
+                    `${staffName(p.staff)} — ${t("today.since", { time: formatTime(p.started_at, locale) })}`
+                  ) : (
+                    <span className="warn-text">{t("today.nobody")}</span>
+                  )}
                 </li>
               );
             })}
             <li>
               <strong>{t("today.floatRole")}:</strong>{" "}
-              {floatPost ? `${staffName(floatPost.staff)} — ${t("today.since", { time: formatTime(floatPost.started_at, locale) })}` : t("today.nobody")}
+              {dutyLoading ? (
+                <span className="muted">{t("app.loading")}</span>
+              ) : floatPost ? (
+                `${staffName(floatPost.staff)} — ${t("today.since", { time: formatTime(floatPost.started_at, locale) })}`
+              ) : (
+                t("today.nobody")
+              )}
             </li>
           </ul>
         </article>
