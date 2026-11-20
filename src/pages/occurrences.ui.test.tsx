@@ -74,6 +74,15 @@ describe("Handover", () => {
     expect(g.map((x) => (x.kind === "round-group" ? `g${x.entries.length}` : x.kind))).toEqual(["g2", "note", "g1"]);
   });
 
+  it("bug: anotação de lavanderia (tipo novo da Fase 2) aparece no Handover sem quebrar a tela", async () => {
+    tables.handover_entries = [
+      { id: "l1", lodge_id: "a", kind: "laundry", body: "Laundry — A · Wash", occurred_at: "2026-11-20T09:00:00Z", operational_day: "2026-11-20", round_slot: null, author_id: "me", late_reason: null, status: "active", void_reason: null, version: 1 },
+    ];
+    wrap(<Handover />);
+    expect(await screen.findByText("Laundry — A · Wash")).toBeTruthy();
+    expect(screen.getAllByText("Laundry").length).toBeGreaterThan(0);
+  });
+
   it("@ marca residente: escolhe na lista e envia a menção junto da anotação", async () => {
     wrap(<Handover />);
     const box = await screen.findByPlaceholderText(/Write in the Handover/);

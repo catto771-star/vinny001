@@ -315,6 +315,7 @@ const plPL: Messages = {
     filterRounds: "Obchody",
     filterMaintenance: "Konserwacja",
     filterWarnings: "Warnings",
+    filterLaundry: "Pralnia",
     empty: "Brak wpisów w tym dniu.",
     voided: "anulowano",
     voidedReason: "Anulowano: {reason}",
@@ -517,6 +518,8 @@ const plPL: Messages = {
   },
   users: {
     title: "Użytkownicy",
+    tabActive: "Aktywni",
+    tabInactive: "Nieaktywni",
     add: "Utwórz użytkownika",
     name: "Imię i nazwisko",
     displayName: "Nazwa skrócona",

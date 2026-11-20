@@ -31,6 +31,10 @@ async function newContext(browser) {
   const ctx = await browser.newContext({ viewport: { width: 1366, height: 860 }, proxy, locale: "pt-PT" });
   const page = await ctx.newPage();
   page.on("pageerror", (e) => console.log("  [pageerror]", e.message));
+  // O pop-up de tarefas (s.7) pode abrir a qualquer momento depois de entrar; fecha antes de cada ação.
+  void page.addLocatorHandler(page.getByRole("dialog").filter({ hasText: /Tarefas esperando por você|Tasks waiting for you/ }), async () => {
+    await page.getByRole("button", { name: /^(Depois|Later)$/ }).click();
+  });
   page.on("console", (m) => m.type() === "error" && console.log("  [console]", m.text().slice(0, 300)));
   page.on("response", (r) => {
     if (r.url().includes("/rest/v1/") && r.status() >= 400) console.log("  [rest]", r.status(), r.url().split("/rest/v1/")[1]?.slice(0, 80));
@@ -202,6 +206,8 @@ async function changePassword(page) {
     await p.locator(".sidebar").getByRole("link", { name: "Usuários" }).click();
     await p.locator("tr", { hasText: porterA.name }).getByRole("button", { name: "Desativar" }).click();
     await p.locator("dialog[open]").getByRole("button", { name: "Desativar" }).click();
+    // Contas desativadas ficam na aba própria.
+    await p.getByRole("tab", { name: "Desativados" }).click();
     await p.locator("tr", { hasText: porterA.name }).getByText("Desativado").waitFor({ timeout: 15000 });
     await login(a.page, porterA.email, NEW_PASSWORD).catch(() => {});
     await a.page.goto(BASE);

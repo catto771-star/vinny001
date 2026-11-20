@@ -596,3 +596,4 @@ a.chip:hover { border-color: var(--ink); text-decoration: none; color: var(--ink
 .notif-dot.kind-fridge_out_of_range { background: var(--danger); }
 .notif-dot.kind-maintenance_opened { background: var(--warn); }
 .notification.is-read .notif-dot { background: var(--line-strong); }
+.timeline-item.kind-laundry { box-shadow: inset 3px 0 0 var(--accent); }

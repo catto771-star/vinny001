@@ -34,6 +34,10 @@ async function newPage(browser) {
   const ctx = await browser.newContext({ viewport: { width: 1366, height: 900 }, proxy, locale: "pt-PT" });
   const page = await ctx.newPage();
   page.on("pageerror", (e) => console.log("  [pageerror]", e.message));
+  // O pop-up de tarefas (s.7) pode abrir a qualquer momento depois de entrar; fecha antes de cada ação.
+  void page.addLocatorHandler(page.getByRole("dialog").filter({ hasText: /Tarefas esperando por você|Tasks waiting for you/ }), async () => {
+    await page.getByRole("button", { name: /^(Depois|Later)$/ }).click();
+  });
   page.on("response", (r) => {
     if (r.url().includes("/rest/v1/") && r.status() >= 400) console.log("  [rest]", r.status(), r.url().split("/rest/v1/")[1]?.slice(0, 80));
   });
@@ -54,8 +58,10 @@ async function changePassword(page) {
   await page.getByRole("button", { name: "Salvar" }).click();
 }
 // O nome do link pode incluir a bolinha de pendências ("Tarefas do turno 12").
-const nav = (page, name) =>
-  page.locator(".sidebar").getByRole("link", { name: new RegExp(`^${name.replace(/[()]/g, "\\$&")}( \\d+\\+?)?$`) }).click();
+// Fecha o pop-up de tarefas se ele aparecer (pode chegar alguns segundos depois de entrar).
+const nav = async (page, name) => {
+  await page.locator(".sidebar").getByRole("link", { name: new RegExp(`^${name.replace(/[()]/g, "\\$&")}( \\d+\\+?)?$`) }).click();
+};
 
 (async () => {
   const browser = await chromium.launch();
@@ -85,11 +91,8 @@ const nav = (page, name) =>
     await Promise.race([p.locator(".bento-hero").waitFor({ timeout: 15000 }), takeover.waitFor({ timeout: 15000 }).then(() => takeover.click())]);
     await p.locator(".bento-hero").waitFor({ timeout: 15000 });
     // Pop-up de tarefas ao entrar (modelo de Amiens já carregado): fecha para seguir.
-    const later = p.getByRole("button", { name: "Depois" });
-    if (await until(() => later.isVisible(), 5000)) {
-      check("Pop-up de tarefas pendentes ao entrar", true);
-      await later.click();
-    }
+    // O pop-up de tarefas é fechado pelo tratador da página; aqui só confirmamos que apareceu.
+    check("Pop-up de tarefas pendentes ao entrar", await until(() => p.getByText("Tarefas esperando por você").isVisible(), 6000));
 
     // Residente
     const resident = `[TESTE] Seán ${RUN}`;

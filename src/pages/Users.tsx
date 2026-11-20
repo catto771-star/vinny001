@@ -7,6 +7,7 @@ import { generateTemporaryPassword } from "@/lib/password";
 import { formatDate } from "@/lib/time";
 import { staffName, type Staff, type StaffRole } from "@/lib/types";
 import { Dialog, DialogCancel } from "@/components/Dialog";
+import { Tabs } from "@/components/Tabs";
 import { Notice } from "@/components/Notice";
 import { useToast } from "@/components/Toast";
 
@@ -32,6 +33,7 @@ export function Users() {
   const { t, locale } = useI18n();
   const { lodges, staff: me } = useAuth();
   const [list, setList] = useState<Staff[]>([]);
+  const [showActive, setShowActive] = useState(true);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Staff | null>(null);
   const [password, setPassword] = useState<{ name: string; value: string } | null>(null);
@@ -71,7 +73,19 @@ export function Users() {
     <section className="page">
       <header className="page-header">
         <h1>{t("users.title")}</h1>
-        <button className="primary" onClick={() => setCreating(true)}>{t("users.add")}</button>
+        <div className="inline">
+          <Tabs
+            size="sm"
+            label={t("users.title")}
+            value={showActive ? "active" : "inactive"}
+            onChange={(v) => setShowActive(v === "active")}
+            items={[
+              { value: "active", label: t("users.tabActive") },
+              { value: "inactive", label: t("users.tabInactive") },
+            ]}
+          />
+          <button className="primary" onClick={() => setCreating(true)}>{t("users.add")}</button>
+        </div>
       </header>
 
       <Notice kind="error">{error}</Notice>
@@ -96,7 +110,7 @@ export function Users() {
           </tr>
         </thead>
         <tbody>
-          {list.map((s) => (
+          {list.filter((s) => s.active === showActive).map((s) => (
             <tr key={s.id} className={s.active ? "" : "row-inactive"}>
               <td>
                 <strong>{s.full_name}</strong>

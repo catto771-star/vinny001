@@ -24,7 +24,7 @@ import { WarningDialog } from "@/components/WarningDialog";
 export type Entry = {
   id: string;
   lodge_id: string;
-  kind: "note" | "round" | "maintenance" | "warning";
+  kind: "note" | "round" | "maintenance" | "warning" | "laundry";
   body: string;
   occurred_at: string;
   operational_day: string;
@@ -36,7 +36,7 @@ export type Entry = {
   version: number;
 };
 type Mention = { entry_id: string; resident_id: string | null; staff_id: string | null };
-type Filter = "all" | "note" | "round" | "maintenance" | "warning";
+type Filter = "all" | "note" | "round" | "maintenance" | "warning" | "laundry";
 type Suggestion = { kind: "resident" | "staff"; id: string; label: string; hint: string };
 
 const COLUMNS = "id, lodge_id, kind, body, occurred_at, operational_day, round_slot, author_id, late_reason, status, void_reason, version";
@@ -45,6 +45,7 @@ const KIND_LABEL: Record<Entry["kind"], MessageKey> = {
   round: "handover.filterRounds",
   maintenance: "handover.filterMaintenance",
   warning: "handover.filterWarnings",
+  laundry: "handover.filterLaundry",
 };
 
 /** Agrupa linhas de ronda seguidas numa só (s.6: o Handover não fica poluído). */
@@ -186,6 +187,7 @@ export function Handover() {
             { value: "round", label: t("handover.filterRounds") },
             { value: "maintenance", label: t("handover.filterMaintenance") },
             { value: "warning", label: t("handover.filterWarnings") },
+            { value: "laundry", label: t("handover.filterLaundry") },
           ]}
         />
       </div>
@@ -216,7 +218,7 @@ export function Handover() {
                 <div className="timeline-body">
                   <div className="timeline-meta">
                     <strong>{nameOf(item.author_id)}</strong>
-                    {item.kind !== "note" && <span className="tag tag-kind">{t(KIND_LABEL[item.kind])}</span>}
+                    {item.kind !== "note" && KIND_LABEL[item.kind] && <span className="tag tag-kind">{t(KIND_LABEL[item.kind])}</span>}
                     {item.late_reason && (
                       <span className="tag">{t("handover.lateTag", { reason: t(`handover.reasons.${item.late_reason}` as MessageKey) })}</span>
                     )}

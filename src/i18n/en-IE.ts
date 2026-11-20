@@ -314,6 +314,7 @@ const enIE = {
     filterRounds: "Rounds",
     filterMaintenance: "Maintenance",
     filterWarnings: "Warnings",
+    filterLaundry: "Laundry",
     empty: "Nothing recorded for this day.",
     voided: "voided",
     voidedReason: "Voided: {reason}",
@@ -516,6 +517,8 @@ const enIE = {
   },
   users: {
     title: "Users",
+    tabActive: "Active",
+    tabInactive: "Deactivated",
     add: "Create user",
     name: "Full name",
     displayName: "Short name",

@@ -315,6 +315,7 @@ const ptPT: Messages = {
     filterRounds: "Rondas",
     filterMaintenance: "Manutenção",
     filterWarnings: "Warnings",
+    filterLaundry: "Laundry",
     empty: "Nada registrado neste dia.",
     voided: "anulada",
     voidedReason: "Anulada: {reason}",
@@ -517,6 +518,8 @@ const ptPT: Messages = {
   },
   users: {
     title: "Usuários",
+    tabActive: "Ativos",
+    tabInactive: "Desativados",
     add: "Criar usuário",
     name: "Nome completo",
     displayName: "Nome curto",
