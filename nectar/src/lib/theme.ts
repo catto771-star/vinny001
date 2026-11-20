@@ -2,16 +2,21 @@ export type Theme = 'dark' | 'light';
 
 const KEY = 'painel.theme';
 
-/** Dark is the default; a saved choice wins. */
+/** Light is the default; a saved choice wins. */
 export function resolveTheme(saved: string | null): Theme {
-  return saved === 'light' || saved === 'dark' ? saved : 'dark';
+  return saved === 'light' || saved === 'dark' ? saved : 'light';
+}
+
+/** The color the phone paints around the app (status bar, installed app frame). */
+export function themeColor(theme: Theme): string {
+  return theme === 'dark' ? '#0f0f10' : '#f3f3f1';
 }
 
 export function readTheme(): Theme {
   try {
     return resolveTheme(localStorage.getItem(KEY));
   } catch {
-    return 'dark';
+    return 'light';
   }
 }
 
@@ -19,6 +24,7 @@ export function applyTheme(theme: Theme) {
   const root = document.documentElement;
   root.classList.toggle('dark', theme === 'dark');
   root.classList.toggle('light', theme === 'light');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', themeColor(theme));
   try {
     localStorage.setItem(KEY, theme);
   } catch {

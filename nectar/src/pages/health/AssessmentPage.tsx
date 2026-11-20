@@ -151,7 +151,7 @@ export default function AssessmentPage({ h, editId, onDone }: { h: Health; editI
   return (
     <form onSubmit={save} className="mx-auto max-w-3xl pb-24">
       <button type="button" className="btn-ghost -ml-2 mb-2" onClick={() => onDone(existing?.id ?? null)}><ArrowLeft {...I} />Avaliações</button>
-      <h1 className="mb-6 text-[28px] leading-8 font-medium tracking-[-0.01em]">{existing ? `Avaliação de ${formatDay(existing.date)}` : 'Nova avaliação'}</h1>
+      <h1 className="display mb-8">{existing ? `Avaliação de ${formatDay(existing.date)}` : 'Nova avaliação'}</h1>
 
       <section className="card mb-6" aria-label="Dados">
         <div className="label mb-3">Dados</div>

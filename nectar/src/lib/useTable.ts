@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from './supabase';
+import { feedback } from './feedback';
 
 /** Loads every row of a table for the signed-in user and reloads on demand. */
 export function useTable<T>(table: string, select = '*', order?: { column: string; ascending?: boolean }) {
@@ -26,12 +27,13 @@ export function useTable<T>(table: string, select = '*', order?: { column: strin
   return { rows, setRows, loading, error, reload };
 }
 
-/** Runs a write and surfaces its error instead of failing silently. */
+/** Runs a write, confirms it with a small "Salvo" and surfaces its error instead of failing silently. */
 export async function write<T>(promise: PromiseLike<{ error: { message: string } | null; data?: T }>) {
   const { error } = await promise;
   if (error) {
-    alert(`Não foi possível salvar: ${error.message}`);
+    feedback({ kind: 'error', text: `Não foi possível salvar: ${error.message}` });
     return false;
   }
+  feedback({ kind: 'ok', text: 'Salvo' });
   return true;
 }

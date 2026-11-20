@@ -177,8 +177,8 @@ export function NotificationsCard() {
             <label className="relative inline-flex shrink-0 cursor-pointer items-center">
               <input type="checkbox" role="switch" className="peer sr-only" checked={settings.notify_prefs[key]} aria-label={`Avisar: ${label}`}
                 onChange={() => void save({ notify_prefs: { ...settings.notify_prefs, [key]: !settings.notify_prefs[key] } })} />
-              <span className="h-6 w-10 rounded-full bg-raised ring-1 ring-line transition-colors duration-150 peer-checked:bg-brand peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-brand" />
-              <span className="absolute left-1 h-4 w-4 rounded-full bg-fg transition-transform duration-150 peer-checked:translate-x-4" />
+              <span className="h-7 w-12 rounded-full bg-sunken transition-colors duration-300 ease-out peer-checked:bg-primary peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-brand" />
+              <span className="absolute left-1 h-5 w-5 rounded-full bg-white shadow-[0_1px_3px_rgb(0_0_0/0.25)] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] peer-checked:translate-x-5" />
             </label>
           </li>
         ))}

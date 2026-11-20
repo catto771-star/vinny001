@@ -23,19 +23,23 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <form onSubmit={submit} className="enter w-full max-w-sm rounded-[20px] border border-line bg-surface p-6">
-        <div className="mb-6 flex items-center gap-2">
+    <div className="mx-auto grid min-h-screen max-w-5xl items-center gap-10 px-5 py-10 md:grid-cols-[1.1fr_1fr] md:gap-16 md:px-10">
+      <div className="enter">
+        <div className="mb-8 flex items-center gap-2">
           <Mark size={22} />
-          <span className="text-[17px] font-medium">Painel</span>
+          <span className="text-[17px] font-semibold tracking-[-0.02em]">Painel</span>
         </div>
-        <h1 className="mb-1 text-xl font-medium">{mode === 'login' ? 'Entrar' : 'Criar conta'}</h1>
-        <p className="mb-5 text-sm text-fg3">Treino, dieta, tarefas e hábitos num lugar só</p>
+        <p className="display max-w-[14ch]">Treino, dieta, tarefas e dinheiro num lugar só.</p>
+        <p className="mt-4 max-w-sm text-[15px] text-fg2">Registre em segundos; o placar do dia se monta sozinho.</p>
+      </div>
+      <form onSubmit={submit} className="card enter w-full p-6 md:p-8" style={{ animationDelay: '80ms' }}>
+        <h1 className="mb-1 text-2xl font-semibold tracking-[-0.02em]">{mode === 'login' ? 'Entrar' : 'Criar conta'}</h1>
+        <p className="mb-6 text-sm text-fg3">{mode === 'login' ? 'Bem-vindo de volta.' : 'Leva menos de um minuto.'}</p>
         <Field label="E-mail"><input className="input" type="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" /></Field>
         <Field label="Senha"><input className="input" type="password" placeholder="senha" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} /></Field>
-        <button className="btn-primary h-10 w-full" disabled={busy}>{mode === 'login' ? 'Entrar' : 'Criar conta'}</button>
-        {message && <p className="mt-3 text-sm text-fg2">{message}</p>}
-        <button type="button" className="mt-4 text-sm text-fg2 underline-offset-4 hover:text-fg hover:underline" onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}>
+        <button className="btn-primary mt-2 h-12 w-full text-[15px] md:h-11" disabled={busy}>{busy ? (mode === 'login' ? 'Entrando…' : 'Criando…') : mode === 'login' ? 'Entrar' : 'Criar conta'}</button>
+        {message && <p className="mt-3 text-sm text-fg2" role="status">{message}</p>}
+        <button type="button" className="mt-5 text-sm text-fg2 underline-offset-4 hover:text-fg hover:underline" onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}>
           {mode === 'login' ? 'Criar uma conta' : 'Já tenho conta'}
         </button>
       </form>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { brl, change, num, plural } from './format';
-import { resolveTheme } from './theme';
+import { resolveTheme, themeColor } from './theme';
 
 describe('number format', () => {
   it('uses the Brazilian separators everywhere', () => {
@@ -21,10 +21,14 @@ describe('number format', () => {
 });
 
 describe('theme', () => {
-  it('defaults to dark and keeps a saved choice', () => {
-    expect(resolveTheme(null)).toBe('dark');
-    expect(resolveTheme('light')).toBe('light');
-    expect(resolveTheme('purple')).toBe('dark');
+  it('defaults to light and keeps a saved choice', () => {
+    expect(resolveTheme(null)).toBe('light');
+    expect(resolveTheme('dark')).toBe('dark');
+    expect(resolveTheme('purple')).toBe('light');
+  });
+  it('paints the system bar with the background of each theme', () => {
+    expect(themeColor('light')).toBe('#f3f3f1');
+    expect(themeColor('dark')).toBe('#0f0f10');
   });
 });
 

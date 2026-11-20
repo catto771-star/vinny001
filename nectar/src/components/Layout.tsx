@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   Bell, CalendarDays, CheckSquare, Dumbbell, FolderKanban, Gauge, LogOut, Menu, Moon, Notebook, Repeat,
   Bot, Settings, Sun, Target, Wallet, Workflow, type LucideIcon,
@@ -7,6 +7,8 @@ import {
 import { supabase } from '../lib/supabase';
 import { applyTheme, readTheme, type Theme } from '../lib/theme';
 import { Modal } from './ui';
+import { Motion } from './Motion';
+import { Toaster } from './Toaster';
 
 export const SECTIONS: readonly { path: string; label: string; icon: LucideIcon; mobile?: boolean }[] = [
   { path: 'inicio', label: 'Início', icon: Gauge, mobile: true },
@@ -44,36 +46,40 @@ export default function Layout({ email }: { email: string }) {
     return () => window.removeEventListener('painel-theme', follow);
   }, []);
   const [more, setMore] = useState(false);
+  const { pathname } = useLocation();
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark';
     applyTheme(next);
     setTheme(next);
   };
   const row = ({ isActive }: { isActive: boolean }) =>
-    `flex h-9 items-center gap-2.5 rounded-lg px-3 text-sm transition-colors duration-150 ${
-      isActive ? 'bg-raised text-fg shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]' : 'text-fg2 hover:bg-raised/60 hover:text-fg'
+    `relative z-[1] flex h-9 items-center gap-2.5 rounded-[10px] px-3 text-sm transition-colors duration-300 ${
+      isActive ? 'bg-indicator font-medium text-fg shadow-[var(--indicator-shadow)]' : 'text-fg2 hover:text-fg'
     }`;
+  const mobile = SECTIONS.filter((s) => s.mobile);
+  const inMore = !mobile.some((s) => pathname.startsWith(`/${s.path}`));
 
   return (
     <div className="min-h-screen md:flex">
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-sunken px-3 py-4 md:flex">
-        <div className="mb-6 flex h-8 items-center gap-2 px-3">
+      <Motion />
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col px-3 py-5 md:flex">
+        <div className="mb-7 flex h-8 items-center gap-2 px-3">
           <Mark />
-          <span className="text-[17px] font-medium">Painel</span>
+          <span className="text-[17px] font-semibold tracking-[-0.02em]">Painel</span>
         </div>
-        <nav className="flex flex-col gap-0.5" aria-label="Seções">
+        <nav className="slide-group side-nav relative flex flex-col gap-0.5" aria-label="Seções">
           {SECTIONS.map(({ path, label, icon: Icon }) => (
             <NavLink key={path} to={`/${path}`} className={row}>
               {({ isActive }) => (
                 <>
-                  <Icon {...ICON} className={isActive ? 'text-brand' : 'text-fg3'} />
+                  <Icon {...ICON} className={`transition-colors duration-300 ${isActive ? 'text-brand' : 'text-fg3'}`} />
                   {label}
                 </>
               )}
             </NavLink>
           ))}
         </nav>
-        <div className="mt-auto border-t border-line pt-3">
+        <div className="mt-auto pt-3">
           <div className="truncate px-3 pb-2 text-xs text-fg3">{email}</div>
           <div className="flex gap-1">
             <button className="icon-btn" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'}>
@@ -84,17 +90,26 @@ export default function Layout({ email }: { email: string }) {
         </div>
       </aside>
 
-      <main className="enter mx-auto w-full min-w-0 max-w-[1440px] px-4 pb-28 pt-6 md:px-8 md:pb-12 md:pt-8">
+      <main key={pathname} className="enter mx-auto w-full min-w-0 max-w-[1440px] px-4 pt-7 pb-36 sm:px-6 md:px-10 md:pt-10 md:pb-16">
         <Outlet />
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-line bg-sunken/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden" aria-label="Seções principais">
-        {SECTIONS.filter((s) => s.mobile).map(({ path, label, icon: Icon }) => (
-          <NavLink key={path} to={`/${path}`} className={({ isActive }) => `flex h-16 flex-col items-center justify-center gap-1 text-[11px] ${isActive ? 'text-fg' : 'text-fg3'}`}>
-            {({ isActive }) => (<><Icon {...ICON} className={isActive ? 'text-brand' : ''} />{label}</>)}
+      <nav
+        className="glass-nav slide-group fixed inset-x-3 bottom-[max(12px,env(safe-area-inset-bottom))] z-20 grid grid-cols-5 gap-1 rounded-[22px] p-1.5 md:hidden"
+        aria-label="Seções principais"
+      >
+        {mobile.map(({ path, label, icon: Icon }) => (
+          <NavLink
+            key={path} to={`/${path}`}
+            className={({ isActive }) => `relative z-[1] flex h-14 flex-col items-center justify-center gap-1 rounded-[16px] text-[11px] font-medium transition-colors duration-300 active:scale-[0.94] ${isActive ? 'bg-primary text-primary-ink' : 'text-fg2'}`}
+          >
+            <Icon {...ICON} />{label}
           </NavLink>
         ))}
-        <button className="flex h-16 flex-col items-center justify-center gap-1 text-[11px] text-fg3" onClick={() => setMore(true)}>
+        <button
+          className={`relative z-[1] flex h-14 flex-col items-center justify-center gap-1 rounded-[16px] text-[11px] font-medium transition-[color,transform] duration-300 active:scale-[0.94] ${inMore ? 'text-brand-ink' : 'text-fg2'}`}
+          onClick={() => setMore(true)}
+        >
           <Menu {...ICON} />Mais
         </button>
       </nav>
@@ -103,17 +118,21 @@ export default function Layout({ email }: { email: string }) {
         <Modal title="Seções" onClose={() => setMore(false)}>
           <nav className="grid grid-cols-2 gap-2">
             {SECTIONS.filter((s) => !s.mobile).map(({ path, label, icon: Icon }) => (
-              <NavLink key={path} to={`/${path}`} onClick={() => setMore(false)} className="flex h-11 items-center gap-2.5 rounded-[10px] border border-line bg-raised px-3 text-sm">
-                <Icon {...ICON} className="text-fg3" />{label}
+              <NavLink
+                key={path} to={`/${path}`} onClick={() => setMore(false)}
+                className={({ isActive }) => `flex h-12 items-center gap-2.5 rounded-[14px] px-3.5 text-sm font-medium transition-[background-color,transform] duration-200 active:scale-[0.97] ${isActive ? 'bg-primary text-primary-ink' : 'bg-raised text-fg'}`}
+              >
+                <Icon {...ICON} />{label}
               </NavLink>
             ))}
           </nav>
-          <div className="mt-4 flex gap-2 border-t border-line pt-4">
+          <div className="mt-5 flex gap-2 pt-1">
             <button className="btn-secondary" onClick={toggleTheme}>{theme === 'dark' ? <Sun {...ICON} /> : <Moon {...ICON} />}{theme === 'dark' ? 'Tema claro' : 'Tema escuro'}</button>
             <button className="btn-ghost ml-auto" onClick={() => supabase.auth.signOut()}><LogOut {...ICON} />Sair</button>
           </div>
         </Modal>
       )}
+      <Toaster />
     </div>
   );
 }
