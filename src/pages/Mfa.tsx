@@ -5,6 +5,30 @@ import { supabase } from "@/lib/supabase";
 import { Notice } from "@/components/Notice";
 import { AuthCard } from "./Login";
 
+type Prepared = { id: string; qr: string | null; secret: string | null };
+let inflight: Promise<Prepared | null> | null = null;
+
+/**
+ * Devolve o fator TOTP verificado ou inscreve um novo. Uma única execução por vez:
+ * duas inscrições simultâneas (duplo render, duplo clique) colidiriam no Supabase.
+ */
+function prepareFactor(): Promise<Prepared | null> {
+  inflight ??= (async () => {
+    const { data: factors } = await supabase.auth.mfa.listFactors();
+    const verified = factors?.totp?.find((f) => f.status === "verified");
+    if (verified) return { id: verified.id, qr: null, secret: null };
+    for (const f of factors?.all ?? []) {
+      if (f.status !== "verified") await supabase.auth.mfa.unenroll({ factorId: f.id });
+    }
+    const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp", friendlyName: `DS Lodge ${new Date().toISOString()}` });
+    if (error || !data || data.type !== "totp") return null;
+    return { id: data.id, qr: data.totp.qr_code, secret: data.totp.secret };
+  })().finally(() => {
+    window.setTimeout(() => (inflight = null), 0);
+  });
+  return inflight;
+}
+
 /** Verificação em duas etapas (TOTP) para Manager, Owner e Developer (s.4). */
 export function Mfa({ enrol }: { enrol: boolean }) {
   const { t } = useI18n();
@@ -18,25 +42,13 @@ export function Mfa({ enrol }: { enrol: boolean }) {
 
   useEffect(() => {
     let cancelled = false;
-    async function prepare() {
-      const { data: factors } = await supabase.auth.mfa.listFactors();
-      const verified = factors?.totp?.find((f) => f.status === "verified");
-      if (verified) {
-        if (!cancelled) setFactorId(verified.id);
-        return;
-      }
-      // Remove inscrições não concluídas antes de criar uma nova.
-      for (const f of factors?.all ?? []) {
-        if (f.status !== "verified") await supabase.auth.mfa.unenroll({ factorId: f.id });
-      }
-      const { data, error: enrolError } = await supabase.auth.mfa.enroll({ factorType: "totp", friendlyName: "DS Lodge" });
+    void prepareFactor().then((result) => {
       if (cancelled) return;
-      if (enrolError || !data || data.type !== "totp") return setError(t("errors.generic"));
-      setFactorId(data.id);
-      setQr(data.totp.qr_code);
-      setSecret(data.totp.secret);
-    }
-    void prepare();
+      if (!result) return setError(t("errors.generic"));
+      setFactorId(result.id);
+      setQr(result.qr);
+      setSecret(result.secret);
+    });
     return () => {
       cancelled = true;
     };

@@ -342,3 +342,21 @@ describe("Auditoria, tempo e parâmetros", () => {
     expect(r.a).toEqual(["12:00", "18:00", "22:00"]);
   });
 });
+
+describe("Privilégios (defesa além da RLS)", () => {
+  it("Usuário logado não apaga nem esvazia tabelas (TRUNCATE ignora RLS)", async () => {
+    await db.as(manager);
+    for (const table of ["audit_log", "access_log", "residents", "stays", "staff", "duty_posts", "parameters"]) {
+      expect(await db.error(`truncate public.${table} cascade`), table).toMatch(/permission denied/);
+      expect(await db.error(`delete from public.${table}`), table).toMatch(/permission denied/);
+    }
+  });
+
+  it("anon só executa server_now", async () => {
+    await db.asSuperuser();
+    const r = await db.query(
+      "select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')",
+    );
+    expect(r.rows.map((x) => x.proname)).toEqual(["server_now"]);
+  });
+});
