@@ -207,3 +207,40 @@ input[type="checkbox"], input[type="radio"] { width: auto; }
   .topbar, .sidebar { display: none; }
   .shell { display: block; }
 }
+
+/* Presença */
+.ok-text { color: var(--success); font-weight: 600; }
+.small-text { font-size: 0.85rem; }
+.tag-danger { background: var(--danger-soft); color: var(--danger); }
+.button-link { display: inline-block; padding: 0.45rem 0.9rem; border: 1px solid var(--border); border-radius: var(--radius); text-decoration: none; background: var(--surface); }
+.sheet-header { display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.75rem; }
+.sheet-header .inline select, .sheet-header .inline input { width: auto; }
+.sheet-table-wrap:focus { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: var(--radius); }
+.sheet-table tr.row-selected td { background: var(--accent-soft); }
+.result-buttons { display: flex; gap: 0.3rem; }
+.result-buttons button.selected.result-seen { background: var(--success); color: #fff; border-color: var(--success); }
+.result-buttons button.selected.result-not_seen { background: var(--danger); color: #fff; border-color: var(--danger); }
+.result-buttons button.selected.result-absent { background: var(--warning); color: #fff; border-color: var(--warning); }
+.sticky-actions { position: sticky; bottom: 0; background: var(--bg); padding: 0.75rem 0; border-top: 1px solid var(--border); }
+
+/* Impressão da Folha do dia */
+.print-sheet { padding: 12mm; color: #000; background: #fff; font-size: 11pt; }
+.print-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 4mm; }
+.print-header h1 { font-size: 16pt; }
+.print-number { font-size: 14pt; font-weight: 800; border: 2px solid #000; padding: 2mm 4mm; }
+.print-note { font-size: 9pt; font-style: italic; }
+.print-table { width: 100%; border-collapse: collapse; margin-top: 3mm; }
+.print-table th, .print-table td { border: 1px solid #000; padding: 1.5mm 2mm; text-align: left; vertical-align: middle; }
+.print-table th { font-size: 9pt; background: #eee; }
+.print-room { font-size: 14pt; font-weight: 900; background: #f2f2f2; white-space: nowrap; }
+.print-box { width: 14mm; }
+.print-blank { height: 8mm; }
+.print-blank.wide { width: 60mm; }
+.print-tag { font-size: 9pt; font-weight: 700; }
+.print-subtitle { font-size: 12pt; margin-top: 6mm; }
+.room-start td { border-top: 2px solid #000; }
+@media print {
+  .print-sheet { padding: 0; }
+  @page { size: A4 landscape; margin: 8mm; }
+}
+.card-alert { border-color: var(--warning); background: var(--warning-soft); }

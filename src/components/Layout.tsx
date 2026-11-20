@@ -16,6 +16,10 @@ const GROUPS: Group[] = [
     label: "nav.groupResidents",
     items: [
       { to: "/residents", label: "nav.residents" },
+      { to: "/sheet", label: "nav.sheet" },
+      { to: "/seen", label: "nav.seen" },
+      { to: "/absences", label: "nav.absences" },
+      { to: "/no-shows", label: "nav.noShows" },
       { to: "/beds", label: "nav.bedMap" },
     ],
   },

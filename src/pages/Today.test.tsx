@@ -13,6 +13,7 @@ vi.mock("@/lib/useOccupancy", async (orig) => ({
   useOccupancy: () => ({ beds: [], loading: false, error: null, reload: vi.fn() }),
 }));
 vi.mock("@/lib/supabase", () => ({ supabaseConfigured: true, supabase: {} }));
+vi.mock("@/components/PresenceAlertCard", () => ({ PresenceAlertCard: () => null }));
 vi.mock("@/auth/AuthProvider", () => ({
   useAuth: () => ({
     lodges: [{ id: "a", code: "AMIENS", name: "Amiens St.", short_name: "Amiens" }],

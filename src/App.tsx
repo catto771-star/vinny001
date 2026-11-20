@@ -3,7 +3,12 @@ import { AuthProvider, useAuth } from "@/auth/AuthProvider";
 import { I18nProvider, useI18n } from "@/i18n";
 import { Layout } from "@/components/Layout";
 import { Notice } from "@/components/Notice";
+import { Absences } from "@/pages/Absences";
 import { Audit } from "@/pages/Audit";
+import { DailySheet } from "@/pages/DailySheet";
+import { NoShows } from "@/pages/NoShows";
+import { PrintSheet } from "@/pages/PrintSheet";
+import { Seen } from "@/pages/Seen";
 import { BedMap } from "@/pages/BedMap";
 import { ChangePassword } from "@/pages/ChangePassword";
 import { EmailCode } from "@/pages/EmailCode";
@@ -43,6 +48,7 @@ function Gate() {
 
   return (
     <Routes>
+      <Route path="/sheet/print" element={<PrintSheet />} />
       <Route path="/post" element={<Layout />}>
         <Route index element={<TakePost />} />
       </Route>
@@ -51,6 +57,10 @@ function Gate() {
         <Route path="residents" element={<Residents />} />
         <Route path="residents/:id" element={<ResidentProfile />} />
         <Route path="beds" element={<BedMap />} />
+        <Route path="sheet" element={<DailySheet />} />
+        <Route path="seen" element={<Seen />} />
+        <Route path="absences" element={<Absences />} />
+        <Route path="no-shows" element={<NoShows />} />
         {isManagement && <Route path="users" element={<Users />} />}
         {isManagement && <Route path="audit" element={<Audit />} />}
         <Route path="*" element={<Navigate to="/" replace />} />

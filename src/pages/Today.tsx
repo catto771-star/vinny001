@@ -6,6 +6,7 @@ import { staffName } from "@/lib/types";
 import { useOnDuty } from "@/lib/useOnDuty";
 import { summarise, useOccupancy } from "@/lib/useOccupancy";
 import { Notice } from "@/components/Notice";
+import { PresenceAlertCard } from "@/components/PresenceAlertCard";
 
 export function Today() {
   const { t, locale } = useI18n();
@@ -33,6 +34,7 @@ export function Today() {
       )}
 
       <div className="card-grid">
+        <PresenceAlertCard />
         <article className="card">
           <h2>{t("today.onDuty")}</h2>
           <ul className="plain-list">
