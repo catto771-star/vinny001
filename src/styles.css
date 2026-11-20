@@ -569,3 +569,30 @@ a.chip:hover { border-color: var(--ink); text-decoration: none; color: var(--ink
 .fw-inline { margin: 0 0.4rem 0 0; }
 .timeline-item { position: relative; }
 .timeline-actions { position: absolute; top: 0.7rem; right: 1rem; margin: 0; background: var(--surface); border-radius: 999px; }
+
+/* ---------- Fase 2: serviços ---------- */
+.temp-tile.is-out { background: var(--danger-soft); }
+.temp-tile.is-out .big-number { color: var(--danger); }
+.temp-input { font-family: var(--font-display); font-size: 2.6rem; min-height: 72px; letter-spacing: -0.01em; }
+.temp-input.is-out { border-color: var(--danger); color: var(--danger); }
+.stat-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 1rem 2.5rem; margin: 0.5rem 0 1.25rem; }
+.stat-row .big-number { font-size: 2.6rem; }
+.stat-row > button { margin-left: auto; align-self: center; }
+.machine-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.machine {
+  display: grid; gap: 0.5rem; align-content: start; padding: 1.25rem; border-radius: var(--radius-lg); background: var(--surface); min-height: 190px;
+  transition: background var(--slow) var(--ease-out);
+}
+.machine-code { font-family: var(--font-display); font-size: 2rem; line-height: 1; }
+.machine-status { font-weight: 650; color: var(--ok); }
+.machine.is-busy { background: var(--ink); color: #fff; }
+.machine.is-busy .machine-status { color: #ffd88a; }
+.machine.is-busy button.primary { background: #fff; color: var(--ink); border-color: #fff; }
+.machine-who { color: rgb(255 255 255 / 75%); }
+.machine button { margin-top: auto; justify-self: start; }
+.notification { grid-template-columns: auto 1fr auto; }
+.notification.is-read { opacity: 0.62; }
+.notif-dot { width: 10px; height: 10px; border-radius: 999px; background: var(--accent); }
+.notif-dot.kind-fridge_out_of_range { background: var(--danger); }
+.notif-dot.kind-maintenance_opened { background: var(--warn); }
+.notification.is-read .notif-dot { background: var(--line-strong); }

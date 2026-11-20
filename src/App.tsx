@@ -14,6 +14,11 @@ import { Seen } from "@/pages/Seen";
 import { Handover } from "@/pages/Handover";
 import { Maintenance } from "@/pages/Maintenance";
 import { Tasks } from "@/pages/Tasks";
+import { Deliveries } from "@/pages/Deliveries";
+import { Dinner } from "@/pages/Dinner";
+import { Fridge } from "@/pages/Fridge";
+import { Laundry } from "@/pages/Laundry";
+import { Notifications } from "@/pages/Notifications";
 import { Warnings } from "@/pages/Warnings";
 import { BedMap } from "@/pages/BedMap";
 import { ChangePassword } from "@/pages/ChangePassword";
@@ -77,6 +82,11 @@ function Gate() {
         <Route path="tasks" element={<Tasks />} />
         <Route path="maintenance" element={<Maintenance />} />
         <Route path="warnings" element={<Warnings />} />
+        <Route path="fridge" element={<Fridge />} />
+        <Route path="deliveries" element={<Deliveries />} />
+        <Route path="dinner" element={<Dinner />} />
+        <Route path="laundry" element={<Laundry />} />
+        <Route path="notifications" element={<Notifications />} />
         {isManagement && <Route path="users" element={<Users />} />}
         {isManagement && <Route path="audit" element={<Audit />} />}
         <Route path="*" element={<Navigate to="/" replace />} />

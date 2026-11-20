@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   BedDouble, CalendarCheck, ClipboardCheck, Eye, History, House, LayoutGrid, ListChecks, NotebookPen, Plane, ScrollText,
-  ShieldAlert, UserX, Users, Wrench,
+  Bell, ShieldAlert, Shirt, Thermometer, Truck, UserX, Users, UtensilsCrossed, Wrench,
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthProvider";
@@ -10,6 +10,7 @@ import { useI18n, type MessageKey } from "@/i18n";
 import { formatTime } from "@/lib/time";
 import { staffName } from "@/lib/types";
 import { BADGE_FOR_PATH, usePendingCounts } from "@/lib/pending";
+import { supabase } from "@/lib/supabase";
 import { MaintenanceReminder } from "@/pages/Maintenance";
 import { Clock } from "./Clock";
 import { Dialog } from "./Dialog";
@@ -25,6 +26,7 @@ export const GROUPS: Group[] = [
     items: [
       { to: "/", label: "nav.today", icon: House },
       { to: "/tasks", label: "nav.tasks", icon: ListChecks },
+      { to: "/notifications", label: "nav.notifications", icon: Bell, managementOnly: true },
     ],
   },
   {
@@ -46,7 +48,15 @@ export const GROUPS: Group[] = [
       { to: "/maintenance", label: "nav.maintenance", icon: Wrench },
     ],
   },
-  { label: "nav.groupServices", items: [], phase: 2 },
+  {
+    label: "nav.groupServices",
+    items: [
+      { to: "/fridge", label: "nav.fridge", icon: Thermometer },
+      { to: "/deliveries", label: "nav.deliveries", icon: Truck },
+      { to: "/dinner", label: "nav.dinner", icon: UtensilsCrossed },
+      { to: "/laundry", label: "nav.laundry", icon: Shirt },
+    ],
+  },
   {
     label: "nav.groupManagement",
     items: [
@@ -84,9 +94,17 @@ export function Layout() {
   // Bolinhas vermelhas: Lodge do posto (Office) ou os dois (gestão, Float).
   const badgeLodges = post?.function === "office" && post.lodge_id && !isManagement ? [post.lodge_id] : lodges.map((l) => l.id);
   const counts = usePendingCounts(badgeLodges, location.pathname);
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    if (!isManagement) return;
+    const load = () => void supabase.rpc("unread_notifications_count").then(({ data }) => setUnread(Number(data ?? 0)));
+    load();
+    const id = window.setInterval(load, 60_000);
+    return () => window.clearInterval(id);
+  }, [isManagement, location.pathname]);
   const badge = (to: string) => {
     const key = BADGE_FOR_PATH[to];
-    const n = key ? counts[key] : 0;
+    const n = to === "/notifications" ? unread : key ? counts[key] : 0;
     return n > 0 ? <span className="nav-badge" aria-label={String(n)}>{n > 99 ? "99+" : n}</span> : null;
   };
 
