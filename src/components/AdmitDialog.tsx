@@ -19,20 +19,28 @@ export function FreeBedSelect({
   onChange,
   exclude,
   allowLodge,
+  onLoadingChange,
 }: {
   value: string;
   onChange: (bedId: string, lodgeId: string) => void;
   exclude?: string;
   allowLodge: (lodgeId: string) => boolean;
+  /** Avisa quando a lista de camas termina de carregar: antes disso o campo está vazio. */
+  onLoadingChange?: (loading: boolean) => void;
 }) {
   const { t } = useI18n();
   const { lodges } = useAuth();
-  const { beds } = useOccupancy();
+  const { beds, loading } = useOccupancy();
+
+  useEffect(() => {
+    onLoadingChange?.(loading);
+  }, [loading, onLoadingChange]);
   const free = beds.filter((b) => !b.stay_id && b.bed_status === "in_use" && b.bed_id !== exclude && allowLodge(b.lodge_id));
 
   return (
     <select
       required
+      disabled={loading}
       value={value}
       onChange={(e) => {
         const bed = free.find((b) => b.bed_id === e.target.value);
@@ -80,6 +88,7 @@ export function AdmitDialog({
   const [former, setFormer] = useState<FormerResident[]>([]);
   const [chosen, setChosen] = useState<FormerResident | null>(null);
   const [busy, setBusy] = useState(false);
+  const [bedsLoading, setBedsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Ex-residentes sem estadia aberta (readmissão).
@@ -102,8 +111,8 @@ export function AdmitDialog({
   }, [mode, query]);
 
   const valid = useMemo(
-    () => !!bedId && (mode === "new" ? firstName.trim().length > 0 : !!chosen),
-    [bedId, mode, firstName, chosen],
+    () => !bedsLoading && !!bedId && (mode === "new" ? firstName.trim().length > 0 : !!chosen),
+    [bedsLoading, bedId, mode, firstName, chosen],
   );
 
   async function submit(e: FormEvent) {
@@ -193,7 +202,7 @@ export function AdmitDialog({
 
         <label>
           {t("residents.bed")}
-          <FreeBedSelect value={bedId} allowLodge={canWriteLodge} onChange={(b, l) => { setBedId(b); setLodgeId(l); }} />
+          <FreeBedSelect value={bedId} allowLodge={canWriteLodge} onLoadingChange={setBedsLoading} onChange={(b, l) => { setBedId(b); setLodgeId(l); }} />
         </label>
 
         <DateTimeField label="residents.admittedAt" value={admittedAt} onChange={setAdmittedAt} />

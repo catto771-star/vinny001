@@ -40,6 +40,11 @@ async function newContext(browser) {
   const ctx = await browser.newContext({ viewport: { width: 1366, height: 860 }, proxy, locale: "pt-PT" });
   const page = await ctx.newPage();
   page.on("pageerror", (e) => console.log("  [pageerror]", e.message));
+  page.on("console", (m) => m.type() === "error" && console.log("  [console]", m.text().slice(0, 300)));
+  page.on("response", (r) => {
+    if (r.url().includes("/rest/v1/") && r.status() >= 400) console.log("  [rest]", r.status(), r.url().split("/rest/v1/")[1]?.slice(0, 80));
+  });
+  page.on("requestfailed", (r) => console.log("  [requestfailed]", r.url().slice(0, 80), r.failure()?.errorText));
   openPages.push(page);
   return { ctx, page };
 }
@@ -86,7 +91,9 @@ async function changePassword(page) {
       await dialog.getByLabel("Nome completo").fill(name);
       await dialog.getByLabel("E-mail").fill(email);
       await dialog.getByRole("button", { name: "Salvar" }).click();
-      const pw = (await p.locator(".notice .password").textContent({ timeout: 20000 })).trim();
+      // Espera o aviso deste usuário (o aviso anterior pode ainda estar na tela).
+      const notice = p.locator(".notice", { hasText: name }).locator(".password");
+      const pw = (await notice.textContent({ timeout: 20000 })).trim();
       return pw;
     }
     const porterA = { email: `teste.porter.a.${RUN}@ds-lodge.test`, name: `[TESTE] Porter A ${RUN}` };
@@ -105,6 +112,12 @@ async function changePassword(page) {
     await a.page.getByLabel("Amiens St.").check();
     await a.page.screenshot({ path: `${OUT}/04-take-post.png` });
     await a.page.getByRole("button", { name: "Assumir Posto" }).click();
+    // Se sobrou alguém de uma execução anterior no posto, o sistema avisa; confirmamos.
+    const takeover = a.page.getByRole("button", { name: "Confirmar e assumir o posto" });
+    await Promise.race([
+      a.page.getByRole("heading", { name: "Hoje" }).waitFor({ timeout: 15000 }),
+      takeover.waitFor({ timeout: 15000 }).then(() => takeover.click()),
+    ]);
     await a.page.getByRole("heading", { name: "Hoje" }).waitFor({ timeout: 15000 });
     const chip = await a.page.locator(".post-chip").textContent();
     check("B42: Porter assume Office On Duty em Amiens", /Office On Duty — Amiens/.test(chip), chip);
@@ -183,7 +196,7 @@ async function changePassword(page) {
     // ---------------- Idioma guardado no cadastro ----------------
     await b.page.selectOption(".lang-select select", "pl-PL");
     await b.page.waitForTimeout(800);
-    await b.page.reload();
+    await b.page.goto(BASE);
     await b.page.getByRole("heading", { name: "Dziś" }).waitFor({ timeout: 15000 });
     check("B51: idioma muda a tela e fica guardado no cadastro", true);
     await b.page.screenshot({ path: `${OUT}/09-polish.png` });

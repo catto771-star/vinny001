@@ -318,6 +318,7 @@ function Transfer({ stay, onClose, onDone }: { stay: Stay; onClose: () => void; 
   const { t } = useI18n();
   const { canWriteLodge } = useAuth();
   const [bedId, setBedId] = useState("");
+  const [bedsLoading, setBedsLoading] = useState(true);
   const [at, setAt] = useState<Date | null>(null);
   const { busy, error, run } = useSubmit(onDone);
   // Pode transferir quem escreve no Lodge de origem ou de destino.
@@ -329,7 +330,7 @@ function Transfer({ stay, onClose, onDone }: { stay: Stay; onClose: () => void; 
       footer={
         <>
           <button onClick={onClose}>{t("app.cancel")}</button>
-          <button className="primary" disabled={busy || !bedId} onClick={() => void run(() => supabase.rpc("transfer_resident", { p_stay: stay.id, p_new_bed: bedId, p_at: at ? at.toISOString() : null }))}>
+          <button className="primary" disabled={busy || bedsLoading || !bedId} onClick={() => void run(() => supabase.rpc("transfer_resident", { p_stay: stay.id, p_new_bed: bedId, p_at: at ? at.toISOString() : null }))}>
             {t("residents.transfer")}
           </button>
         </>
@@ -337,7 +338,7 @@ function Transfer({ stay, onClose, onDone }: { stay: Stay; onClose: () => void; 
     >
       <label className="form">
         {t("residents.bed")}
-        <FreeBedSelect value={bedId} onChange={(b) => setBedId(b)} allowLodge={allow} />
+        <FreeBedSelect value={bedId} onChange={(b) => setBedId(b)} allowLodge={allow} onLoadingChange={setBedsLoading} />
       </label>
       <DateTimeField label="residents.transferAt" value={at} onChange={setAt} />
       <Notice kind="error">{error}</Notice>
