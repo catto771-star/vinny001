@@ -466,3 +466,103 @@ input[type="checkbox"], input[type="radio"] { width: 20px; min-height: 20px; hei
 
 .empty-state { display: grid; gap: 0.6rem; justify-items: start; padding: 1.75rem; }
 .display-sm { font-family: var(--font-display); font-weight: 400; font-size: 1.9rem; letter-spacing: -0.01em; }
+
+/* ---------- Fase 1: Handover, tarefas, manutenção, warnings ---------- */
+.section-title { font-size: 0.72rem; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); margin: 2rem 0 0.75rem; }
+.section-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.section-head .section-title { margin: 0; }
+.profile-columns { display: grid; gap: 1.5rem; margin: 1.5rem 0; }
+.profile-columns > section { background: var(--surface); border-radius: var(--radius-lg); padding: 1.25rem 1.4rem; }
+@media (min-width: 900px) { .profile-columns { grid-template-columns: 1fr 1.4fr; } }
+
+.fw-tag { background: var(--danger); color: #fff; letter-spacing: 0.04em; }
+.fw-large { font-size: 0.9rem; padding: 0.2rem 0.6rem; vertical-align: middle; margin-left: 0.75rem; }
+.tag-kind { background: var(--surface-2); color: var(--ink-2); }
+
+.chip {
+  display: inline-flex; align-items: center; min-height: 32px; padding: 0 0.75rem; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); font-size: 0.85rem; font-weight: 550; text-decoration: none;
+}
+a.chip:hover { border-color: var(--ink); text-decoration: none; color: var(--ink); }
+
+.rounds-strip { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.rounds-list { display: flex; gap: 6px; flex-wrap: wrap; }
+.round-chip { min-height: 36px; padding: 0 0.75rem; font-variant-numeric: tabular-nums; font-size: 0.85rem; border-color: var(--line); }
+.round-chip.is-done { background: var(--ok-soft); color: var(--ok); border-color: transparent; opacity: 1; }
+.round-chip.is-late { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); animation: pulse-ring 2.4s var(--ease-out) infinite; }
+@keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 35%, transparent); } 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+.composer { background: var(--surface); border-radius: var(--radius-lg); padding: 1rem; margin-bottom: 1.5rem; display: grid; gap: 0.75rem; }
+.composer-input { position: relative; }
+.composer textarea { border: none; padding: 0.4rem 0.2rem; min-height: 84px; font-size: 1rem; box-shadow: none; }
+.composer textarea:focus { box-shadow: none; }
+.composer-bar { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; align-items: flex-end; border-top: 1px solid var(--line); padding-top: 0.75rem; }
+.composer-bar .field { font-size: 0.8rem; font-weight: 600; color: var(--ink-2); }
+.composer-bar select { width: auto; }
+.composer-actions { margin-left: auto; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.phrase-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.phrase-chips .chip { cursor: pointer; font-weight: 500; }
+.mention-menu {
+  position: absolute; z-index: 20; left: 0; top: 100%; min-width: 260px; list-style: none; margin: 4px 0 0; padding: 6px;
+  background: var(--surface); border-radius: 14px; box-shadow: 0 16px 40px rgb(11 11 12 / 18%), 0 0 0 1px var(--line);
+  animation: rise var(--base) var(--ease-out);
+}
+.mention-menu button { width: 100%; justify-content: space-between; border: none; border-radius: 10px; min-height: 40px; }
+.mention-menu button:hover { background: var(--accent-soft); }
+
+.timeline { list-style: none; padding: 0; margin: 0; background: var(--surface); border-radius: var(--radius-lg); }
+.timeline-item { display: grid; grid-template-columns: 4.2rem 1fr; gap: 1rem; padding: 1rem 1.25rem; border-top: 1px solid var(--line); animation: rise var(--base) var(--ease-out) both; }
+.timeline-item:first-child { border-top: none; }
+.timeline.compact .timeline-item { grid-template-columns: 8.5rem 1fr; padding: 0.7rem 0; background: transparent; }
+.timeline.compact { background: transparent; }
+.timeline-time { font-variant-numeric: tabular-nums; font-weight: 650; color: var(--ink-2); font-size: 0.9rem; padding-top: 1px; }
+.timeline-meta { display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap; font-size: 0.85rem; }
+.timeline-text { margin: 0.3rem 0 0; white-space: pre-wrap; line-height: 1.55; }
+.timeline-item.is-round .timeline-body { padding-top: 2px; }
+.timeline-item.kind-maintenance { box-shadow: inset 3px 0 0 var(--warn); }
+.timeline-item.kind-warning { box-shadow: inset 3px 0 0 var(--danger); }
+.timeline-item.is-voided .timeline-text { text-decoration: line-through; color: var(--ink-3); }
+.timeline-actions { display: flex; gap: 0.25rem; margin-top: 0.4rem; opacity: 0; transition: opacity var(--base); }
+.timeline-item:hover .timeline-actions, .timeline-item:focus-within .timeline-actions { opacity: 1; }
+@media (hover: none) { .timeline-actions { opacity: 1; } }
+.mention-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 0.5rem; }
+
+.task-list { list-style: none; padding: 0; margin: 0; background: var(--surface); border-radius: var(--radius-lg); }
+.task-item { display: grid; grid-template-columns: 28px 1fr auto; gap: 0.9rem; align-items: center; padding: 0.9rem 1.25rem; border-top: 1px solid var(--line); transition: background var(--base) var(--ease-out); }
+.task-item:first-child { border-top: none; }
+.task-check { width: 24px; height: 24px; border-radius: 8px; border: 1.5px solid var(--line-strong); display: grid; place-items: center; font-size: 0.8rem; font-weight: 800; color: #fff; transition: background var(--base), border-color var(--base); }
+.task-item.is-done .task-check { background: var(--ok); border-color: var(--ok); animation: pop var(--base) var(--ease-spring); }
+.task-item.is-done .task-title { color: var(--ink-3); }
+.task-item.is-late .task-check { background: var(--danger); border-color: var(--danger); }
+.task-main { display: grid; gap: 0.2rem; min-width: 0; }
+.task-title { font-weight: 600; }
+.task-meta { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; font-size: 0.82rem; color: var(--ink-3); }
+.sig { color: var(--ok); font-weight: 550; }
+.task-actions { display: flex; gap: 0.4rem; }
+
+.ticket-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.ticket {
+  width: 100%; display: grid; grid-template-columns: auto 1fr auto; gap: 1rem; align-items: center; text-align: left;
+  min-height: 72px; padding: 0.9rem 1.1rem; border-radius: var(--radius-lg); border: none; background: var(--surface); font-weight: 400;
+}
+.ticket:hover:not(:disabled) { box-shadow: 0 0 0 1px var(--ink); }
+.ticket-prio { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.3rem 0.6rem; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); }
+.prio-urgent .ticket-prio { background: var(--danger); color: #fff; }
+.ticket-main { display: grid; gap: 0.15rem; min-width: 0; }
+.ticket-main strong { font-weight: 650; }
+.ticket-main .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ticket-side { display: grid; justify-items: end; gap: 0.25rem; }
+.ticket.is-overdue { box-shadow: inset 3px 0 0 var(--danger); }
+@media (max-width: 719px) { .ticket { grid-template-columns: 1fr; } .ticket-side { justify-items: start; } }
+
+.tile-pending { min-height: 0; }
+.pending-empty { font-family: var(--font-display); font-size: 1.6rem; margin: 0.6rem 0 0; }
+.pending-list { list-style: none; padding: 0; margin: 0.6rem 0 0; display: grid; gap: 2px; }
+@media (min-width: 720px) { .pending-list { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 4px 1.5rem; } }
+.pending-list a { display: grid; grid-template-columns: auto 1fr auto; gap: 0.75rem; align-items: center; min-height: 48px; color: var(--ink); text-decoration: none; border-top: 1px solid var(--line); }
+.pending-count { min-width: 32px; height: 32px; padding: 0 8px; border-radius: 999px; background: var(--danger); color: #fff; font-weight: 750; display: grid; place-items: center; font-size: 0.85rem; }
+.pending-arrow { color: var(--ink-3); transition: transform var(--base) var(--ease-out); }
+.pending-list a:hover .pending-arrow { transform: translateX(4px); color: var(--ink); }
+
+.bottom-icon { position: relative; display: inline-flex; }
+.bottom-icon .nav-badge { position: absolute; top: -6px; right: -12px; margin: 0; min-width: 18px; height: 18px; font-size: 0.62rem; }

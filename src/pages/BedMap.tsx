@@ -77,7 +77,10 @@ export function BedMap() {
                       <span className="bed-body">
                         {b.resident_id ? (
                           <>
-                            <strong>{residentName(b)}</strong>
+                            <strong>
+                              {residentName(b)}
+                              {b.final_warning && <span className="tag tag-danger fw-tag">FW</span>}
+                            </strong>
                             <small>{formatCivilDate(b.date_of_birth, locale)}</small>
                             {state === "out-pending" && <small className="tag">{t("beds.outPending")}</small>}
                           </>

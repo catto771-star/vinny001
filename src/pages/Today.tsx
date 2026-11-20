@@ -8,6 +8,8 @@ import { useNextCheck } from "@/lib/useNextCheck";
 import { useOnDuty } from "@/lib/useOnDuty";
 import { summarise, useOccupancy } from "@/lib/useOccupancy";
 import { PresenceAlertCard } from "@/components/PresenceAlertCard";
+import { PendingTile } from "@/components/PendingTile";
+import { TaskAlerts } from "@/components/TaskAlerts";
 
 /** Brilho que segue o cursor nos blocos do bento (um dos dois efeitos de impacto — docs/DESIGN.md). */
 function trackGlow(e: MouseEvent<HTMLElement>) {
@@ -111,6 +113,7 @@ export function Today() {
         </article>
 
         <PresenceAlertCard />
+        <PendingTile />
 
         {/* Ocupação por Lodge */}
         {lodges.map((l) => {
@@ -132,6 +135,7 @@ export function Today() {
           );
         })}
       </div>
+      {post && <TaskAlerts />}
     </section>
   );
 }

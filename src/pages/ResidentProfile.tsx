@@ -11,6 +11,8 @@ import { FreeBedSelect } from "@/components/AdmitDialog";
 import { DateTimeField } from "@/components/DateTimeField";
 import { Dialog, DialogCancel } from "@/components/Dialog";
 import { Notice } from "@/components/Notice";
+import { WARNING_LABEL, WarningDialog, type WarningType } from "@/components/WarningDialog";
+import { useOccupancy } from "@/lib/useOccupancy";
 import { Skeleton } from "@/components/Skeleton";
 import { useToast } from "@/components/Toast";
 
@@ -42,7 +44,9 @@ type Stay = {
   version: number;
 };
 
-type Action = "edit" | "decideOut" | "effectOut" | "transfer" | null;
+type Action = "edit" | "decideOut" | "effectOut" | "transfer" | "warning" | null;
+type ProfileWarning = { id: string; type: WarningType; note: string | null; issued_at: string; active: boolean };
+type ProfileEntry = { id: string; kind: string; body: string; occurred_at: string; status: string; lodge_id: string };
 
 export function ResidentProfile() {
   const { id = "" } = useParams();
@@ -53,6 +57,9 @@ export function ResidentProfile() {
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
   const [action, setAction] = useState<Action>(null);
+  const [warnings, setWarnings] = useState<ProfileWarning[]>([]);
+  const [occurrences, setOccurrences] = useState<ProfileEntry[]>([]);
+  const { beds: residentBeds } = useOccupancy();
 
   // A abertura do perfil passa sempre por open_resident_profile, que registra a leitura (B19).
   const load = useCallback(async () => {
@@ -61,6 +68,17 @@ export function ResidentProfile() {
     const profile = data as { resident: Resident; stays: Stay[] };
     setResident(profile.resident);
     setStays(profile.stays);
+    const [{ data: w }, { data: m }] = await Promise.all([
+      supabase.from("warnings").select("id, type, note, issued_at, active").eq("resident_id", id).order("issued_at", { ascending: false }),
+      supabase
+        .from("handover_mentions")
+        .select("entry:handover_entries(id, kind, body, occurred_at, status, lodge_id)")
+        .eq("resident_id", id)
+        .limit(50),
+    ]);
+    setWarnings((w ?? []) as ProfileWarning[]);
+    const entries = ((m ?? []) as unknown as { entry: ProfileEntry | null }[]).map((x) => x.entry).filter((e): e is ProfileEntry => !!e);
+    setOccurrences(entries.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at)));
   }, [id, t]);
 
   useEffect(() => {
@@ -68,6 +86,7 @@ export function ResidentProfile() {
   }, [load]);
 
   const open = stays.find((s) => s.status !== "ended") ?? null;
+  const fwActive = warnings.some((w) => w.type === "final_written" && w.active);
   const lodgeName = (lodgeId: string) => lodges.find((l) => l.id === lodgeId)?.name ?? "";
   const canWriteHere = !!open && canWriteLodge(open.lodge_id);
   const canEdit = isManagement || !!post;
@@ -95,6 +114,7 @@ export function ResidentProfile() {
           <Link to="/residents" className="muted">← {t("residents.title")}</Link>
           <h1>
             {residentName(resident)}
+            {fwActive && <span className="tag tag-danger fw-tag fw-large">FW</span>}
             {open && <span className="room-highlight">{roomLabel(t, open.room_kind, open.room_code)} · {t("beds.bedN", { n: open.bed_number })}</span>}
           </h1>
           <p className="hint">{t("residents.viewLogged")}</p>
@@ -152,7 +172,46 @@ export function ResidentProfile() {
         )}
       </div>
 
-      <h2>{t("residents.stays")}</h2>
+      <div className="profile-columns">
+        <section>
+          <div className="section-head">
+            <h2 className="section-title">{t("warnings.title")}</h2>
+            {open && canWriteHere && <button className="small" onClick={() => setAction("warning")}>{t("warnings.record")}</button>}
+          </div>
+          {warnings.length === 0 ? (
+            <p className="muted small-text">{t("warnings.empty")}</p>
+          ) : (
+            <ul className="plain-list">
+              {warnings.map((w) => (
+                <li key={w.id} className={w.active ? "" : "muted"}>
+                  <strong>{t(WARNING_LABEL[w.type])}</strong>
+                  {w.type === "final_written" && w.active && <span className="tag tag-danger fw-tag">FW</span>}
+                  {!w.active && ` · ${t("warnings.inactive")}`}
+                  <br />
+                  <small className="muted">{formatDateTime(w.issued_at, locale)}{w.note ? ` — ${w.note}` : ""}</small>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        <section>
+          <h2 className="section-title">{t("handover.title")}</h2>
+          {occurrences.length === 0 ? (
+            <p className="muted small-text">{t("handover.empty")}</p>
+          ) : (
+            <ol className="timeline compact">
+              {occurrences.map((e) => (
+                <li key={e.id} className={`timeline-item${e.status === "voided" ? " is-voided" : ""}`}>
+                  <span className="timeline-time">{formatDateTime(e.occurred_at, locale)}</span>
+                  <div className="timeline-body"><p className="timeline-text">{e.body}</p></div>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+      </div>
+
+      <h2 className="section-title">{t("residents.stays")}</h2>
       <table className="table">
         <thead>
           <tr>
@@ -186,6 +245,14 @@ export function ResidentProfile() {
         </tbody>
       </table>
 
+      {action === "warning" && open && (
+        <WarningDialog
+          residents={residentBeds.filter((b) => b.stay_id === open.id)}
+          initialStay={open.id}
+          onClose={() => setAction(null)}
+          onDone={() => void done(t("warnings.recorded"))}
+        />
+      )}
       {action === "edit" && <EditResident resident={resident} onClose={() => setAction(null)} onDone={() => void done(t("residents.saved"))} />}
       {action === "decideOut" && open && <DecideOut stayId={open.id} onClose={() => setAction(null)} onDone={() => void done(t("residents.saved"))} />}
       {action === "effectOut" && open && <EffectOut stayId={open.id} onClose={() => setAction(null)} onDone={() => void done(t("residents.saved"))} />}

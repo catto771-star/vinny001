@@ -120,6 +120,7 @@ export function Residents() {
                 <td>{b.bed_number}</td>
                 <td className="cell-main">
                   <Link to={`/residents/${b.resident_id}`}>{residentName(b)}</Link>
+                  {b.final_warning && <span className="tag tag-danger fw-tag">FW</span>}
                   {b.stay_status === "out_pending" && <span className="tag">{t("residents.stayOutPending")}</span>}
                 </td>
                 <td>{formatCivilDate(b.date_of_birth, locale)}</td>

@@ -56,6 +56,7 @@ export type BedOccupancy = {
   last_name: string | null;
   date_of_birth: string | null;
   pass_id: string | null;
+  final_warning?: boolean;
 };
 
 export const MANAGEMENT_ROLES: StaffRole[] = ["manager", "owner", "developer"];

@@ -11,6 +11,10 @@ import { DailySheet } from "@/pages/DailySheet";
 import { NoShows } from "@/pages/NoShows";
 import { PrintSheet } from "@/pages/PrintSheet";
 import { Seen } from "@/pages/Seen";
+import { Handover } from "@/pages/Handover";
+import { Maintenance } from "@/pages/Maintenance";
+import { Tasks } from "@/pages/Tasks";
+import { Warnings } from "@/pages/Warnings";
 import { BedMap } from "@/pages/BedMap";
 import { ChangePassword } from "@/pages/ChangePassword";
 import { EmailCode } from "@/pages/EmailCode";
@@ -69,6 +73,10 @@ function Gate() {
         <Route path="seen" element={<Seen />} />
         <Route path="absences" element={<Absences />} />
         <Route path="no-shows" element={<NoShows />} />
+        <Route path="handover" element={<Handover />} />
+        <Route path="tasks" element={<Tasks />} />
+        <Route path="maintenance" element={<Maintenance />} />
+        <Route path="warnings" element={<Warnings />} />
         {isManagement && <Route path="users" element={<Users />} />}
         {isManagement && <Route path="audit" element={<Audit />} />}
         <Route path="*" element={<Navigate to="/" replace />} />

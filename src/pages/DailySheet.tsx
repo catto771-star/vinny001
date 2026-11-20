@@ -267,6 +267,7 @@ export function DailySheet() {
                       {r.stay_id ? (
                         <>
                           {residentName(r)}
+                          {r.final_warning && <span className="tag tag-danger fw-tag">FW</span>}
                           {r.absence_id && <span className="tag">{t("sheet.absenceTag")}</span>}
                         </>
                       ) : (

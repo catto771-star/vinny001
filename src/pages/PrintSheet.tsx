@@ -90,6 +90,7 @@ export function PrintSheet() {
                   {b.resident_id ? (
                     <>
                       <strong>{residentName(b)}</strong>
+                      {b.final_warning && <span className="print-tag"> FW !</span>}
                       {b.stay_id && absent.has(b.stay_id) && <span className="print-tag"> [{t("sheet.absenceTag")}]</span>}
                     </>
                   ) : (

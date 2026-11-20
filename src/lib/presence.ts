@@ -18,6 +18,7 @@ export type SheetRow = {
   absence_id: string | null;
   result: CheckResult | null;
   marked_by: string | null;
+  final_warning?: boolean;
 };
 
 /** Residentes marcados / total — o check só é lançado com todos marcados (B28). */

@@ -206,7 +206,7 @@ describe("Daily Tasks", () => {
     await db.as(officeA);
     const mine = await db.query("select * from public.my_task_alerts()");
     expect(mine.rows.map((r) => r.task_id)).toContain(extra);
-    expect(mine.rows.find((r) => r.task_id === extra).overdue).toBe(true);
+    expect(mine.rows.find((r) => r.task_id === extra)?.overdue).toBe(true);
     await db.as(manager);
     await db.query("select public.reassign_extra_task($1)", [extra]);
     await db.asSuperuser();
