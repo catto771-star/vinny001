@@ -11,7 +11,9 @@
     "test": "vitest run",
     "test:unit": "vitest run src",
     "test:db": "vitest run tests/db",
-    "db:reset": "node scripts/db-reset.mjs"
+    "db:reset": "node scripts/db-reset.mjs",
+    "demo:seed": "node scripts/demo.mjs seed",
+    "demo:clear": "node scripts/demo.mjs clear"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.1.0",

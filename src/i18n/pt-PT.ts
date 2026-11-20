@@ -509,6 +509,8 @@ const ptPT: Messages = {
     readHint: "Marcar como lida não resolve o item.",
     fridge_out_of_range: "Geladeira de {lodge} a {temperature} °C (faixa {min}–{max} °C)",
     maintenance_opened: "Novo chamado de manutenção em {lodge}: {location}",
+    coverage_below_minimum: "Rota publicada com {gaps} turno(s) abaixo da cobertura mínima",
+    vacation_conflict: "Férias de {name} em conflito com {conflicts} turno(s) da Rota",
     no_show_monthly_limit: "{name} chegou a {count} No Shows no mês ({lodge})",
     unknown: "Aviso",
   },

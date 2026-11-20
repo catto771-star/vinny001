@@ -39,4 +39,12 @@ describe("notificações", () => {
     );
     expect(notificationText({ kind: "x", lodge_id: null, payload: {} }, t, () => "")).toBe("Aviso");
   });
+  it("cobertura da Rota abaixo do mínimo e férias em conflito (Fase 3)", () => {
+    expect(notificationText({ kind: "coverage_below_minimum", lodge_id: null, payload: { gaps: 4 } }, t, () => "")).toBe(
+      "Rota publicada com 4 turno(s) abaixo da cobertura mínima",
+    );
+    expect(notificationText({ kind: "vacation_conflict", lodge_id: null, payload: { name: "Ana X", conflicts: 2 } }, t, () => "")).toBe(
+      "Férias de Ana X em conflito com 2 turno(s) da Rota",
+    );
+  });
 });

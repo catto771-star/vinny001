@@ -508,6 +508,8 @@ const enIE = {
     readHint: "Marking as read does not resolve the item.",
     fridge_out_of_range: "{lodge} fridge at {temperature} °C (range {min}–{max} °C)",
     maintenance_opened: "New maintenance request in {lodge}: {location}",
+    coverage_below_minimum: "Rota published with {gaps} shift(s) below the minimum cover",
+    vacation_conflict: "Holidays of {name} clash with {conflicts} rota shift(s)",
     no_show_monthly_limit: "{name} reached {count} No Shows this month ({lodge})",
     unknown: "Notice",
   },

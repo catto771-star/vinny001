@@ -509,6 +509,8 @@ const plPL: Messages = {
     readHint: "Oznaczenie jako przeczytane nie rozwiązuje sprawy.",
     fridge_out_of_range: "Lodówka {lodge}: {temperature} °C (zakres {min}–{max} °C)",
     maintenance_opened: "Nowe zgłoszenie w {lodge}: {location}",
+    coverage_below_minimum: "Grafik opublikowany z {gaps} zmianą(-ami) poniżej minimalnej obsady",
+    vacation_conflict: "Urlop {name} koliduje z {conflicts} zmianą(-ami) w grafiku",
     no_show_monthly_limit: "{name}: {count} No Show w tym miesiącu ({lodge})",
     unknown: "Powiadomienie",
   },

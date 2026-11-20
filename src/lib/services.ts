@@ -41,6 +41,10 @@ export function notificationText(
       return t("notifications.maintenance_opened", { lodge: lodgeName(n.lodge_id), location: p.location });
     case "no_show_monthly_limit":
       return t("notifications.no_show_monthly_limit", { name: `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim(), count: p.month_count, lodge: lodgeName(n.lodge_id) });
+    case "coverage_below_minimum":
+      return t("notifications.coverage_below_minimum", { gaps: p.gaps });
+    case "vacation_conflict":
+      return t("notifications.vacation_conflict", { name: p.name, conflicts: p.conflicts });
     default:
       return t("notifications.unknown");
   }

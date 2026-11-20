@@ -133,6 +133,15 @@ describe("Rota", () => {
     expect((await db.one("select (payload ->> 'gaps')::int as g from public.notifications where kind = 'coverage_below_minimum'")).g).toBe(4);
   });
 
+  it("Float de um dia vai das 12h à meia-noite: dia sem Float aparece como buraco mesmo com Float no dia anterior e no seguinte", async () => {
+    await db.as(manager);
+    // at(n, "00:00") é a meia-noite que encerra o dia operacional n (horários antes das 07h são do dia seguinte).
+    await db.query(`select public.save_rota_shift(null, $1, null, 'float', ${at(1, "12:00")}, ${at(1, "00:00")})`, [officeA.staffId]);
+    await db.query(`select public.save_rota_shift(null, $1, null, 'float', ${at(3, "12:00")}, ${at(3, "00:00")})`, [porter2.staffId]);
+    const floats = await db.query(`select starts_at = ${at(2, "12:00")} as day2 from public.coverage_gaps(${at(1, "07:00")}, ${at(4, "07:00")}) where kind = 'float'`);
+    expect(floats.rows).toEqual([{ day2: true }]);
+  });
+
   it("horários editáveis inclusive depois do fato (com histórico)", async () => {
     await db.as(manager);
     const id = (await db.one<{ id: string }>(`select public.save_rota_shift(null, $1, $2, 'office', ${at(-2, "07:00")}, ${at(-2, "19:00")}) as id`, [officeA.staffId, amiens])).id;
