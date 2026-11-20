@@ -126,7 +126,7 @@ export function Rota() {
                   ))}
                   {dayGaps.map((g) => (
                     <li key={`${g.kind}-${g.lodge_id}-${g.starts_at}`} className="rota-gap">
-                      {g.kind === "float" ? t("rota.float") : `${g.lodge_code} · ${t(g.kind === "day" ? "rota.dayShift" : "rota.nightShift")}`} — {t("rota.uncovered")}
+                      {g.kind === "float" ? t("rota.float") : `${lodges.find((l) => l.id === g.lodge_id)?.short_name ?? g.lodge_code} · ${t(g.kind === "day" ? "rota.dayShift" : "rota.nightShift")}`} — {t("rota.uncovered")}
                     </li>
                   ))}
                 </ul>

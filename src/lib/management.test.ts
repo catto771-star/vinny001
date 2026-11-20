@@ -47,3 +47,16 @@ describe("relatório mensal", () => {
     expect(detailMetric("no_shows", "residents_1")).toBeNull();
   });
 });
+
+import { orderedMetrics } from "./management";
+
+describe("ordem dos números de cada bloco", () => {
+  it("segue a leitura natural, não a ordem do jsonb (que ordena chaves por tamanho)", () => {
+    const jsonbOrder = { outs: 4, occupied: 0, admissions: 4, beds_total: 44, transfers_in: 0, transfers_out: 0, average_occupancy: 0.4, protected_by_absence: 0 };
+    expect(orderedMetrics("occupancy", jsonbOrder).map(([k]) => k)).toEqual([
+      "beds_total", "occupied", "protected_by_absence", "average_occupancy", "admissions", "outs", "transfers_in", "transfers_out",
+    ]);
+    expect(orderedMetrics("hours", { effective_minutes: 1, planned_minutes: 2 }).map(([k]) => k)).toEqual(["planned_minutes", "effective_minutes"]);
+    expect(orderedMetrics("x", { b: 1, a: 2, nested: { y: 1 } }).map(([k]) => k)).toEqual(["b", "a"]);
+  });
+});

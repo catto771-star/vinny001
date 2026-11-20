@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useI18n, type MessageKey } from "@/i18n";
 import { supabase } from "@/lib/supabase";
-import { detailMetric, minutesLabel, reportBlocks } from "@/lib/management";
+import { detailMetric, minutesLabel, orderedMetrics, reportBlocks } from "@/lib/management";
 import { formatDateTime, operationalDay } from "@/lib/time";
 import { useLatestRequest } from "@/lib/useLatestRequest";
 import { Dialog } from "@/components/Dialog";
@@ -66,7 +66,7 @@ export function Reports() {
             <article key={b.key} className={`card report-block block-${b.key}`}>
               <h2 className="eyebrow">{t(`reports.b_${b.key}` as MessageKey)}</h2>
               <dl className="report-metrics">
-                {Object.entries(b.data).filter(([, v]) => typeof v === "number" || typeof v === "string").map(([k, v]) => {
+                {orderedMetrics(b.key, b.data).map(([k, v]) => {
                   const metric = detailMetric(b.key, k);
                   return (
                     <div key={k} className="report-metric">

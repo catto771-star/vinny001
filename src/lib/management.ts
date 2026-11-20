@@ -60,3 +60,24 @@ export function reportBlocks(report: Record<string, unknown> & { order?: string[
     .filter((k) => report[k] && typeof report[k] === "object")
     .map((k) => ({ key: k, data: report[k] as Record<string, unknown> }));
 }
+
+const METRIC_ORDER: Record<string, string[]> = {
+  occupancy: ["beds_total", "occupied", "protected_by_absence", "average_occupancy", "admissions", "outs", "transfers_in", "transfers_out"],
+  maintenance: ["opened", "in_progress", "on_hold", "resolved", "reopened", "overdue", "average_hours_to_resolve"],
+  no_shows: ["total", "residents_1", "residents_2", "residents_3_plus", "beds_cancelled", "undone"],
+  warnings: ["verbal", "written", "final_written"],
+  dinner: ["services", "served"],
+  hours: ["planned_minutes", "effective_minutes"],
+  tasks: ["done", "not_done"],
+  rounds_checks: ["checks_launched", "checks_pending", "rounds_recorded"],
+  movements: ["admissions", "outs", "transfers"],
+};
+
+/** Números simples do bloco, na ordem de leitura definida (o jsonb não preserva a ordem). */
+export function orderedMetrics(block: string, data: Record<string, unknown>): [string, number | string][] {
+  const order = METRIC_ORDER[block] ?? [];
+  const rank = (k: string) => (order.includes(k) ? order.indexOf(k) : order.length);
+  return Object.entries(data)
+    .filter((e): e is [string, number | string] => typeof e[1] === "number" || typeof e[1] === "string")
+    .sort((a, b) => rank(a[0]) - rank(b[0]));
+}
