@@ -203,3 +203,45 @@ describe("demo.clear", () => {
     await db.query("rollback to savepoint again");
   }, 60_000);
 });
+
+describe("demo.purge_test_data", () => {
+  it("remove as sobras '[TESTE]' (equipe, residentes e o que fizeram) e preserva o resto", async () => {
+    // Um chamado "de verdade" (fora dos testes) que uma conta de teste mexeu.
+    await db.as(manager);
+    const ticket = await db.one<{ id: string }>(
+      "select (public.create_maintenance($1, 'Kitchen', 'Real ticket', 'normal', gen_random_uuid()) ->> 'ticket_id') as id", [amiens]);
+    await db.asSuperuser();
+    const snapshot = await counts();
+    const testManager = await db.createStaff("manager", "[TESTE] Gestor purge");
+    await db.as(testManager);
+    await db.query("select public.maintenance_set_status($1, 'in_progress', null, 'Mexido pelo teste')", [ticket.id]);
+    await db.asSuperuser();
+    const tester = await db.createStaff("porter", "[TESTE] Porter purge");
+    await db.as(tester);
+    await db.query("select public.assume_post('office', $1)", [amiens]);
+    await db.asSuperuser();
+    const bed = await db.one<{ id: string }>(
+      `select b.id from public.beds b join public.rooms r on r.id = b.room_id
+       where r.lodge_id = $1 and b.status = 'in_use' and not exists (select 1 from public.stays s where s.bed_id = b.id and s.status <> 'ended') limit 1`,
+      [amiens],
+    );
+    const res = await db.one<{ id: string }>("insert into public.residents (first_name, last_name) values ('[TESTE] Ana', 'Purge') returning id");
+    await db.query("insert into public.stays (resident_id, lodge_id, bed_id, admitted_at, created_by) values ($1, $2, $3, now() - interval '2 days', $4)",
+      [res.id, amiens, bed.id, tester.staffId]);
+    await db.as(tester);
+    await db.query("select public.add_handover_note($1, 'Teste de limpeza', now(), $2::jsonb, null)", [amiens, JSON.stringify([{ resident_id: res.id }])]);
+    await db.query("select public.record_sighting($1, $2, now(), 'Reception')", [res.id, amiens]);
+    await db.asSuperuser();
+    expect((await counts()).handover_entries).toBe(snapshot.handover_entries + 1);
+
+    const r = (await db.one<{ r: { residents: number; staff: number } }>("select demo.purge_test_data() r")).r;
+    expect(r).toEqual({ residents: 1, staff: 2 });
+    // O histórico do chamado real fica (a mudança de status perde só o autor removido).
+    expect(await counts()).toEqual({ ...snapshot, maintenance_events: snapshot.maintenance_events + 1 });
+    const ev = await db.one<{ n: string }>(
+      "select count(*) n from public.maintenance_events where ticket_id = $1 and kind = 'status' and staff_id is null", [ticket.id]);
+    expect(ev.n).toBe("1");
+    // A conta de gestão criada pelo teste (sem "[TESTE]") continua.
+    expect((await db.one<{ n: string }>("select count(*) n from public.staff where id = $1", [manager.staffId])).n).toBe("1");
+  }, 60_000);
+});

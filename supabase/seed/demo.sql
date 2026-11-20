@@ -843,8 +843,107 @@ end
 $$;
 
 -- -----------------------------------------------------------------------------
--- Remove tudo o que o seed criou e o que foi registrado sobre residentes/equipe demo.
+-- Remoção: tudo o que foi registrado por uma equipe ou sobre um conjunto de residentes.
+-- Usada por demo.clear() (dados demo) e demo.purge_test_data() (sobras dos testes "[TESTE]").
 -- -----------------------------------------------------------------------------
+create or replace function demo.remove_records(p_staff uuid[], p_res uuid[], p_first date, p_last date)
+returns integer
+language plpgsql
+set search_path = public
+as $$
+declare
+  n integer;
+  v_fk record;
+begin
+  delete from public.notification_reads where notification_id in (
+    select id from public.notifications where payload ->> 'demo' = 'true' or resident_id = any (p_res)) or staff_id = any (p_staff);
+  delete from public.notifications where payload ->> 'demo' = 'true' or resident_id = any (p_res);
+  delete from public.handover_mentions where resident_id = any (p_res) or staff_id = any (p_staff)
+     or entry_id in (select id from public.handover_entries where author_id = any (p_staff));
+  delete from public.laundry_uses where resident_id = any (p_res) or started_by = any (p_staff);
+  delete from public.dinner_marks where resident_id = any (p_res) or marked_by = any (p_staff);
+  delete from public.dinner_services ds where closed_by = any (p_staff)
+     or (not exists (select 1 from public.dinner_marks m where m.service_id = ds.id) and ds.operational_day between p_first and p_last);
+  delete from public.room_check_marks where resident_id = any (p_res) or marked_by = any (p_staff);
+  delete from public.room_check_runs r where performed_by = any (p_staff) or entered_by = any (p_staff)
+     or (not exists (select 1 from public.room_check_marks m where m.run_id = r.id) and r.operational_day between p_first and p_last);
+  delete from public.sightings where resident_id = any (p_res) or recorded_by = any (p_staff);
+  delete from public.absences where resident_id = any (p_res);
+  delete from public.no_shows where resident_id = any (p_res);
+  delete from public.warnings where resident_id = any (p_res) or issued_by = any (p_staff);
+  delete from public.maintenance_reminder_snoozes where staff_id = any (p_staff)
+     or ticket_id in (select id from public.maintenance_tickets where created_by = any (p_staff));
+  delete from public.maintenance_events where ticket_id in (select id from public.maintenance_tickets where created_by = any (p_staff));
+  delete from public.maintenance_tickets where created_by = any (p_staff);
+  delete from public.handover_entries e where author_id = any (p_staff)
+    and not exists (select 1 from public.maintenance_tickets t where t.handover_entry_id = e.id)
+    and not exists (select 1 from public.warnings w where w.handover_entry_id = e.id)
+    and not exists (select 1 from public.laundry_uses u where u.handover_entry_id = e.id);
+  delete from public.task_signatures where staff_id = any (p_staff)
+     or extra_id in (select id from public.task_extras where created_by = any (p_staff));
+  delete from public.task_extras where created_by = any (p_staff) or staff_id = any (p_staff);
+  delete from public.food_deliveries where received_by = any (p_staff);
+  delete from public.fridge_readings where recorded_by = any (p_staff);
+  delete from public.product_movements where created_by = any (p_staff)
+     or purchase_line_id in (select l.id from public.purchase_lines l join public.purchases p on p.id = l.purchase_id where p.created_by = any (p_staff));
+  delete from public.purchase_lines where purchase_id in (select id from public.purchases where created_by = any (p_staff));
+  delete from public.purchases where created_by = any (p_staff);
+  delete from public.products p where p.created_at < (p_first - 5)::timestamptz and p.created_at >= (p_first - 15)::timestamptz
+    and not exists (select 1 from public.purchase_lines l where l.product_id = p.id)
+    and not exists (select 1 from public.product_movements m where m.product_id = p.id);
+  delete from public.rota_shifts where staff_id = any (p_staff) or created_by = any (p_staff);
+  delete from public.work_intervals where staff_id = any (p_staff) or created_by = any (p_staff);
+  delete from public.vacations where staff_id = any (p_staff) or created_by = any (p_staff);
+  update public.duty_posts set adjusted_by = null where adjusted_by = any (p_staff) and not (staff_id = any (p_staff));
+  update public.duty_posts set ended_by = null where ended_by = any (p_staff) and not (staff_id = any (p_staff));
+  delete from public.duty_posts where staff_id = any (p_staff);
+  delete from public.stays where resident_id = any (p_res) and transfer_from_stay_id is not null;
+  delete from public.stays where resident_id = any (p_res);
+  delete from public.access_log where resident_id = any (p_res);
+  delete from public.residents where id = any (p_res);
+  -- O que estas contas fizeram em registros que ficam (ex.: mudar o status de um chamado de outra pessoa):
+  -- colunas opcionais passam a "sem autor"; as obrigatórias saem. Lido das chaves estrangeiras.
+  for v_fk in
+    select c.conrelid::regclass::text tbl, a.attname col, a.attnotnull required
+    from pg_constraint c join pg_attribute a on a.attrelid = c.conrelid and a.attnum = c.conkey[1]
+    where c.contype = 'f' and c.confrelid = 'public.staff'::regclass and cardinality(c.conkey) = 1
+  loop
+    if v_fk.required then
+      execute format('delete from %s where %I = any ($1)', v_fk.tbl, v_fk.col) using p_staff;
+    else
+      execute format('update %s set %I = null where %I = any ($1) and not (%s)', v_fk.tbl, v_fk.col, v_fk.col,
+                     case when v_fk.tbl = 'public.staff' then 'id = any ($1)' else 'false' end) using p_staff;
+    end if;
+  end loop;
+  delete from public.staff where id = any (p_staff);
+  get diagnostics n = row_count;
+  delete from public.audit_log where actor_staff_id = any (p_staff)
+     or (table_name = 'staff' and record_id = any (p_staff::text[]))
+     or (table_name = 'residents' and record_id = any (p_res::text[]))
+     or (table_name = 'stays' and coalesce(new_data, old_data) ->> 'resident_id' = any (p_res::text[]));
+  return n;
+end
+$$;
+
+create or replace function demo.set_triggers(p_enabled boolean)
+returns void
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_t text;
+begin
+  foreach v_t in array array['notification_reads', 'notifications', 'handover_mentions', 'laundry_uses', 'dinner_marks', 'dinner_services',
+    'room_check_marks', 'room_check_runs', 'sightings', 'absences', 'no_shows', 'warnings', 'maintenance_reminder_snoozes',
+    'maintenance_events', 'maintenance_tickets', 'handover_entries', 'task_signatures', 'task_extras', 'food_deliveries',
+    'fridge_readings', 'product_movements', 'purchase_lines', 'purchases', 'products', 'rota_shifts', 'work_intervals', 'vacations',
+    'duty_posts', 'stays', 'access_log', 'residents', 'staff', 'audit_log', 'task_templates', 'beds'] loop
+    execute format('alter table public.%I %s trigger user', v_t, case when p_enabled then 'enable' else 'disable' end);
+  end loop;
+end
+$$;
+
+-- Remove tudo o que o seed criou e o que foi registrado sobre residentes/equipe demo.
 create or replace function demo.clear()
 returns jsonb
 language plpgsql
@@ -856,79 +955,61 @@ declare
   v_runs timestamptz[];
   v_first date;
   v_last date;
-  v_t text;
-  v_tables text[] := array['notification_reads', 'notifications', 'handover_mentions', 'laundry_uses', 'dinner_marks', 'dinner_services',
-    'room_check_marks', 'room_check_runs', 'sightings', 'absences', 'no_shows', 'warnings', 'maintenance_reminder_snoozes',
-    'maintenance_events', 'maintenance_tickets', 'handover_entries', 'task_signatures', 'task_extras', 'food_deliveries',
-    'fridge_readings', 'product_movements', 'purchase_lines', 'purchases', 'products', 'rota_shifts', 'work_intervals', 'vacations',
-    'duty_posts', 'stays', 'access_log', 'residents', 'staff', 'audit_log', 'task_templates', 'beds'];
-  v_deleted integer := 0;
   n integer;
 begin
   select coalesce(array_agg(id), '{}') into v_res from public.residents where is_demo;
   select coalesce(array_agg(seeded_at), '{}'), min(first_day), max(last_day) into v_runs, v_first, v_last from demo.runs;
   -- Sem auditoria nem bloqueios durante a limpeza (as linhas de auditoria do seed também saem).
-  foreach v_t in array v_tables loop execute format('alter table public.%I disable trigger user', v_t); end loop;
-
-  delete from public.notification_reads where notification_id in (
-    select id from public.notifications where payload ->> 'demo' = 'true' or resident_id = any (v_res)) or staff_id = any (v_staff);
-  delete from public.notifications where payload ->> 'demo' = 'true' or resident_id = any (v_res);
-  delete from public.handover_mentions where resident_id = any (v_res) or staff_id = any (v_staff)
-     or entry_id in (select id from public.handover_entries where author_id = any (v_staff));
-  delete from public.laundry_uses where resident_id = any (v_res) or started_by = any (v_staff);
-  delete from public.dinner_marks where resident_id = any (v_res) or marked_by = any (v_staff);
-  delete from public.dinner_services ds where closed_by = any (v_staff)
-     or (not exists (select 1 from public.dinner_marks m where m.service_id = ds.id) and ds.operational_day between v_first and v_last);
-  delete from public.room_check_marks where resident_id = any (v_res) or marked_by = any (v_staff);
-  delete from public.room_check_runs r where performed_by = any (v_staff) or entered_by = any (v_staff)
-     or (not exists (select 1 from public.room_check_marks m where m.run_id = r.id) and r.operational_day between v_first and v_last);
-  delete from public.sightings where resident_id = any (v_res) or recorded_by = any (v_staff);
-  delete from public.absences where resident_id = any (v_res);
-  delete from public.no_shows where resident_id = any (v_res);
-  delete from public.warnings where resident_id = any (v_res) or issued_by = any (v_staff);
-  delete from public.maintenance_reminder_snoozes where staff_id = any (v_staff)
-     or ticket_id in (select id from public.maintenance_tickets where created_by = any (v_staff));
-  delete from public.maintenance_events where ticket_id in (select id from public.maintenance_tickets where created_by = any (v_staff));
-  delete from public.maintenance_tickets where created_by = any (v_staff);
-  delete from public.handover_entries e where author_id = any (v_staff)
-    and not exists (select 1 from public.maintenance_tickets t where t.handover_entry_id = e.id)
-    and not exists (select 1 from public.warnings w where w.handover_entry_id = e.id)
-    and not exists (select 1 from public.laundry_uses u where u.handover_entry_id = e.id);
-  delete from public.task_signatures where staff_id = any (v_staff)
-     or extra_id in (select id from public.task_extras where created_by = any (v_staff));
-  delete from public.task_extras where created_by = any (v_staff) or staff_id = any (v_staff);
-  delete from public.food_deliveries where received_by = any (v_staff);
-  delete from public.fridge_readings where recorded_by = any (v_staff);
-  delete from public.product_movements where created_by = any (v_staff)
-     or purchase_line_id in (select l.id from public.purchase_lines l join public.purchases p on p.id = l.purchase_id where p.created_by = any (v_staff));
-  delete from public.purchase_lines where purchase_id in (select id from public.purchases where created_by = any (v_staff));
-  delete from public.purchases where created_by = any (v_staff);
+  perform demo.set_triggers(false);
+  n := demo.remove_records(v_staff, v_res, v_first, v_last);
   delete from public.products p where p.created_at < (v_first - 5)::timestamptz and p.created_at >= (v_first - 15)::timestamptz
     and not exists (select 1 from public.purchase_lines l where l.product_id = p.id)
     and not exists (select 1 from public.product_movements m where m.product_id = p.id);
-  delete from public.rota_shifts where staff_id = any (v_staff) or created_by = any (v_staff);
-  delete from public.work_intervals where staff_id = any (v_staff) or created_by = any (v_staff);
-  delete from public.vacations where staff_id = any (v_staff) or created_by = any (v_staff);
-  update public.duty_posts set adjusted_by = null where adjusted_by = any (v_staff) and not (staff_id = any (v_staff));
-  update public.duty_posts set ended_by = null where ended_by = any (v_staff) and not (staff_id = any (v_staff));
-  delete from public.duty_posts where staff_id = any (v_staff);
-  delete from public.stays where resident_id = any (v_res) and transfer_from_stay_id is not null;
-  delete from public.stays where resident_id = any (v_res);
-  delete from public.access_log where resident_id = any (v_res);
-  delete from public.residents where id = any (v_res);
-  delete from public.staff where id = any (v_staff);
-  get diagnostics n = row_count;
-  v_deleted := v_deleted + n;
-  delete from public.audit_log where occurred_at = any (v_runs) or actor_staff_id = any (v_staff)
-     or (table_name = 'residents' and record_id = any (v_res::text[]));
+  delete from public.audit_log where occurred_at = any (v_runs);
   update public.task_templates set created_at = now() where created_at < coalesce(v_first, current_date) - 30;
   update public.beds set status = 'in_use', status_note = null where status_note like '%(demo)';
   delete from demo.runs;
-
-  foreach v_t in array v_tables loop execute format('alter table public.%I enable trigger user', v_t); end loop;
+  perform demo.set_triggers(true);
   -- Logins da equipe demo (no Supabase; no banco local é a réplica mínima do auth).
   delete from auth.users where email like '%@demo.ds-lodge.test';
-  return jsonb_build_object('residents', cardinality(v_res), 'staff', v_deleted);
+  return jsonb_build_object('residents', cardinality(v_res), 'staff', n);
+end
+$$;
+
+-- Sobras dos testes de ponta a ponta ("[TESTE]" e logins @ds-lodge.test), antes de semear a demo.
+create or replace function demo.purge_test_data()
+returns jsonb
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_staff uuid[];
+  v_res uuid[];
+  n integer;
+begin
+  select coalesce(array_agg(id), '{}') into v_staff from public.staff where full_name like '[TESTE]%';
+  select coalesce(array_agg(id), '{}') into v_res from public.residents where first_name like '[TESTE]%';
+  perform demo.set_triggers(false);
+  -- Avisos gerados pelas ações dos testes (sem autor na tabela).
+  delete from public.notification_reads where notification_id in (
+    select id from public.notifications where coalesce(payload ->> 'demo', '') <> 'true' and (
+      resident_id = any (v_res)
+      or payload ->> 'ticket_id' in (select id::text from public.maintenance_tickets where created_by = any (v_staff))
+      or payload ->> 'reading_id' in (select id::text from public.fridge_readings where recorded_by = any (v_staff))
+      or payload ->> 'staff_id' = any (v_staff::text[])
+      or kind = 'coverage_below_minimum'));
+  delete from public.notifications where coalesce(payload ->> 'demo', '') <> 'true' and (
+      resident_id = any (v_res)
+      or payload ->> 'ticket_id' in (select id::text from public.maintenance_tickets where created_by = any (v_staff))
+      or payload ->> 'reading_id' in (select id::text from public.fridge_readings where recorded_by = any (v_staff))
+      or payload ->> 'staff_id' = any (v_staff::text[])
+      or kind = 'coverage_below_minimum');
+  n := demo.remove_records(v_staff, v_res, date '2026-01-01', public.operational_day(now()));
+  delete from public.products p where p.name like '[TESTE]%'
+    and not exists (select 1 from public.purchase_lines l where l.product_id = p.id);
+  perform demo.set_triggers(true);
+  delete from auth.users where email like '%@ds-lodge.test';
+  return jsonb_build_object('residents', cardinality(v_res), 'staff', n);
 end
 $$;
 

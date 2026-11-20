@@ -60,3 +60,20 @@ describe("ordem dos números de cada bloco", () => {
     expect(orderedMetrics("x", { b: 1, a: 2, nested: { y: 1 } }).map(([k]) => k)).toEqual(["b", "a"]);
   });
 });
+
+import { breakdownLabelKey, formatMetric } from "./management";
+
+describe("formatação do relatório", () => {
+  it("números no formato do idioma (vírgula decimal em pt-PT) e horas em h/min", () => {
+    expect(formatMetric("average_occupancy", 33.3, "pt-PT")).toBe("33,3");
+    expect(formatMetric("average_occupancy", 33.3, "en-IE")).toBe("33.3");
+    expect(formatMetric("planned_minutes", 125, "pt-PT")).toBe("2 h 05");
+    expect(formatMetric("opened", 4, "pl-PL")).toBe("4");
+  });
+  it("motivos de lançamento fora do turno e prioridades usam os textos traduzidos; locais ficam como estão", () => {
+    expect(breakdownLabelKey("by_reason", "forgot")).toBe("handover.reasons.forgot");
+    expect(breakdownLabelKey("by_priority", "urgent")).toBe("maintenance.p_urgent");
+    expect(breakdownLabelKey("by_location", "Kitchen")).toBeNull();
+    expect(breakdownLabelKey("by_reason", "unknown_reason")).toBeNull();
+  });
+});

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useI18n, type MessageKey } from "@/i18n";
 import { supabase } from "@/lib/supabase";
-import { detailMetric, minutesLabel, orderedMetrics, reportBlocks } from "@/lib/management";
+import { breakdownLabelKey, detailMetric, formatMetric, orderedMetrics, reportBlocks } from "@/lib/management";
 import { formatDateTime, operationalDay } from "@/lib/time";
 import { useLatestRequest } from "@/lib/useLatestRequest";
 import { Dialog } from "@/components/Dialog";
@@ -43,7 +43,7 @@ export function Reports() {
   }
 
   const label = (key: string) => t(`reports.m_${key}` as MessageKey);
-  const format = (key: string, v: unknown) => (key.endsWith("_minutes") ? minutesLabel(Number(v)) : String(v));
+  const format = (key: string, v: number | string) => formatMetric(key, v, locale);
 
   return (
     <section className="page">
@@ -87,7 +87,10 @@ export function Reports() {
                 if (entries.length === 0) return null;
                 return (
                   <p key={k} className="report-breakdown muted">
-                    {entries.map(([name, n]) => `${name}: ${n}`).join(" · ")}
+                    {entries.map(([name, n]) => {
+                      const key = breakdownLabelKey(k, String(name));
+                      return `${key ? t(key) : name}: ${n}`;
+                    }).join(" · ")}
                   </p>
                 );
               })}

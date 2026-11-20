@@ -1,3 +1,4 @@
+import type { MessageKey } from "@/i18n";
 import { addDays } from "./time";
 
 /** Total da linha arredondado ao centavo, meio centavo sobe (B49) — igual ao banco. */
@@ -80,4 +81,21 @@ export function orderedMetrics(block: string, data: Record<string, unknown>): [s
   return Object.entries(data)
     .filter((e): e is [string, number | string] => typeof e[1] === "number" || typeof e[1] === "string")
     .sort((a, b) => rank(a[0]) - rank(b[0]));
+}
+
+/** Número do resumo no formato do idioma; minutos viram "h mm". */
+export function formatMetric(key: string, value: number | string, locale: string): string {
+  if (key.endsWith("_minutes")) return minutesLabel(Number(value));
+  const n = Number(value);
+  return Number.isFinite(n) ? new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(n) : String(value);
+}
+
+const LATE_REASONS = ["other_occurrence", "system_failure", "forgot", "info_received_later"];
+const PRIORITIES = ["urgent", "normal", "low"];
+
+/** Texto traduzido para as quebras do relatório (motivos e prioridades); locais ficam como foram escritos. */
+export function breakdownLabelKey(field: string, name: string): MessageKey | null {
+  if (field === "by_reason" && LATE_REASONS.includes(name)) return `handover.reasons.${name}` as MessageKey;
+  if (field === "by_priority" && PRIORITIES.includes(name)) return `maintenance.p_${name}` as MessageKey;
+  return null;
 }
