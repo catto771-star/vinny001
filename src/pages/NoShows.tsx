@@ -3,14 +3,17 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthProvider";
 import { useI18n } from "@/i18n";
 import { supabase } from "@/lib/supabase";
+import { useLatestRequest } from "@/lib/useLatestRequest";
 import { errorKey } from "@/lib/errors";
 import { monthCountLabel, noShowReviewDay } from "@/lib/presence";
 import { roomLabel } from "@/lib/rooms";
 import { formatCivilDate } from "@/lib/time";
 import { residentName } from "@/lib/types";
-import { Dialog } from "@/components/Dialog";
+import { Dialog, DialogCancel } from "@/components/Dialog";
 import { LodgeTabs, useDefaultLodge } from "@/components/LodgeTabs";
 import { Notice } from "@/components/Notice";
+import { Skeleton } from "@/components/Skeleton";
+import { useToast } from "@/components/Toast";
 
 type Candidate = {
   stay_id: string;
@@ -56,14 +59,18 @@ export function NoShows() {
   const [undoing, setUndoing] = useState<Confirmed | null>(null);
   const [reason, setReason] = useState("");
   const [limit, setLimit] = useState(3);
+  const toast = useToast();
 
+  const begin = useLatestRequest();
   const load = useCallback(async () => {
+    const isLatest = begin();
     const { data, error: e } = await supabase.rpc("no_show_review", { p_lodge: lodgeId, p_day: day });
+    if (!isLatest()) return;
     if (e) return setError(t(errorKey(e)));
     const r = data as Review;
     setReview(r);
     setSelected(new Set(r.candidates.map((c) => c.stay_id)));
-  }, [lodgeId, day, t]);
+  }, [lodgeId, day, t, begin]);
 
   useEffect(() => {
     setMessages([]);
@@ -84,7 +91,8 @@ export function NoShows() {
     setBusy(false);
     if (e) return setError(t(errorKey(e)));
     const results = data as { stay_id: string; month_count: number }[];
-    const notes = [t("noShows.confirmedOk")];
+    toast.success(t("noShows.confirmedOk"));
+    const notes: string[] = [];
     for (const r of results) {
       if (r.month_count >= limit) {
         const c = review.candidates.find((x) => x.stay_id === r.stay_id);
@@ -129,8 +137,9 @@ export function NoShows() {
       </div>
 
       {messages.map((m) => (
-        <Notice key={m} kind="success">{m}</Notice>
+        <Notice key={m} kind="warning">{m}</Notice>
       ))}
+      {!review && !error && <div className="card"><Skeleton rows={5} label={t("app.loading")} /></div>}
       <Notice kind="error">{error}</Notice>
 
       {review && (
@@ -212,7 +221,7 @@ export function NoShows() {
           onClose={() => setUndoing(null)}
           footer={
             <>
-              <button onClick={() => setUndoing(null)}>{t("app.cancel")}</button>
+              <DialogCancel>{t("app.cancel")}</DialogCancel>
               <button className="primary" disabled={!reason.trim()} onClick={() => void undo()}>{t("noShows.undo")}</button>
             </>
           }

@@ -1,16 +1,11 @@
 import { useAuth } from "@/auth/AuthProvider";
+import { useI18n } from "@/i18n";
+import { Tabs } from "./Tabs";
 
 export function LodgeTabs({ value, onChange }: { value: string; onChange: (id: string) => void }) {
   const { lodges } = useAuth();
-  return (
-    <div className="tabs" role="tablist">
-      {lodges.map((l) => (
-        <button key={l.id} role="tab" aria-selected={l.id === value} className={l.id === value ? "tab selected" : "tab"} onClick={() => onChange(l.id)}>
-          {l.name}
-        </button>
-      ))}
-    </div>
-  );
+  const { t } = useI18n();
+  return <Tabs label={t("residents.lodge")} value={value} onChange={onChange} items={lodges.map((l) => ({ value: l.id, label: l.name }))} />;
 }
 
 /** Lodge inicial: o do posto do usuário, ou o primeiro. */

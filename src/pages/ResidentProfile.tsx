@@ -9,8 +9,10 @@ import { formatCivilDate, formatDateTime } from "@/lib/time";
 import { residentName, type StayStatus } from "@/lib/types";
 import { FreeBedSelect } from "@/components/AdmitDialog";
 import { DateTimeField } from "@/components/DateTimeField";
-import { Dialog } from "@/components/Dialog";
+import { Dialog, DialogCancel } from "@/components/Dialog";
 import { Notice } from "@/components/Notice";
+import { Skeleton } from "@/components/Skeleton";
+import { useToast } from "@/components/Toast";
 
 type Resident = {
   id: string;
@@ -49,7 +51,7 @@ export function ResidentProfile() {
   const [resident, setResident] = useState<Resident | null>(null);
   const [stays, setStays] = useState<Stay[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const toast = useToast();
   const [action, setAction] = useState<Action>(null);
 
   // A abertura do perfil passa sempre por open_resident_profile, que registra a leitura (B19).
@@ -72,7 +74,7 @@ export function ResidentProfile() {
 
   async function done(message: string) {
     setAction(null);
-    setSuccess(message);
+    toast.success(message);
     setError(null);
     await load();
   }
@@ -81,7 +83,7 @@ export function ResidentProfile() {
     return (
       <section className="page">
         <Notice kind="error">{error}</Notice>
-        {!error && <p className="muted">{t("app.loading")}</p>}
+        {!error && <div className="card"><Skeleton rows={6} label={t("app.loading")} /></div>}
       </section>
     );
   }
@@ -99,7 +101,6 @@ export function ResidentProfile() {
         </div>
       </header>
 
-      <Notice kind="success">{success}</Notice>
       <Notice kind="error">{error}</Notice>
 
       <div className="card-grid">
@@ -244,7 +245,7 @@ function EditResident({ resident, onClose, onDone }: { resident: Resident; onClo
       onClose={onClose}
       footer={
         <>
-          <button onClick={onClose}>{t("app.cancel")}</button>
+          <DialogCancel>{t("app.cancel")}</DialogCancel>
           <button type="submit" form="edit-resident" className="primary" disabled={busy}>{t("app.save")}</button>
         </>
       }
@@ -273,7 +274,7 @@ function DecideOut({ stayId, onClose, onDone }: { stayId: string; onClose: () =>
       onClose={onClose}
       footer={
         <>
-          <button onClick={onClose}>{t("app.cancel")}</button>
+          <DialogCancel>{t("app.cancel")}</DialogCancel>
           <button className="danger" disabled={busy || !reason.trim()} onClick={() => void run(() => supabase.rpc("decide_out", { p_stay: stayId, p_reason: reason }))}>
             {t("residents.decideOut")}
           </button>
@@ -300,7 +301,7 @@ function EffectOut({ stayId, onClose, onDone }: { stayId: string; onClose: () =>
       onClose={onClose}
       footer={
         <>
-          <button onClick={onClose}>{t("app.cancel")}</button>
+          <DialogCancel>{t("app.cancel")}</DialogCancel>
           <button className="danger" disabled={busy} onClick={() => void run(() => supabase.rpc("effect_out", { p_stay: stayId, p_ended_at: at ? at.toISOString() : null }))}>
             {t("residents.effectOut")}
           </button>
@@ -329,7 +330,7 @@ function Transfer({ stay, onClose, onDone }: { stay: Stay; onClose: () => void; 
       onClose={onClose}
       footer={
         <>
-          <button onClick={onClose}>{t("app.cancel")}</button>
+          <DialogCancel>{t("app.cancel")}</DialogCancel>
           <button className="primary" disabled={busy || bedsLoading || !bedId} onClick={() => void run(() => supabase.rpc("transfer_resident", { p_stay: stay.id, p_new_bed: bedId, p_at: at ? at.toISOString() : null }))}>
             {t("residents.transfer")}
           </button>

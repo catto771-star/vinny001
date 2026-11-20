@@ -117,7 +117,8 @@ export function formatDateTime(date: Date | string, locale: string): string {
 
 /** Relógio do topo: dia da semana, data e hora com segundos (s.15.2). */
 export function formatClock(date: Date, locale: string): { weekday: string; date: string; time: string } {
-  const weekday = new Intl.DateTimeFormat(locale, { timeZone: DUBLIN, weekday: "long" }).format(date);
+  const raw = new Intl.DateTimeFormat(locale, { timeZone: DUBLIN, weekday: "long" }).format(date);
+  const weekday = raw.charAt(0).toLocaleUpperCase(locale) + raw.slice(1);
   return { weekday, date: formatDate(date, locale), time: formatTime(date, locale, true) };
 }
 

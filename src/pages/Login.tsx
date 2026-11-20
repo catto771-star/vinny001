@@ -60,7 +60,10 @@ export function AuthCard({ title, children }: { title: string; children: React.R
         <LanguageSelect persist={false} />
       </div>
       <div className="auth-card">
-        <div className="brand brand-large">{t("app.name")}</div>
+        <div className="brand brand-large">
+          <span className="brand-mark" aria-hidden="true">DS</span>
+          {t("app.name")}
+        </div>
         <h1>{title}</h1>
         {children}
       </div>

@@ -3,15 +3,18 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthProvider";
 import { useI18n } from "@/i18n";
 import { supabase } from "@/lib/supabase";
+import { useLatestRequest } from "@/lib/useLatestRequest";
 import { errorKey } from "@/lib/errors";
 import { roomLabel } from "@/lib/rooms";
 import { formatDateTime } from "@/lib/time";
 import { residentName } from "@/lib/types";
 import { useOccupancy } from "@/lib/useOccupancy";
 import { DateTimeInput } from "@/components/DateTimeInput";
-import { Dialog } from "@/components/Dialog";
+import { Dialog, DialogCancel } from "@/components/Dialog";
 import { LodgeTabs, useDefaultLodge } from "@/components/LodgeTabs";
 import { Notice } from "@/components/Notice";
+import { Skeleton } from "@/components/Skeleton";
+import { useToast } from "@/components/Toast";
 
 type AbsenceRow = {
   id: string;
@@ -39,11 +42,14 @@ export function Absences() {
   const [registering, setRegistering] = useState(false);
   const [returning, setReturning] = useState<AbsenceRow | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const toast = useToast();
+  const [loading, setLoading] = useState(true);
   const now = new Date(Date.now() + serverOffsetMs);
   const canWrite = canWriteLodge(lodgeId);
 
+  const begin = useLatestRequest();
   const load = useCallback(async () => {
+    const isLatest = begin();
     const { data, error: e } = await supabase
       .from("absences")
       .select("id, stay_id, resident_id, starts_at, expected_return_at, ended_at, notes, residents(first_name, last_name), stays!inner(lodge_id)")
@@ -51,9 +57,11 @@ export function Absences() {
       .order("ended_at", { ascending: false, nullsFirst: true })
       .order("expected_return_at")
       .limit(200);
+    if (!isLatest()) return;
+    setLoading(false);
     if (e) return setError(t(errorKey(e)));
     setRows((data ?? []) as unknown as AbsenceRow[]);
-  }, [lodgeId, t]);
+  }, [lodgeId, t, begin]);
 
   useEffect(() => {
     void load();
@@ -76,9 +84,9 @@ export function Absences() {
           <button className="primary" onClick={() => setRegistering(true)}>{t("absences.register")}</button>
         </div>
       )}
-      <Notice kind="success">{success}</Notice>
       <Notice kind="error">{error}</Notice>
 
+      {loading ? <div className="card"><Skeleton rows={5} label={t("app.loading")} /></div> : (
       <table className="table">
         <thead>
           <tr>
@@ -124,6 +132,7 @@ export function Absences() {
           )}
         </tbody>
       </table>
+      )}
 
       {registering && (
         <RegisterAbsence
@@ -131,7 +140,7 @@ export function Absences() {
           onClose={() => setRegistering(false)}
           onDone={() => {
             setRegistering(false);
-            setSuccess(t("absences.saved"));
+            toast.success(t("absences.saved"));
             void load();
           }}
         />
@@ -142,7 +151,7 @@ export function Absences() {
           onClose={() => setReturning(null)}
           onDone={() => {
             setReturning(null);
-            setSuccess(t("residents.saved"));
+            toast.success(t("residents.saved"));
             void load();
           }}
         />
@@ -189,7 +198,7 @@ function RegisterAbsence({
       onClose={onClose}
       footer={
         <>
-          <button onClick={onClose}>{t("app.cancel")}</button>
+          <DialogCancel>{t("app.cancel")}</DialogCancel>
           <button type="submit" form="absence-form" className="primary" disabled={busy || !stayId || !startsAt || !expected}>
             {t("app.save")}
           </button>
@@ -243,7 +252,7 @@ function RecordReturn({ absence, onClose, onDone }: { absence: AbsenceRow; onClo
       onClose={onClose}
       footer={
         <>
-          <button onClick={onClose}>{t("app.cancel")}</button>
+          <DialogCancel>{t("app.cancel")}</DialogCancel>
           <button className="primary" onClick={() => void submit()}>{t("app.save")}</button>
         </>
       }

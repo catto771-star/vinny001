@@ -7,7 +7,7 @@ import { roomLabel } from "@/lib/rooms";
 import { formatCivilDate } from "@/lib/time";
 import { residentName, type BedOccupancy } from "@/lib/types";
 import { useOccupancy } from "@/lib/useOccupancy";
-import { Dialog } from "./Dialog";
+import { Dialog, DialogCancel } from "./Dialog";
 import { DateTimeField } from "./DateTimeField";
 import { Notice } from "./Notice";
 
@@ -146,7 +146,7 @@ export function AdmitDialog({
       wide
       footer={
         <>
-          <button type="button" onClick={onClose}>{t("app.cancel")}</button>
+          <DialogCancel>{t("app.cancel")}</DialogCancel>
           <button type="submit" form="admit-form" className="primary" disabled={!valid || busy}>
             {busy ? t("app.saving") : t("residents.admit")}
           </button>

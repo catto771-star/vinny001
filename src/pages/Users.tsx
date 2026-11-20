@@ -6,8 +6,9 @@ import { errorKey } from "@/lib/errors";
 import { generateTemporaryPassword } from "@/lib/password";
 import { formatDate } from "@/lib/time";
 import { staffName, type Staff, type StaffRole } from "@/lib/types";
-import { Dialog } from "@/components/Dialog";
+import { Dialog, DialogCancel } from "@/components/Dialog";
 import { Notice } from "@/components/Notice";
+import { useToast } from "@/components/Toast";
 
 const CREATABLE_ROLES: StaffRole[] = ["porter", "cleaner", "manager", "owner"];
 
@@ -36,7 +37,7 @@ export function Users() {
   const [password, setPassword] = useState<{ name: string; value: string } | null>(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState<Staff | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const toast = useToast();
 
   const load = useCallback(async () => {
     const { data } = await supabase.from("staff").select("*").order("active", { ascending: false }).order("full_name");
@@ -53,7 +54,7 @@ export function Users() {
     if (e) return setError(t(errorKey(e)));
     setError(null);
     setPassword({ name: staffName(s), value });
-    setSuccess(t("users.resetPasswordDone"));
+    toast.success(t("users.resetPasswordDone"));
   }
 
   async function setActive(s: Staff, active: boolean) {
@@ -73,7 +74,6 @@ export function Users() {
         <button className="primary" onClick={() => setCreating(true)}>{t("users.add")}</button>
       </header>
 
-      <Notice kind="success">{success}</Notice>
       <Notice kind="error">{error}</Notice>
       {password && (
         <Notice kind="warning">
@@ -130,7 +130,7 @@ export function Users() {
           onClose={() => setCreating(false)}
           onCreated={(name, value) => {
             setCreating(false);
-            setSuccess(t("users.createdSuccess"));
+            toast.success(t("users.createdSuccess"));
             setPassword(value ? { name, value } : null);
             void load();
           }}
@@ -142,7 +142,7 @@ export function Users() {
           onClose={() => setEditing(null)}
           onCreated={() => {
             setEditing(null);
-            setSuccess(t("residents.saved"));
+            toast.success(t("residents.saved"));
             void load();
           }}
         />
@@ -153,7 +153,7 @@ export function Users() {
           onClose={() => setConfirmDeactivate(null)}
           footer={
             <>
-              <button onClick={() => setConfirmDeactivate(null)}>{t("app.cancel")}</button>
+              <DialogCancel>{t("app.cancel")}</DialogCancel>
               <button className="danger" onClick={() => void setActive(confirmDeactivate, false)}>{t("users.deactivate")}</button>
             </>
           }
@@ -229,7 +229,7 @@ function StaffForm({
       onClose={onClose}
       footer={
         <>
-          <button onClick={onClose}>{t("app.cancel")}</button>
+          <DialogCancel>{t("app.cancel")}</DialogCancel>
           <button type="submit" form="staff-form" className="primary" disabled={busy}>{busy ? t("app.saving") : t("app.save")}</button>
         </>
       }

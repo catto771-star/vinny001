@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useI18n, type MessageKey } from "@/i18n";
 import { supabase } from "@/lib/supabase";
+import { useLatestRequest } from "@/lib/useLatestRequest";
 import { diffRecord } from "@/lib/audit";
 import { formatDateTime } from "@/lib/time";
 import { staffName, type Staff } from "@/lib/types";
+import { Tabs } from "@/components/Tabs";
 
 type AuditRow = {
   id: number;
@@ -44,20 +46,22 @@ export function Audit() {
     void supabase.from("staff").select("*").then(({ data }) => setStaff((data ?? []) as Staff[]));
   }, []);
 
+  const begin = useLatestRequest();
   useEffect(() => {
+    const isLatest = begin();
     if (tab === "changes") {
       let q = supabase.from("audit_log").select("*").order("occurred_at", { ascending: false }).limit(200);
       if (table) q = q.eq("table_name", table);
-      void q.then(({ data }) => setRows((data ?? []) as AuditRow[]));
+      void q.then(({ data }) => isLatest() && setRows((data ?? []) as AuditRow[]));
     } else {
       void supabase
         .from("access_log")
         .select("id, occurred_at, actor_staff_id, resident:residents(first_name, last_name)")
         .order("occurred_at", { ascending: false })
         .limit(200)
-        .then(({ data }) => setReads((data ?? []) as unknown as ReadRow[]));
+        .then(({ data }) => isLatest() && setReads((data ?? []) as unknown as ReadRow[]));
     }
-  }, [tab, table]);
+  }, [tab, table, begin]);
 
   const names = useMemo(() => new Map(staff.map((s) => [s.id, staffName(s)])), [staff]);
   const who = (id: string | null) => (id ? names.get(id) ?? id.slice(0, 8) : t("audit.system"));
@@ -67,10 +71,15 @@ export function Audit() {
     <section className="page">
       <header className="page-header">
         <h1>{t("audit.title")}</h1>
-        <div className="tabs" role="tablist">
-          <button role="tab" className={tab === "changes" ? "tab selected" : "tab"} aria-selected={tab === "changes"} onClick={() => setTab("changes")}>{t("audit.changes")}</button>
-          <button role="tab" className={tab === "reads" ? "tab selected" : "tab"} aria-selected={tab === "reads"} onClick={() => setTab("reads")}>{t("audit.reads")}</button>
-        </div>
+        <Tabs
+          label={t("audit.title")}
+          value={tab}
+          onChange={(v) => setTab(v as "changes" | "reads")}
+          items={[
+            { value: "changes", label: t("audit.changes") },
+            { value: "reads", label: t("audit.reads") },
+          ]}
+        />
       </header>
 
       {tab === "changes" ? (

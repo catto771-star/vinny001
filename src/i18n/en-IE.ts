@@ -117,6 +117,7 @@ const enIE = {
     seen: "Seen",
     absences: "Absences",
     noShows: "No Shows",
+    menu: "Menu",
     language: "Language",
   },
   today: {
@@ -134,6 +135,12 @@ const enIE = {
     occupancy: "Occupancy",
     occupied: "occupied",
     free: "free",
+    nextCheck: "Enter the {slot} check",
+    openSheet: "Open the daily sheet",
+    checksDue: "{n} check(s) due and not entered yet",
+    allChecksIn: "All due checks are entered.",
+    beds: "of {total} beds",
+    managementHint: "Review the night's No Shows and the team's pending items.",
     outOfService: "out of service",
   },
   residents: {

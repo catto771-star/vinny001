@@ -14,11 +14,13 @@ vi.mock("@/lib/useOccupancy", async (orig) => ({
 }));
 vi.mock("@/lib/supabase", () => ({ supabaseConfigured: true, supabase: {} }));
 vi.mock("@/components/PresenceAlertCard", () => ({ PresenceAlertCard: () => null }));
+vi.mock("@/lib/useNextCheck", () => ({ useNextCheck: () => ({ slot: "12:00", pendingCount: 1, loading: false }) }));
 vi.mock("@/auth/AuthProvider", () => ({
   useAuth: () => ({
     lodges: [{ id: "a", code: "AMIENS", name: "Amiens St.", short_name: "Amiens" }],
     post: { id: "p", function: "office", lodge_id: "a", started_at: new Date().toISOString() },
     isManagement: false,
+    staff: { full_name: "Porter", display_name: null, role: "porter" },
     serverOffsetMs: 0,
   }),
 }));
@@ -54,5 +56,12 @@ describe("Hoje — de serviço agora", () => {
     renderToday();
     expect(screen.getByText(/Porter B/)).toBeTruthy();
     expect(screen.getByText("Nobody")).toBeTruthy(); // Float vazio
+  });
+
+  it("ação principal do turno: Office com check vencido vê 'Enter the 12:00 check'", () => {
+    onDuty = { posts: [], loading: false };
+    renderToday();
+    expect(screen.getByRole("button", { name: "Enter the 12:00 check" })).toBeTruthy();
+    expect(screen.getByText("1 check(s) due and not entered yet")).toBeTruthy();
   });
 });

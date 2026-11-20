@@ -118,6 +118,7 @@ const plPL: Messages = {
     seen: "Seen",
     absences: "Nieobecności",
     noShows: "No Shows",
+    menu: "Menu",
     language: "Język",
   },
   today: {
@@ -135,6 +136,12 @@ const plPL: Messages = {
     occupancy: "Obłożenie",
     occupied: "zajęte",
     free: "wolne",
+    nextCheck: "Wprowadź check {slot}",
+    openSheet: "Otwórz arkusz dnia",
+    checksDue: "{n} check(i) do wprowadzenia",
+    allChecksIn: "Wszystkie zaległe checki są wprowadzone.",
+    beds: "z {total} łóżek",
+    managementHint: "Przejrzyj No Show z nocy i sprawy zespołu.",
     outOfService: "wyłączone",
   },
   residents: {

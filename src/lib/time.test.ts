@@ -58,8 +58,8 @@ describe("Relógio e formatos (s.15.2, B52, B55)", () => {
 
   it("B55: relógio com dia da semana, data e segundos no horário de Dublin, no idioma do usuário", () => {
     expect(formatClock(instant, "en-IE")).toEqual({ weekday: "Friday", date: "10/07/2026", time: "22:05:09" });
-    expect(formatClock(instant, "pt-PT").weekday).toBe("sexta-feira");
-    expect(formatClock(instant, "pl-PL").weekday).toBe("piątek");
+    expect(formatClock(instant, "pt-PT").weekday).toBe("Sexta-feira");
+    expect(formatClock(instant, "pl-PL").weekday).toBe("Piątek");
     expect(formatClock(instant, "pl-PL").time).toBe("22:05:09");
   });
 

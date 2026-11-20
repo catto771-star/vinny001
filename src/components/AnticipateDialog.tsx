@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useI18n } from "@/i18n";
 import { supabase } from "@/lib/supabase";
 import { errorKey } from "@/lib/errors";
-import { Dialog } from "./Dialog";
+import { Dialog, DialogCancel } from "./Dialog";
 import { Notice } from "./Notice";
 
 /** B05: residente em ausência comunicada foi visto → "Deseja antecipar a presença deste residente?" */
@@ -25,7 +25,7 @@ export function AnticipateDialog({ absenceId, onClose }: { absenceId: string; on
       onClose={() => onClose(false)}
       footer={
         <>
-          <button onClick={() => onClose(false)}>{t("sheet.anticipateNo")}</button>
+          <DialogCancel>{t("sheet.anticipateNo")}</DialogCancel>
           <button className="primary" disabled={busy} onClick={() => void confirm()}>
             {t("sheet.anticipateYes")}
           </button>

@@ -9,8 +9,10 @@ import { formatCivilDate } from "@/lib/time";
 import { residentName, type BedOccupancy } from "@/lib/types";
 import { groupByRoom, summarise, useOccupancy } from "@/lib/useOccupancy";
 import { AdmitDialog } from "@/components/AdmitDialog";
-import { Dialog } from "@/components/Dialog";
+import { Dialog, DialogCancel } from "@/components/Dialog";
 import { Notice } from "@/components/Notice";
+import { LodgeTabs } from "@/components/LodgeTabs";
+import { Skeleton } from "@/components/Skeleton";
 
 /** Mapa de camas (s.11): cada cama ocupada, livre, fora de uso ou com Out pendente. */
 export function BedMap() {
@@ -18,7 +20,7 @@ export function BedMap() {
   const { lodges, canWriteLodge, isManagement, post } = useAuth();
   const navigate = useNavigate();
   const [lodgeId, setLodgeId] = useState(post?.lodge_id ?? lodges[0]?.id ?? "");
-  const { beds, reload } = useOccupancy(lodgeId);
+  const { beds, reload, loading } = useOccupancy(lodgeId);
   const [admitBed, setAdmitBed] = useState<BedOccupancy | null>(null);
   const [manageBed, setManageBed] = useState<BedOccupancy | null>(null);
   const [note, setNote] = useState("");
@@ -49,17 +51,12 @@ export function BedMap() {
     <section className="page">
       <header className="page-header">
         <h1>{t("beds.title")}</h1>
-        <div className="tabs" role="tablist">
-          {lodges.map((l) => (
-            <button key={l.id} role="tab" aria-selected={l.id === lodgeId} className={l.id === lodgeId ? "tab selected" : "tab"} onClick={() => setLodgeId(l.id)}>
-              {l.name}
-            </button>
-          ))}
-        </div>
+        <LodgeTabs value={lodgeId} onChange={setLodgeId} />
       </header>
       <p className="muted">{t("beds.summary", { occupied: s.occupied, free: s.free, oos: s.outOfService })}</p>
       <Notice kind="error">{error}</Notice>
 
+      {loading && <div className="card"><Skeleton rows={6} label={t("app.loading")} /></div>}
       <div className="room-grid">
         {groupByRoom(beds).map((room) => (
           <article key={room.room_id} className="room-card">
@@ -117,7 +114,7 @@ export function BedMap() {
           onClose={() => setManageBed(null)}
           footer={
             <>
-              <button onClick={() => setManageBed(null)}>{t("app.cancel")}</button>
+              <DialogCancel>{t("app.cancel")}</DialogCancel>
               {manageBed.bed_status === "in_use" ? (
                 <>
                   <button

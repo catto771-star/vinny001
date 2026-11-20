@@ -35,9 +35,10 @@ export function PresenceAlertCard() {
   if (!visible) return null;
 
   return (
-    <article className="card card-alert">
-      <h2>{t("noShows.alertTitle")}</h2>
+    <article className="bento-tile tile-alert span-6">
+      <span className="eyebrow">{t("noShows.alertTitle")}</span>
       <p className="hint">{t("noShows.alertHint")}</p>
+      <div className="alert-columns">
       {lodgeIds.map((id) => {
         const a = alerts[id];
         const lodge = lodges.find((l) => l.id === id);
@@ -45,7 +46,7 @@ export function PresenceAlertCard() {
         return (
           <div key={id}>
             <strong>{lodge?.short_name}</strong>
-            {!a.complete && <p className="warn-text">{t("noShows.alertIncomplete", { slots: a.pending_slots.join(", ") })}</p>}
+            {!a.complete && <p className="warn-text small-text">{t("noShows.alertIncomplete", { slots: a.pending_slots.join(", ") })}</p>}
             {a.without_evidence.length === 0 ? (
               <p className="muted">{t("noShows.alertNone")}</p>
             ) : (
@@ -61,6 +62,7 @@ export function PresenceAlertCard() {
           </div>
         );
       })}
+      </div>
     </article>
   );
 }

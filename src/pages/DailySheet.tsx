@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthProvider";
 import { useI18n, type MessageKey } from "@/i18n";
 import { supabase } from "@/lib/supabase";
+import { useLatestRequest } from "@/lib/useLatestRequest";
 import { errorKey } from "@/lib/errors";
 import { keyToResult, nextResidentIndex, sheetProgress, slotInstant, type CheckResult, type SheetRow } from "@/lib/presence";
 import { roomLabel } from "@/lib/rooms";
@@ -13,6 +14,9 @@ import { AnticipateDialog } from "@/components/AnticipateDialog";
 import { DateTimeInput } from "@/components/DateTimeInput";
 import { LodgeTabs, useDefaultLodge } from "@/components/LodgeTabs";
 import { Notice } from "@/components/Notice";
+import { Skeleton } from "@/components/Skeleton";
+import { Tabs } from "@/components/Tabs";
+import { useToast } from "@/components/Toast";
 
 export type Run = {
   id: string;
@@ -43,9 +47,10 @@ export function DailySheet() {
   const [rows, setRows] = useState<SheetRow[]>([]);
   const [selected, setSelected] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [anticipate, setAnticipate] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [sheetLoading, setSheetLoading] = useState(false);
+  const toast = useToast();
   const tableRef = useRef<HTMLDivElement>(null);
 
   const canWrite = canWriteLodge(lodgeId);
@@ -54,28 +59,35 @@ export function DailySheet() {
   const now = new Date(Date.now() + serverOffsetMs);
   const slotDue = slot ? slotInstant(day, slot).getTime() <= now.getTime() + 60 * 60_000 : false;
 
+  const beginRuns = useLatestRequest();
+  const beginSheet = useLatestRequest();
   const loadRuns = useCallback(async () => {
+    const isLatest = beginRuns();
     const [{ data: slotData }, { data: runData }] = await Promise.all([
       supabase.rpc("check_slots", { p_lodge: lodgeId, p_day: day }),
       supabase.from("room_check_runs").select(RUN_COLUMNS).eq("lodge_id", lodgeId).eq("operational_day", day),
     ]);
+    if (!isLatest()) return;
     const list = (slotData ?? []) as string[];
     setSlots(list);
     setRuns((runData ?? []) as Run[]);
     setSlot((current) => (current && list.includes(current) ? current : (list.find((s) => slotInstant(day, s).getTime() <= Date.now() + serverOffsetMs) ?? list[0] ?? null)));
-  }, [lodgeId, day, serverOffsetMs]);
+  }, [lodgeId, day, serverOffsetMs, beginRuns]);
 
   const loadSheet = useCallback(async (runId: string) => {
+    const isLatest = beginSheet();
+    setSheetLoading(true);
     const { data, error: e } = await supabase.rpc("room_check_sheet", { p_run: runId });
+    if (!isLatest()) return;
+    setSheetLoading(false);
     if (e) return setError(t(errorKey(e)));
     const list = (data ?? []) as SheetRow[];
     setRows(list);
     setSelected((s) => (list[s]?.stay_id ? s : Math.max(0, list.findIndex((r) => r.stay_id))));
-  }, [t]);
+  }, [t, beginSheet]);
 
   useEffect(() => {
     setRows([]);
-    setNotice(null);
     setError(null);
     void loadRuns();
   }, [loadRuns]);
@@ -132,7 +144,8 @@ export function DailySheet() {
     const { data, error: e } = await supabase.rpc("launch_room_check", { p_run: run.id });
     setBusy(false);
     if (e) return setError(t(errorKey(e)));
-    setNotice((data as { status: string }).status === "already_launched" ? t("sheet.alreadyLaunched") : t("sheet.launchedOk"));
+    if ((data as { status: string }).status === "already_launched") toast.info(t("sheet.alreadyLaunched"));
+    else toast.success(t("sheet.launchedOk"));
     await loadRuns();
   }
 
@@ -162,35 +175,44 @@ export function DailySheet() {
           {t("sheet.day")}
           <input type="date" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} />
         </label>
-        <div className="segmented" role="tablist" aria-label={t("sheet.title")}>
-          {slots.map((s) => {
+        <Tabs
+          label={t("sheet.title")}
+          value={slot ?? ""}
+          onChange={setSlot}
+          items={slots.map((s) => {
             const r = runs.find((x) => x.slot === s);
-            return (
-              <button key={s} role="tab" aria-selected={s === slot} className={s === slot ? "selected" : ""} onClick={() => setSlot(s)}>
-                {t("sheet.check", { slot: s })} ·{" "}
-                <small className={r?.status === "launched" ? "ok-text" : "warn-text"}>
+            return {
+              value: s,
+              label: t("sheet.check", { slot: s }),
+              hint: (
+                <small className={r?.status === "launched" ? "ok-text tab-hint" : "warn-text tab-hint"}>
+                  {" · "}
                   {r ? (r.status === "launched" ? t("sheet.launched") : t("sheet.pending")) : t("sheet.notOpened")}
                 </small>
-              </button>
-            );
+              ),
+            };
           })}
-        </div>
+        />
         <Link className="button-link" to={`/sheet/print?lodge=${lodgeId}&day=${day}`} target="_blank">
           {t("sheet.print")}
         </Link>
       </div>
 
-      <Notice kind="success">{notice}</Notice>
       <Notice kind="error">{error}</Notice>
 
       {!run && slot && (
-        <div className="card">
+        <div className="card empty-state">
+          <span className="eyebrow">{lodge?.name} · {formatCivilDate(day, locale)}</span>
+          <h2 className="display-sm">{t("sheet.check", { slot })} · {t("sheet.notOpened")}</h2>
           {!slotDue ? (
             <p>{t("sheet.notYet")}</p>
           ) : canWrite ? (
-            <button className="primary" disabled={busy} onClick={() => void start()}>
-              {t("sheet.start")}
-            </button>
+            <>
+              <p className="hint">{t("sheet.keyboardHint")}</p>
+              <button className="primary" disabled={busy} onClick={() => void start()}>
+                {t("sheet.start")}
+              </button>
+            </>
           ) : (
             <p className="muted">{t("sheet.readOnly")}</p>
           )}
@@ -201,7 +223,7 @@ export function DailySheet() {
         <>
           <div className="card sheet-header">
             <div>
-              <strong>{t("sheet.sheetNumber", { n: run.sheet_number })}</strong> · {lodge?.name} ·{" "}
+              <span className="sheet-number">{t("sheet.sheetNumber", { n: run.sheet_number })}</span> · {lodge?.name} ·{" "}
               {run.status === "launched" ? <span className="ok-text">{t("sheet.launched")}</span> : <span className="warn-text">{t("sheet.pending")}</span>}
             </div>
             <label className="inline">
@@ -224,6 +246,7 @@ export function DailySheet() {
           </div>
 
           <p className="hint">{t("sheet.keyboardHint")}</p>
+          {sheetLoading && rows.length === 0 && <div className="card"><Skeleton rows={8} label={t("app.loading")} /></div>}
           <div ref={tableRef} tabIndex={0} className="sheet-table-wrap" onKeyDown={onKeyDown} aria-label={t("sheet.title")}>
             <table className="table sheet-table">
               <thead>
@@ -280,7 +303,7 @@ export function DailySheet() {
           </div>
 
           <div className="button-row sticky-actions">
-            <span>{t("sheet.progress", { marked: progress.marked, total: progress.total })}</span>
+            <span className="progress-text">{t("sheet.progress", { marked: progress.marked, total: progress.total })}</span>
             {canWrite && run.status === "pending" && (
               <button className="primary" disabled={busy || !progress.complete} onClick={() => void launch()}>
                 {t("sheet.launch")}

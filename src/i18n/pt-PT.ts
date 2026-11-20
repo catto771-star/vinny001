@@ -118,6 +118,7 @@ const ptPT: Messages = {
     seen: "Seen",
     absences: "Ausências",
     noShows: "No Shows",
+    menu: "Menu",
     language: "Idioma",
   },
   today: {
@@ -135,6 +136,12 @@ const ptPT: Messages = {
     occupancy: "Ocupação",
     occupied: "ocupadas",
     free: "livres",
+    nextCheck: "Lançar check {slot}",
+    openSheet: "Abrir Folha do dia",
+    checksDue: "{n} check(s) vencido(s) por lançar",
+    allChecksIn: "Todos os checks vencidos estão lançados.",
+    beds: "de {total} camas",
+    managementHint: "Revise os No Shows da noite e as pendências da equipe.",
     outOfService: "fora de uso",
   },
   residents: {

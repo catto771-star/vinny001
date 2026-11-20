@@ -3,15 +3,18 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthProvider";
 import { useI18n, type MessageKey } from "@/i18n";
 import { supabase } from "@/lib/supabase";
+import { useLatestRequest } from "@/lib/useLatestRequest";
 import { errorKey } from "@/lib/errors";
 import { roomLabel } from "@/lib/rooms";
 import { operationalDay } from "@/lib/time";
 import { residentName } from "@/lib/types";
 import { AnticipateDialog } from "@/components/AnticipateDialog";
 import { DateTimeInput } from "@/components/DateTimeInput";
-import { Dialog } from "@/components/Dialog";
+import { Dialog, DialogCancel } from "@/components/Dialog";
 import { LodgeTabs, useDefaultLodge } from "@/components/LodgeTabs";
 import { Notice } from "@/components/Notice";
+import { Skeleton } from "@/components/Skeleton";
+import { useToast } from "@/components/Toast";
 
 type SeenRow = {
   resident_id: string;
@@ -44,13 +47,19 @@ export function Seen() {
   const [recording, setRecording] = useState(false);
   const [anticipate, setAnticipate] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const toast = useToast();
+  const [loading, setLoading] = useState(true);
 
+  const begin = useLatestRequest();
   const load = useCallback(async () => {
+    const isLatest = begin();
+    setLoading(true);
     const { data, error: e } = await supabase.rpc("seen_for_day", { p_lodge: lodgeId, p_day: day });
+    if (!isLatest()) return;
+    setLoading(false);
     if (e) return setError(t(errorKey(e)));
     setRows((data ?? []) as SeenRow[]);
-  }, [lodgeId, day, t]);
+  }, [lodgeId, day, t, begin]);
 
   useEffect(() => {
     void load();
@@ -73,9 +82,9 @@ export function Seen() {
           <button className="primary" onClick={() => setRecording(true)}>{t("seen.record")}</button>
         )}
       </div>
-      <Notice kind="success">{success}</Notice>
       <Notice kind="error">{error}</Notice>
 
+      {loading && rows.length === 0 ? <div className="card"><Skeleton rows={8} label={t("app.loading")} /></div> : (
       <table className="table">
         <thead>
           <tr>
@@ -100,6 +109,7 @@ export function Seen() {
           ))}
         </tbody>
       </table>
+      )}
 
       {recording && (
         <RecordSighting
@@ -108,7 +118,7 @@ export function Seen() {
           onClose={() => setRecording(false)}
           onDone={(absenceId) => {
             setRecording(false);
-            setSuccess(t("seen.recorded"));
+            toast.success(t("seen.recorded"));
             if (absenceId) setAnticipate(absenceId);
             void load();
           }}
@@ -154,7 +164,7 @@ function RecordSighting({
       onClose={onClose}
       footer={
         <>
-          <button onClick={onClose}>{t("app.cancel")}</button>
+          <DialogCancel>{t("app.cancel")}</DialogCancel>
           <button className="primary" disabled={!residentId} onClick={() => void submit()}>{t("app.save")}</button>
         </>
       }

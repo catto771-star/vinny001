@@ -7,7 +7,7 @@ import { errorKey } from "@/lib/errors";
 import { formatDateTime, formatTime } from "@/lib/time";
 import { staffName, type DutyFunction } from "@/lib/types";
 import { useOnDuty } from "@/lib/useOnDuty";
-import { Dialog } from "@/components/Dialog";
+import { Dialog, DialogCancel } from "@/components/Dialog";
 import { Notice } from "@/components/Notice";
 
 type Occupied = { occupant_name: string; since: string };
@@ -130,7 +130,7 @@ export function TakePost() {
           onClose={() => setOccupied(null)}
           footer={
             <>
-              <button onClick={() => setOccupied(null)}>{t("app.cancel")}</button>
+              <DialogCancel>{t("app.cancel")}</DialogCancel>
               <button className="primary" disabled={busy} onClick={() => void take(true)}>
                 {t("post.confirmTakeover")}
               </button>
@@ -147,7 +147,7 @@ export function TakePost() {
           onClose={() => setConfirmEnd(false)}
           footer={
             <>
-              <button onClick={() => setConfirmEnd(false)}>{t("app.cancel")}</button>
+              <DialogCancel>{t("app.cancel")}</DialogCancel>
               <button className="danger" onClick={() => void endPost()}>
                 {t("app.confirm")}
               </button>

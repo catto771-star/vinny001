@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useLatestRequest } from "@/lib/useLatestRequest";
 import type { BedOccupancy } from "@/lib/types";
 
 export function useOccupancy(lodgeId?: string) {
@@ -7,14 +8,17 @@ export function useOccupancy(lodgeId?: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
 
+  const begin = useLatestRequest();
   const reload = useCallback(async () => {
+    const isLatest = begin();
     let query = supabase.from("bed_occupancy").select("*").order("room_sort").order("bed_number");
     if (lodgeId) query = query.eq("lodge_id", lodgeId);
     const { data, error: loadError } = await query;
+    if (!isLatest()) return;
     setBeds((data ?? []) as BedOccupancy[]);
     setError(loadError);
     setLoading(false);
-  }, [lodgeId]);
+  }, [lodgeId, begin]);
 
   useEffect(() => {
     void reload();

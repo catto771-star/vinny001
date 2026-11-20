@@ -3,6 +3,8 @@ import { AuthProvider, useAuth } from "@/auth/AuthProvider";
 import { I18nProvider, useI18n } from "@/i18n";
 import { Layout } from "@/components/Layout";
 import { Notice } from "@/components/Notice";
+import { ToastProvider } from "@/components/Toast";
+import { Skeleton } from "@/components/Skeleton";
 import { Absences } from "@/pages/Absences";
 import { Audit } from "@/pages/Audit";
 import { DailySheet } from "@/pages/DailySheet";
@@ -25,7 +27,13 @@ function Gate() {
 
   switch (stage) {
     case "loading":
-      return <div className="center muted">{t("app.loading")}</div>;
+      return (
+        <div className="center">
+          <div style={{ width: "min(320px, 80vw)" }}>
+            <Skeleton rows={3} label={t("app.loading")} />
+          </div>
+        </div>
+      );
     case "signed_out":
       return <Login />;
     case "not_staff":
@@ -72,11 +80,13 @@ function Gate() {
 export function App() {
   return (
     <I18nProvider>
-      <AuthProvider>
-        <BrowserRouter>
-          <Gate />
-        </BrowserRouter>
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <Gate />
+          </BrowserRouter>
+        </AuthProvider>
+      </ToastProvider>
     </I18nProvider>
   );
 }

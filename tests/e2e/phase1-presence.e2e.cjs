@@ -90,7 +90,7 @@ const nav = (page, name) => page.locator(".sidebar").getByRole("link", { name, e
     await owner.waitForTimeout(1500);
     const { data: link } = await admin.auth.admin.generateLink({ type: "magiclink", email: OWNER.email, options: { redirectTo: `${BASE}/` } });
     await owner.goto(link.properties.action_link);
-    await owner.getByRole("heading", { name: "Hoje", exact: true }).waitFor({ timeout: 20000 });
+    await owner.locator(".bento-hero").waitFor({ timeout: 20000 });
     await nav(owner, "Usuários");
     await owner.getByRole("button", { name: "Criar usuário" }).click();
     const porter = { name: `[TESTE] Porter ${RUN}`, email: `teste.porter.p.${RUN}@ds-lodge.test` };
@@ -106,8 +106,8 @@ const nav = (page, name) => page.locator(".sidebar").getByRole("link", { name, e
     await p.getByLabel("Amiens St.").check();
     await p.getByRole("button", { name: "Assumir Posto" }).click();
     const takeover = p.getByRole("button", { name: "Confirmar e assumir o posto" });
-    await Promise.race([p.getByRole("heading", { name: "Hoje", exact: true }).waitFor({ timeout: 15000 }), takeover.waitFor({ timeout: 15000 }).then(() => takeover.click())]);
-    await p.getByRole("heading", { name: "Hoje", exact: true }).waitFor({ timeout: 15000 });
+    await Promise.race([p.locator(".bento-hero").waitFor({ timeout: 15000 }), takeover.waitFor({ timeout: 15000 }).then(() => takeover.click())]);
+    await p.locator(".bento-hero").waitFor({ timeout: 15000 });
 
     const names = [`[TESTE] Ana ${RUN}`, `[TESTE] Bia ${RUN}`];
     for (const name of names) {
@@ -181,6 +181,7 @@ const nav = (page, name) => page.locator(".sidebar").getByRole("link", { name, e
     }
     await p.getByRole("button", { name: "Confirmar selecionados" }).click();
     await p.getByText("No Shows confirmados.").waitFor({ timeout: 15000 });
+    await until(async () => (await p.locator("table tr", { hasText: names[1] }).last().textContent()).includes("1/3"));
     const confirmedRow = await p.locator("table tr", { hasText: names[1] }).last().textContent();
     check("B06: No Show confirmado com contador 1/3", confirmedRow.includes("1/3"), confirmedRow.replace(/\s+/g, " "));
     await p.screenshot({ path: `${OUT}/p1-noshows.png` });
@@ -199,7 +200,7 @@ const nav = (page, name) => page.locator(".sidebar").getByRole("link", { name, e
     await ad.locator('input[type="datetime-local"]').nth(1).fill(`${rp.year}-${pad(rp.month)}-${pad(rp.day)}T12:00`);
     await ad.getByRole("button", { name: "Salvar" }).click();
     await p.getByText("Ausência registrada.").waitFor({ timeout: 15000 });
-    check("Ausência comunicada registrada", (await p.locator("table tr", { hasText: names[0] }).count()) > 0);
+    check("Ausência comunicada registrada e listada", await until(async () => (await p.locator("table tr", { hasText: names[0] }).count()) > 0));
 
     // Impressão.
     await nav(p, "Folha do dia");

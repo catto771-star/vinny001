@@ -8,6 +8,8 @@ import { formatCivilDate, formatDate } from "@/lib/time";
 import { residentName, type BedOccupancy } from "@/lib/types";
 import { useOccupancy } from "@/lib/useOccupancy";
 import { AdmitDialog } from "@/components/AdmitDialog";
+import { Skeleton } from "@/components/Skeleton";
+import { Tabs } from "@/components/Tabs";
 
 type Former = {
   id: string;
@@ -28,7 +30,7 @@ export function Residents() {
   const { t, locale } = useI18n();
   const { lodges, isManagement, post } = useAuth();
   const navigate = useNavigate();
-  const { beds, reload } = useOccupancy();
+  const { beds, reload, loading } = useOccupancy();
   const [lodgeFilter, setLodgeFilter] = useState<string>("");
   const [status, setStatus] = useState<"current" | "past">("current");
   const [term, setTerm] = useState("");
@@ -84,23 +86,31 @@ export function Residents() {
             <option key={l.id} value={l.id}>{l.name}</option>
           ))}
         </select>
-        <div className="segmented">
-          <button className={status === "current" ? "selected" : ""} onClick={() => setStatus("current")}>{t("residents.statusCurrent")}</button>
-          <button className={status === "past" ? "selected" : ""} onClick={() => setStatus("past")}>{t("residents.statusPast")}</button>
-        </div>
+        <Tabs
+          size="sm"
+          label={t("residents.filterStatus")}
+          value={status}
+          onChange={(v) => setStatus(v as "current" | "past")}
+          items={[
+            { value: "current", label: t("residents.statusCurrent") },
+            { value: "past", label: t("residents.statusPast") },
+          ]}
+        />
       </div>
 
-      {status === "current" ? (
-        <table className="table">
+      {loading ? (
+        <div className="card"><Skeleton rows={8} label={t("app.loading")} /></div>
+      ) : status === "current" ? (
+        <table className="table table-cards">
           <thead>
             <tr>
               <th>{t("residents.room")}</th>
               <th>{t("residents.bed")}</th>
               <th>{t("residents.name")}</th>
               <th>{t("residents.dateOfBirth")}</th>
-              <th>{t("residents.passId")}</th>
+              <th className="hide-sm">{t("residents.passId")}</th>
               <th>{t("residents.lodge")}</th>
-              <th>{t("residents.admitted")}</th>
+              <th className="hide-sm">{t("residents.admitted")}</th>
             </tr>
           </thead>
           <tbody>
@@ -108,14 +118,14 @@ export function Residents() {
               <tr key={b.bed_id} className="clickable" onClick={() => navigate(`/residents/${b.resident_id}`)}>
                 <td className="room-cell">{roomLabel(t, b.room_kind, b.room_code)}</td>
                 <td>{b.bed_number}</td>
-                <td>
+                <td className="cell-main">
                   <Link to={`/residents/${b.resident_id}`}>{residentName(b)}</Link>
                   {b.stay_status === "out_pending" && <span className="tag">{t("residents.stayOutPending")}</span>}
                 </td>
                 <td>{formatCivilDate(b.date_of_birth, locale)}</td>
-                <td>{b.pass_id ?? ""}</td>
+                <td className="hide-sm">{b.pass_id ?? ""}</td>
                 <td>{lodgeName(b.lodge_id)}</td>
-                <td>{b.admitted_at ? formatDate(b.admitted_at, locale) : ""}</td>
+                <td className="hide-sm">{b.admitted_at ? formatDate(b.admitted_at, locale) : ""}</td>
               </tr>
             ))}
             {current.length === 0 && (
