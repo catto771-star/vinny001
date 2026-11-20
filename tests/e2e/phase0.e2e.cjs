@@ -3,30 +3,21 @@
  * Pré-requisitos:
  *  - app rodando em E2E_BASE_URL (ex.: npm run dev, com .env.local apontando para o projeto);
  *  - uma conta Owner de teste criada com scripts/bootstrap-account.mjs;
- *  - variáveis: E2E_BASE_URL, E2E_OWNER_EMAIL, E2E_OWNER_PASSWORD, E2E_OUT (pasta das capturas).
+ *  - variáveis: E2E_BASE_URL, E2E_OWNER_EMAIL, E2E_OWNER_PASSWORD, E2E_OUT (pasta das capturas),
+ *    SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY (para obter o link do e-mail da segunda etapa
+ *    sem ler a caixa de entrada). Rodar com NODE_USE_ENV_PROXY=1 se houver proxy.
  *
  * Cria dados de teste identificados com "[TESTE]". Uso: node tests/e2e/phase0.e2e.cjs
  */
 const { chromium } = require("playwright");
 const crypto = require("node:crypto");
+const { createClient } = require("@supabase/supabase-js");
 
 const BASE = process.env.E2E_BASE_URL ?? "http://localhost:5173";
 const OUT = process.env.E2E_OUT ?? ".";
 const OWNER = { email: process.env.E2E_OWNER_EMAIL, password: process.env.E2E_OWNER_PASSWORD };
 const NEW_PASSWORD = `Teste${crypto.randomInt(1e6)}Lodge`;
 const RUN = Date.now().toString(36).slice(-5);
-
-function totp(secret) {
-  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-  let bits = "";
-  for (const c of secret.replace(/=+$/, "").toUpperCase()) bits += alphabet.indexOf(c).toString(2).padStart(5, "0");
-  const key = Buffer.from(bits.match(/.{8}/g).map((b) => parseInt(b, 2)));
-  const counter = Buffer.alloc(8);
-  counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 1000 / 30)));
-  const h = crypto.createHmac("sha1", key).update(counter).digest();
-  const o = h[h.length - 1] & 0xf;
-  return String((h.readUInt32BE(o) & 0x7fffffff) % 1e6).padStart(6, "0");
-}
 
 const results = [];
 function check(name, ok, detail = "") {
@@ -73,12 +64,16 @@ async function changePassword(page) {
     await login(p, OWNER.email, OWNER.password);
     await changePassword(p);
     await p.getByText("Verificação em duas etapas").waitFor({ timeout: 15000 });
-    const secret = (await p.locator(".mfa-secret").textContent({ timeout: 15000 })).trim();
-    check("Owner troca a primeira senha e é levado à verificação em duas etapas", !!secret);
-    await p.screenshot({ path: `${OUT}/01-mfa.png` });
-    await p.getByLabel("Código de 6 dígitos").fill(totp(secret));
-    await p.getByRole("button", { name: "Verificar" }).click();
-    await p.getByRole("heading", { name: "Hoje" }).waitFor({ timeout: 15000 });
+    check("Segunda etapa sem QR Code (nenhuma imagem na tela)", (await p.locator("img").count()) === 0);
+    await p.screenshot({ path: `${OUT}/01-email-code.png` });
+    await p.getByRole("button", { name: "Enviar código" }).click();
+    await p.waitForTimeout(2000);
+    // O e-mail traz o link de entrada; aqui ele é obtido pela API de administração.
+    const admin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+    const { data: link, error: linkError } = await admin.auth.admin.generateLink({ type: "magiclink", email: OWNER.email, options: { redirectTo: `${BASE}/` } });
+    if (linkError) throw new Error(`generateLink: ${linkError.message}`);
+    await p.goto(link.properties.action_link);
+    await p.getByRole("heading", { name: "Hoje" }).waitFor({ timeout: 20000 });
     check("Owner entra com segunda etapa e vê Hoje", true);
     check("Relógio de Dublin visível no topo", await p.locator(".clock-time").isVisible());
     await p.screenshot({ path: `${OUT}/02-today-owner.png` });

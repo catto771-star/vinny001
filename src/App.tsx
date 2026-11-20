@@ -6,8 +6,8 @@ import { Notice } from "@/components/Notice";
 import { Audit } from "@/pages/Audit";
 import { BedMap } from "@/pages/BedMap";
 import { ChangePassword } from "@/pages/ChangePassword";
+import { EmailCode } from "@/pages/EmailCode";
 import { AuthCard, Login } from "@/pages/Login";
-import { Mfa } from "@/pages/Mfa";
 import { ResidentProfile } from "@/pages/ResidentProfile";
 import { Residents } from "@/pages/Residents";
 import { TakePost } from "@/pages/TakePost";
@@ -32,9 +32,8 @@ function Gate() {
       );
     case "change_password":
       return <ChangePassword />;
-    case "mfa_enrol":
-    case "mfa_verify":
-      return <Mfa enrol={stage === "mfa_enrol"} />;
+    case "email_code":
+      return <EmailCode />;
     case "ready":
       break;
   }

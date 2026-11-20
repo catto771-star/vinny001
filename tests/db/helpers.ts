@@ -3,7 +3,14 @@ import pg from "pg";
 const url = process.env.LOCAL_PG_URL ?? "postgresql://postgres@localhost:54322";
 const dbName = process.env.LOCAL_PG_DB ?? "dslodge";
 
-export type Actor = { userId: string | null; staffId: string; role: string; aal?: "aal1" | "aal2" };
+/**
+ * session: como a sessão foi aberta (claim "amr" do JWT do Supabase).
+ *  - "email_code" (padrão): entrou pelo código de e-mail — segunda etapa concluída;
+ *  - "password": só a senha.
+ */
+export type Actor = { userId: string | null; staffId: string; role: string; session?: "password" | "email_code" };
+
+const MANAGEMENT = ["manager", "owner", "developer"];
 
 /**
  * Cada teste roda numa transação que é desfeita no fim, sobre o banco recriado
@@ -33,7 +40,12 @@ export class Db {
 
   async as(actor: Actor) {
     await this.client.query("reset role");
-    const claims = JSON.stringify({ sub: actor.userId, role: "authenticated", aal: actor.aal ?? "aal2" });
+    const method = (actor.session ?? "email_code") === "email_code" ? "otp" : "password";
+    const claims = JSON.stringify({
+      sub: actor.userId,
+      role: "authenticated",
+      amr: [{ method, timestamp: Math.floor(Date.now() / 1000) }],
+    });
     await this.client.query("select set_config('request.jwt.claims', $1, true)", [claims]);
     await this.client.query("set local role authenticated");
   }
@@ -76,6 +88,10 @@ export class Db {
       "insert into public.staff (user_id, full_name, role) values ($1, $2, $3) returning id",
       [userId, name, role],
     );
+    // Gestão: simula que a pessoa já pediu o código por e-mail numa sessão com senha.
+    if (userId && MANAGEMENT.includes(role)) {
+      await this.query("insert into public.mfa_email_challenges (user_id) values ($1)", [userId]);
+    }
     return { userId, staffId: staff.id, role };
   }
 

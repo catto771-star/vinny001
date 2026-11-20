@@ -91,8 +91,8 @@ describe("Login e usuários", () => {
     expect(await db.error("insert into public.staff (full_name, role) values ('Dev2', 'developer')")).toMatch(/staff_single_developer/);
   });
 
-  it("Manager sem a segunda etapa (aal1) não tem permissões de gestão", async () => {
-    await db.as({ ...manager, aal: "aal1" });
+  it("Manager só com a senha (sem o código por e-mail) não tem permissões de gestão", async () => {
+    await db.as({ ...manager, session: "password" });
     expect(await db.error("insert into public.staff (full_name, role) values ('X', 'porter')")).toMatch(/row-level security/);
   });
 

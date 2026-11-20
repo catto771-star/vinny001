@@ -7,7 +7,7 @@ import { isManagementRole, type DutyPost, type Lodge, type Staff } from "@/lib/t
 /**
  * Estado de acesso (s.4):
  * - conta criada pela gestão, e-mail e senha pessoais; primeira senha trocada no primeiro acesso;
- * - Manager/Owner/Developer com verificação em duas etapas;
+ * - Manager/Owner/Developer com segunda etapa por código enviado por e-mail;
  * - sessão encerra por inatividade;
  * - usuário desativado perde o acesso na hora (o banco deixa de reconhecê-lo).
  */
@@ -16,8 +16,7 @@ export type AuthStage =
   | "signed_out"
   | "not_staff"
   | "change_password"
-  | "mfa_enrol"
-  | "mfa_verify"
+  | "email_code"
   | "ready";
 
 type AuthContextValue = {
@@ -95,14 +94,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      // O banco decide se a sessão já passou pelo código de e-mail (mfa_satisfied).
       if (isManagementRole(staffRow.role)) {
-        const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        const { data: satisfied } = await supabase.rpc("mfa_satisfied");
         if (seq !== loadSeq.current) return;
-        if (aal?.currentLevel !== "aal2") {
-          const { data: factors } = await supabase.auth.mfa.listFactors();
-          if (seq !== loadSeq.current) return;
-          const verified = factors?.totp?.some((f) => f.status === "verified");
-          setStage(verified ? "mfa_verify" : "mfa_enrol");
+        if (satisfied !== true) {
+          setStage("email_code");
           return;
         }
       }
@@ -131,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
       setSession(next);
-      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED" || event === "MFA_CHALLENGE_VERIFIED") {
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") {
         setTimeout(() => void load(next), 0);
       }
     });
