@@ -211,6 +211,8 @@ describe("demo.purge_test_data", () => {
     const ticket = await db.one<{ id: string }>(
       "select (public.create_maintenance($1, 'Kitchen', 'Real ticket', 'normal', gen_random_uuid()) ->> 'ticket_id') as id", [amiens]);
     await db.asSuperuser();
+    // Uma notificação da demo (ou de qualquer outra origem) não pode sumir na limpeza dos testes.
+    await db.query(`insert into public.notifications (kind, payload) values ('fridge_out_of_range', '{"demo": true, "temperature": 7}')`);
     const snapshot = await counts();
     const testManager = await db.createStaff("manager", "[TESTE] Gestor purge");
     await db.as(testManager);

@@ -30,7 +30,7 @@ export function PendingTile() {
           {rows.map((r) => (
             <li key={r.key}>
               <Link to={r.to}>
-                <span className="pending-count">{counts[r.key]}</span>
+                <span className="pending-dot" aria-hidden="true" />
                 <span>{t(r.label, { n: counts[r.key] })}</span>
                 <span aria-hidden="true" className="pending-arrow">→</span>
               </Link>

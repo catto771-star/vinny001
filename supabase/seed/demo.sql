@@ -856,8 +856,8 @@ declare
   v_fk record;
 begin
   delete from public.notification_reads where notification_id in (
-    select id from public.notifications where payload ->> 'demo' = 'true' or resident_id = any (p_res)) or staff_id = any (p_staff);
-  delete from public.notifications where payload ->> 'demo' = 'true' or resident_id = any (p_res);
+    select id from public.notifications where resident_id = any (p_res)) or staff_id = any (p_staff);
+  delete from public.notifications where resident_id = any (p_res);
   delete from public.handover_mentions where resident_id = any (p_res) or staff_id = any (p_staff)
      or entry_id in (select id from public.handover_entries where author_id = any (p_staff));
   delete from public.laundry_uses where resident_id = any (p_res) or started_by = any (p_staff);
@@ -961,6 +961,9 @@ begin
   select coalesce(array_agg(seeded_at), '{}'), min(first_day), max(last_day) into v_runs, v_first, v_last from demo.runs;
   -- Sem auditoria nem bloqueios durante a limpeza (as linhas de auditoria do seed também saem).
   perform demo.set_triggers(false);
+  -- Avisos criados pelo seed (payload.demo); os sobre residentes demo saem em remove_records.
+  delete from public.notification_reads where notification_id in (select id from public.notifications where payload ->> 'demo' = 'true');
+  delete from public.notifications where payload ->> 'demo' = 'true';
   n := demo.remove_records(v_staff, v_res, v_first, v_last);
   delete from public.products p where p.created_at < (v_first - 5)::timestamptz and p.created_at >= (v_first - 15)::timestamptz
     and not exists (select 1 from public.purchase_lines l where l.product_id = p.id)

@@ -1,24 +1,16 @@
-import { type MouseEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthProvider";
 import { useI18n } from "@/i18n";
 import { formatCivilDate, formatClock, formatTime, operationalDay, shiftOf } from "@/lib/time";
+import { BedBoard } from "@/components/BedBoard";
+import { ShiftRuler } from "@/components/ShiftRuler";
 import { staffName } from "@/lib/types";
 import { useNextCheck } from "@/lib/useNextCheck";
 import { useOnDuty } from "@/lib/useOnDuty";
-import { summarise, useOccupancy } from "@/lib/useOccupancy";
+import { useOccupancy } from "@/lib/useOccupancy";
 import { PresenceAlertCard } from "@/components/PresenceAlertCard";
 import { PendingTile } from "@/components/PendingTile";
 import { TaskAlerts } from "@/components/TaskAlerts";
-
-/** Brilho que segue o cursor nos blocos do bento (um dos dois efeitos de impacto — docs/DESIGN.md). */
-function trackGlow(e: MouseEvent<HTMLElement>) {
-  const tile = (e.target as HTMLElement).closest<HTMLElement>(".bento-tile");
-  if (!tile) return;
-  const r = tile.getBoundingClientRect();
-  tile.style.setProperty("--mx", `${e.clientX - r.left}px`);
-  tile.style.setProperty("--my", `${e.clientY - r.top}px`);
-}
 
 export function Today() {
   const { t, locale } = useI18n();
@@ -36,26 +28,25 @@ export function Today() {
 
   const lodgeName = (id: string | null) => lodges.find((l) => l.id === id)?.short_name ?? "";
 
+  const rulerLodges = actionLodge ? [actionLodge] : lodges.map((l) => l.id);
+
   return (
-    <section className="page">
-      <div className="bento" onMouseMove={trackGlow}>
-        {/* Ação principal do turno */}
-        <article className="bento-tile bento-hero span-4">
-          <div>
-            <span className="eyebrow">
-              {t("today.operationalDay", { date: formatCivilDate(opDay, locale) })} ·{" "}
-              {shiftOf(now) === "day" ? t("today.shiftDay") : t("today.shiftNight")}
-            </span>
-            <h1 style={{ marginTop: "0.6rem" }}>{clock.weekday}</h1>
-            <p className="hero-meta">
-              {post
-                ? post.function === "float"
-                  ? t("post.youAreFloat", { time: formatTime(post.started_at, locale) })
-                  : t("post.youAre", { function: t("post.office"), lodge: lodgeName(post.lodge_id), time: formatTime(post.started_at, locale) })
-                : `${staffName(staff)} · ${staff ? t(`users.roles.${staff.role}`) : ""}`}
-            </p>
-          </div>
-          <div className="button-row" style={{ marginTop: 0 }}>
+    <section className="page today">
+      {/* Cabeçalho do turno: o dia, quem eu sou no turno e a próxima ação */}
+      <div className="today-top">
+        <header className="today-head">
+          <span className="eyebrow">
+            {t("today.operationalDay", { date: formatCivilDate(opDay, locale) })} · {shiftOf(now) === "day" ? t("today.shiftDay") : t("today.shiftNight")}
+          </span>
+          <h1>{clock.weekday}</h1>
+          <p className="today-meta">
+            {post
+              ? post.function === "float"
+                ? t("post.youAreFloat", { time: formatTime(post.started_at, locale) })
+                : t("post.youAre", { function: t("post.office"), lodge: lodgeName(post.lodge_id), time: formatTime(post.started_at, locale) })
+              : `${staffName(staff)} · ${staff ? t(`users.roles.${staff.role}`) : ""}`}
+          </p>
+          <div className="button-row">
             {needsPost ? (
               <button className="primary" onClick={() => navigate("/post")}>{t("post.take")}</button>
             ) : actionLodge && next.slot ? (
@@ -66,15 +57,15 @@ export function Today() {
               <button className="primary" onClick={() => navigate("/sheet")}>{t("today.openSheet")}</button>
             )}
             {actionLodge && !next.loading && (
-              <span className="hero-meta">{next.pendingCount > 0 ? t("today.checksDue", { n: next.pendingCount }) : t("today.allChecksIn")}</span>
+              <span className="muted small-text">{next.pendingCount > 0 ? t("today.checksDue", { n: next.pendingCount }) : t("today.allChecksIn")}</span>
             )}
-            {isManagement && !post && <span className="hero-meta">{t("today.managementHint")}</span>}
+            {isManagement && !post && <span className="muted small-text">{t("today.managementHint")}</span>}
           </div>
-        </article>
+        </header>
 
         {/* Quem está de serviço */}
-        <article className="bento-tile span-2">
-          <span className="eyebrow">{t("today.onDuty")}</span>
+        <aside className="duty-card">
+          <h2>{t("today.onDuty")}</h2>
           <ul className="duty-list">
             {lodges.map((l) => {
               const p = posts.find((x) => x.function === "office" && x.lodge_id === l.id);
@@ -86,7 +77,7 @@ export function Today() {
                     {dutyLoading ? (
                       <span className="muted">{t("app.loading")}</span>
                     ) : p ? (
-                      <span className="duty-name">{staffName(p.staff)}</span>
+                      <span className="duty-name"><i className="live-dot" aria-hidden="true" />{staffName(p.staff)}</span>
                     ) : (
                       <span className="warn-text">{t("today.nobody")}</span>
                     )}
@@ -102,7 +93,7 @@ export function Today() {
                 {dutyLoading ? (
                   <span className="muted">{t("app.loading")}</span>
                 ) : floatPost ? (
-                  <span className="duty-name">{staffName(floatPost.staff)}</span>
+                  <span className="duty-name"><i className="live-dot" aria-hidden="true" />{staffName(floatPost.staff)}</span>
                 ) : (
                   <span className="muted">{t("today.nobody")}</span>
                 )}
@@ -110,30 +101,22 @@ export function Today() {
               {!dutyLoading && floatPost && <span className="duty-since">{t("today.since", { time: formatTime(floatPost.started_at, locale) })}</span>}
             </li>
           </ul>
-        </article>
+        </aside>
+      </div>
 
+      {/* Assinatura: a régua do dia operacional com rondas e checks */}
+      {lodges.length > 0 && <ShiftRuler lodgeIds={rulerLodges} />}
+
+      <div className="bento">
         <PresenceAlertCard />
         <PendingTile />
+      </div>
 
-        {/* Ocupação por Lodge */}
-        {lodges.map((l) => {
-          const s = summarise(beds.filter((b) => b.lodge_id === l.id));
-          const pct = s.total ? Math.round((s.occupied / s.total) * 100) : 0;
-          return (
-            <Link key={l.id} to="/beds" className="bento-tile span-3" style={{ color: "inherit", textDecoration: "none" }}>
-              <span className="eyebrow">{t("today.occupancy")} · {l.name}</span>
-              <div className="big-number" style={{ marginTop: "0.8rem" }}>
-                {s.occupied}
-                <small>{t("today.beds", { total: s.total })}</small>
-              </div>
-              <div className="meter" aria-hidden="true"><span style={{ width: `${pct}%` }} /></div>
-              <span className="muted small-text">
-                {s.free} {t("today.free")}
-                {s.outOfService > 0 && ` · ${s.outOfService} ${t("today.outOfService")}`}
-              </span>
-            </Link>
-          );
-        })}
+      {/* Destaque: o quadro de camas de cada Lodge */}
+      <div className="board-grid">
+        {lodges.map((l) => (
+          <BedBoard key={l.id} lodge={l} beds={beds.filter((b) => b.lodge_id === l.id)} />
+        ))}
       </div>
       {post && <TaskAlerts />}
     </section>

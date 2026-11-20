@@ -72,13 +72,13 @@ async function porterLogin(page, email, lodgeLabel) {
   await page.getByLabel("Senha").fill(DEMO_PASSWORD);
   await page.getByRole("button", { name: "Entrar" }).click();
   const take = page.getByRole("button", { name: "Assumir Posto" });
-  await Promise.race([page.locator(".bento-hero").waitFor({ timeout: 20000 }), take.waitFor({ timeout: 20000 })]);
+  await Promise.race([page.locator(".today-head").waitFor({ timeout: 20000 }), take.waitFor({ timeout: 20000 })]);
   if (await take.isVisible().catch(() => false)) {
     await page.getByLabel(lodgeLabel).check();
     await take.click();
     const takeover = page.getByRole("button", { name: "Confirmar e assumir o posto" });
-    await Promise.race([page.locator(".bento-hero").waitFor({ timeout: 15000 }), takeover.waitFor({ timeout: 15000 }).then(() => takeover.click())]);
-    await page.locator(".bento-hero").waitFor({ timeout: 15000 });
+    await Promise.race([page.locator(".today-head").waitFor({ timeout: 15000 }), takeover.waitFor({ timeout: 15000 }).then(() => takeover.click())]);
+    await page.locator(".today-head").waitFor({ timeout: 15000 });
   }
 }
 
@@ -225,7 +225,7 @@ async function porterLogin(page, email, lodgeLabel) {
     await o.waitForTimeout(1200);
     const { data: link } = await admin.auth.admin.generateLink({ type: "magiclink", email: OWNER.email, options: { redirectTo: `${BASE}/` } });
     await o.goto(link.properties.action_link);
-    await o.locator(".bento-hero").waitFor({ timeout: 20000 });
+    await o.locator(".today-head").waitFor({ timeout: 20000 });
     // Chamados vencidos: a gestão é perguntada sobre o status ao entrar.
     const reminder = o.getByRole("dialog").filter({ hasText: "Prazo vencido" });
     const reminded = await until(() => reminder.isVisible(), 10000);

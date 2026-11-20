@@ -1,55 +1,72 @@
 # DS Lodge — Direção de design
 
-Vale para todas as fases (0 em diante). Toda tela nova segue este documento; toda tela
-alterada é trazida para ele. Decisão da gestão em 20/11/2026.
+Vale para todas as telas. Toda tela nova segue este documento; toda tela alterada é trazida
+para ele. Revisado em 20/11/2026 com uma passada "Unslop" (método de Damir Sokolovsky,
+@heydamir, CC BY 4.0), que tirou o visual de sistema gerado por IA.
 
-## Princípios
+## Direção
 
-1. **Editorial, não template.** Light mode de alto contraste (referência: Linear, editoriais
-   do Awwwards). Nada de fileiras de cards iguais com sombra: a hierarquia vem da tipografia,
-   do espaço e de grades assimétricas (*bento*) onde há mais de um tipo de informação.
-2. **Ação principal primeiro.** A tela mostra antes o que a recepção precisa fazer agora
-   (lançar o check, quem está sem evidência, pendências). O resto fica limpo.
-3. **Nada muda de forma seca.** Abas, modais, filtros, listas e botões têm transição.
-   Carregamento usa *skeleton*; ações concluídas têm retorno visual (toast, check animado).
-4. **Só dois elementos de impacto:**
-   - **vidro fosco** (glassmorphism) na barra de navegação inferior (celular) e na barra
-     superior ao rolar;
-   - **brilho sutil que segue o cursor** nos blocos do bento da tela Hoje.
-   Nenhum outro efeito decorativo.
-5. **Dados reais do nicho.** Quartos, camas, residentes, checks, turnos de Dublin — nunca
-   "Lorem ipsum" nem números inventados na interface.
-6. **Mobile-first.** Áreas de toque ≥ 44 px; tabelas viram listas legíveis no celular.
-   (A spec prevê uso no computador da recepção; o layout responsivo não muda regras.)
-7. **Acabamento.** Contraste AA no mínimo (texto principal AAA). Sem bordas e sombras
-   desnecessárias: superfícies se separam por cor e por fio fino (*hairline*) só onde ajuda
-   a leitura. `prefers-reduced-motion` desliga as animações.
+- **Produto.** O console de turno da recepção de dois hostels em Dublin: presença,
+  Handover, serviços e gestão, usado 12 horas seguidas.
+- **Caráter.** Exato, firme, um pouco caloroso.
+- **Mundo.** O balcão da recepção e o livro de registro: papel pautado, tinta, o relógio da
+  parede, o turno da noite.
+- **Destaques (onde entram cor e detalhe).** O quadro de camas (cada quarto com as suas
+  camas: ocupada, livre, Out decidido, fora de uso, FW) e os dados de cada tela. O resto da
+  interface fica quieto.
+- **Assinatura.** A régua do dia operacional 07:00 → 07:00, com as rondas e os checks de cada
+  Lodge (feito, atrasado, vencendo, por vir) e a marca do "agora". Aparece só na tela Hoje.
+
+## Regras
+
+1. **Interface quieta, dados ricos.** Fundo, cartões, bordas e texto vêm de uma rampa
+   grafite neutra. Um acento azul-tinta (`--accent`) só na ação/seleção/número que importa e
+   no "agora" da régua. Verde, âmbar e vermelho só com significado (feito, atenção, atraso).
+2. **Ação principal primeiro.** O topo de Hoje diz o dia, o turno, quem eu sou no posto e a
+   próxima ação (lançar o check). Pendências logo abaixo, como lista com link.
+3. **Sem efeitos decorativos.** Nada de vidro, brilho que segue o cursor, gradiente de cor,
+   brilho pulsante, shimmer, molas ou cartões que pulam no hover. Movimento só para explicar:
+   troca de cor no hover, leve redução ao pressionar, diálogo que sobe 8 px, aba que desliza.
+4. **Texto.** Sem ponto final em rótulos e botões, sem exclamação, sem caixa-alta com
+   espaçamento (rótulos em caixa normal). Sem itálico.
+5. **Mobile-first.** Áreas de toque ≥ 44 px; tabelas viram listas no celular; barra inferior
+   sólida presa à borda.
+6. **Acessibilidade.** Contraste AA no mínimo; foco visível em azul-tinta;
+   `prefers-reduced-motion` desliga as animações.
 
 ## Tokens (src/styles.css)
 
 | Token | Valor | Uso |
-|---|---|---|
-| `--ink` | `#0B0B0C` | texto principal, botão primário (contraste 19:1) |
-| `--ink-2` | `#3D3D42` | texto secundário (10:1) |
-| `--ink-3` | `#6B6B73` | rótulos, legendas (5:1) |
-| `--paper` | `#F6F5F2` | fundo da aplicação |
-| `--surface` | `#FFFFFF` | blocos, tabelas, modais |
-| `--line` | `#E6E4DF` | fios finos |
-| `--accent` | `#2F3CED` | foco, seleção, indicador das abas, links |
-| `--ok` / `--warn` / `--danger` | `#0E7A3E` / `#A15C00` / `#C0261C` | estados |
+|-------|-------|-----|
+| `--ink` / `--ink-2` / `--ink-3` | #171717 / #525252 / #707070 | texto principal, secundário, apagado e ícones |
+| `--paper` / `--surface` / `--surface-2` | #f7f7f6 / #fff / #f1f1f0 | página, cartões, elevado (linha ativa, trilho) |
+| `--line` / `--line-strong` | texto a 8% / 16% | fios finos entre itens; bordas de campos |
+| `--accent` | #2449a8 | ação/seleção/foco; "agora" na régua |
+| `--ok` / `--warn` / `--danger` | #16723a / #9a5800 / #c0261c | feito, atenção, atraso/erro (com versões `-soft`) |
+| `--radius-sm` / `--radius` / `--radius-lg` | 6 / 8 / 12 px | etiqueta e linha / botão e campo / cartão (diálogo 16) |
+| `--ease-out` | cubic-bezier(0.22, 1, 0.36, 1) | a única curva |
+| `--fast` / `--base` / `--slow` | 140 / 180 / 320 ms | feedback / menus / entradas |
 
-Tipografia: **Inter** (variável, números tabulares) para interface; **Instrument Serif**
-para títulos de página e números grandes do bento. Fontes hospedadas no próprio site
-(sem Google Fonts — RGPD).
+Espaçamento na grade de 4 px (raiz 16 px; `0.25rem` = 4 px).
 
-Movimento: `--ease-out: cubic-bezier(0.22, 1, 0.36, 1)`; `--ease-spring:
-cubic-bezier(0.34, 1.56, 0.64, 1)` só em micro-feedback; durações 120–320 ms.
+## Tipografia
 
-## Componentes base (src/components)
+- **IBM Plex Sans** (400, 500, 600; latin + latin-ext para pt e pl) em toda a interface.
+- **IBM Plex Mono** (400, 500) para horários, datas no relógio, códigos de quarto/cama,
+  número da folha, contagens e a régua.
+- Títulos de página 28 px/500; títulos de cartão 14–16 px/500; números de destaque 32 px/500,
+  algarismos tabulares. Hierarquia por tamanho e cor, não por peso.
 
-- `Tabs` — abas com indicador deslizante (Lodges, checks, filtros).
-- `Skeleton` — linhas de carregamento com brilho.
-- `Toast` — confirmação de ações (salvo, lançado, confirmado).
-- `Dialog` — abre com escala e fade; fecha animado.
-- `Button` states — pressão (escala), carregando (spinner), concluído.
-- `Layout` — trilho lateral no desktop; barra inferior de vidro no celular.
+## Componentes
+
+- **Abas** (`components/Tabs.tsx`): trilho cinza com indicador branco que desliza.
+- **Skeleton**: linhas estáticas cinza enquanto carrega (sem shimmer).
+- **Toast**: retângulo escuro de cantos 10 px, sobe 8 px; vermelho para erro.
+- **Diálogo**: entra subindo 8 px; no celular vira *sheet* de baixo.
+- **Contagens no menu**: número em mono, vermelho contido sobre fundo claro, sem bolha cheia.
+- **Régua do dia** (`components/ShiftRuler.tsx`) e **quadro de camas** (`components/BedBoard.tsx`).
+
+## Ícones
+
+`lucide-react`, 16 px no menu (18 px nos demais), traço padrão, cor do texto apagado;
+o item ativo do menu usa o acento. Nunca emoji na interface.

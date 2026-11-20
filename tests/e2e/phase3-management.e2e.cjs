@@ -47,6 +47,10 @@ async function newPage(browser) {
   page.on("response", (r) => {
     if (r.url().includes("/rest/v1/") && r.status() >= 400) console.log("  [rest]", r.status(), r.url().split("/rest/v1/")[1]?.slice(0, 80));
   });
+  // Chamados vencidos: a gestão é perguntada sobre o status; os testes adiam (vários seguidos).
+  void page.addLocatorHandler(page.getByRole("dialog").filter({ hasText: /Prazo vencido|Deadline passed/ }), async (d) => {
+    await d.getByRole("button", { name: /^(Lembrar em 24 h|Remind me in 24 h)$/ }).click();
+  }, { noWaitAfter: true });
   pages.push(page);
   return page;
 }
@@ -92,7 +96,7 @@ async function admit(page, lodgeName, name, at) {
     await owner.waitForTimeout(1200);
     const { data: link } = await admin.auth.admin.generateLink({ type: "magiclink", email: OWNER.email, options: { redirectTo: `${BASE}/` } });
     await owner.goto(link.properties.action_link);
-    await owner.locator(".bento-hero").waitFor({ timeout: 20000 });
+    await owner.locator(".today-head").waitFor({ timeout: 20000 });
     await nav(owner, "Usuários");
     await owner.getByRole("button", { name: "Criar usuário" }).click();
     const porter = { name: `[TESTE] Float ${RUN}`, email: `teste.float.${RUN}@ds-lodge.test` };
@@ -124,8 +128,8 @@ async function admit(page, lodgeName, name, at) {
     await p.getByLabel("Float").check();
     await p.getByRole("button", { name: "Assumir Posto" }).click();
     const takeover = p.getByRole("button", { name: "Confirmar e assumir o posto" });
-    await Promise.race([p.locator(".bento-hero").waitFor({ timeout: 15000 }), takeover.waitFor({ timeout: 15000 }).then(() => takeover.click())]);
-    await p.locator(".bento-hero").waitFor({ timeout: 15000 });
+    await Promise.race([p.locator(".today-head").waitFor({ timeout: 15000 }), takeover.waitFor({ timeout: 15000 }).then(() => takeover.click())]);
+    await p.locator(".today-head").waitFor({ timeout: 15000 });
     check("Equipe não vê Compras, Horas, Férias nem Relatórios no menu",
       (await p.locator(".sidebar").getByRole("link", { name: /^(Compras|Horas|Férias|Relatórios)/ }).count()) === 0);
     await nav(p, "Distribuição");

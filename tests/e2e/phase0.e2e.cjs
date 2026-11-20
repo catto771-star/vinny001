@@ -40,6 +40,10 @@ async function newContext(browser) {
     if (r.url().includes("/rest/v1/") && r.status() >= 400) console.log("  [rest]", r.status(), r.url().split("/rest/v1/")[1]?.slice(0, 80));
   });
   page.on("requestfailed", (r) => console.log("  [requestfailed]", r.url().slice(0, 80), r.failure()?.errorText));
+  // Chamados vencidos: a gestão é perguntada sobre o status; os testes adiam (vários seguidos).
+  void page.addLocatorHandler(page.getByRole("dialog").filter({ hasText: /Prazo vencido|Deadline passed/ }), async (d) => {
+    await d.getByRole("button", { name: /^(Lembrar em 24 h|Remind me in 24 h)$/ }).click();
+  }, { noWaitAfter: true });
   openPages.push(page);
   return { ctx, page };
 }
@@ -77,7 +81,7 @@ async function changePassword(page) {
     const { data: link, error: linkError } = await admin.auth.admin.generateLink({ type: "magiclink", email: OWNER.email, options: { redirectTo: `${BASE}/` } });
     if (linkError) throw new Error(`generateLink: ${linkError.message}`);
     await p.goto(link.properties.action_link);
-    await p.locator(".bento-hero").waitFor({ timeout: 20000 });
+    await p.locator(".today-head").waitFor({ timeout: 20000 });
     check("Owner entra com segunda etapa e vê Hoje", true);
     check("Relógio de Dublin visível no topo", await p.locator(".clock-time").isVisible());
     await p.screenshot({ path: `${OUT}/02-today-owner.png` });
@@ -114,10 +118,10 @@ async function changePassword(page) {
     // Se sobrou alguém de uma execução anterior no posto, o sistema avisa; confirmamos.
     const takeover = a.page.getByRole("button", { name: "Confirmar e assumir o posto" });
     await Promise.race([
-      a.page.locator(".bento-hero").waitFor({ timeout: 15000 }),
+      a.page.locator(".today-head").waitFor({ timeout: 15000 }),
       takeover.waitFor({ timeout: 15000 }).then(() => takeover.click()),
     ]);
-    await a.page.locator(".bento-hero").waitFor({ timeout: 15000 });
+    await a.page.locator(".today-head").waitFor({ timeout: 15000 });
     const chip = await a.page.locator(".post-chip").textContent();
     check("B42: Porter assume Office On Duty em Amiens", /Office On Duty — Amiens/.test(chip), chip);
 
@@ -154,9 +158,9 @@ async function changePassword(page) {
     check("B43: posto ocupado mostra quem está de serviço", occupiedText.includes(porterA.name), occupiedText.slice(0, 120));
     await b.page.screenshot({ path: `${OUT}/06-occupied.png` });
     await b.page.getByRole("button", { name: "Confirmar e assumir o posto" }).click();
-    await b.page.locator(".bento-hero").waitFor({ timeout: 15000 });
-    await b.page.locator(".bento-tile", { hasText: "De serviço agora" }).getByText("Carregando…").first().waitFor({ state: "detached", timeout: 15000 }).catch(() => {});
-    const onDuty = await b.page.locator(".bento-tile", { hasText: "De serviço agora" }).textContent();
+    await b.page.locator(".today-head").waitFor({ timeout: 15000 });
+    await b.page.locator(".duty-card", { hasText: "De serviço agora" }).getByText("Carregando…").first().waitFor({ state: "detached", timeout: 15000 }).catch(() => {});
+    const onDuty = await b.page.locator(".duty-card", { hasText: "De serviço agora" }).textContent();
     check("B43: ao confirmar, o posto anterior é encerrado e B assume", onDuty.includes(porterB.name) && !onDuty.includes(porterA.name), onDuty.slice(0, 160));
 
     // Porter A (sem posto agora) tenta registrar → o servidor recusa
@@ -197,7 +201,7 @@ async function changePassword(page) {
     await b.page.selectOption(".lang-select select", "pl-PL");
     await b.page.waitForTimeout(800);
     await b.page.goto(BASE);
-    await b.page.locator(".bento-hero").waitFor({ timeout: 15000 });
+    await b.page.locator(".today-head").waitFor({ timeout: 15000 });
     const polishMenu = await b.page.locator(".sidebar").getByRole("link", { name: "Dziś", exact: true }).count();
     check("B51: idioma muda a tela e fica guardado no cadastro", polishMenu === 1);
     await b.page.screenshot({ path: `${OUT}/09-polish.png` });
