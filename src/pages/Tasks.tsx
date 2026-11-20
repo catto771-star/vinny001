@@ -89,6 +89,9 @@ export function Tasks() {
   }
 
   const nameOf = (id: string | null) => staffName(staffList.find((s) => s.id === id)) || "—";
+  // Função de quem assinou: Office / Float (termos de trabalho) ou o perfil.
+  const functionLabel = (f: string) =>
+    f === "office" ? "Office" : f === "float" ? "Float" : ["manager", "owner", "developer", "porter"].includes(f) ? t(`users.roles.${f as "manager"}`) : f;
   const done = tasks?.filter((x) => x.signatures.length > 0).length ?? 0;
 
   return (
@@ -136,7 +139,7 @@ export function Tasks() {
                     {task.staff_id && <span className="tag tag-kind">{t("tasks.forPerson", { name: nameOf(task.staff_id) })}</span>}
                     {task.signatures.map((s) => (
                       <span key={s.staff_id} className="sig">
-                        {t("tasks.signedBy", { name: nameOf(s.staff_id), function: s.duty_function, time: formatTime(s.signed_at, locale) })}
+                        {t("tasks.signedBy", { name: nameOf(s.staff_id), function: functionLabel(s.duty_function), time: formatTime(s.signed_at, locale) })}
                       </span>
                     ))}
                   </span>

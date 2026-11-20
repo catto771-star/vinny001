@@ -566,3 +566,6 @@ a.chip:hover { border-color: var(--ink); text-decoration: none; color: var(--ink
 
 .bottom-icon { position: relative; display: inline-flex; }
 .bottom-icon .nav-badge { position: absolute; top: -6px; right: -12px; margin: 0; min-width: 18px; height: 18px; font-size: 0.62rem; }
+.fw-inline { margin: 0 0.4rem 0 0; }
+.timeline-item { position: relative; }
+.timeline-actions { position: absolute; top: 0.7rem; right: 1rem; margin: 0; background: var(--surface); border-radius: 999px; }

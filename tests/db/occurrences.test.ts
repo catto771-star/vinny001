@@ -335,3 +335,14 @@ describe("Pendências (bolinhas vermelhas)", () => {
     expect(c.maintenance).toBe(0);
   });
 });
+
+describe("Modelo de tarefas carregado na instalação", () => {
+  it("vale a partir da instalação: não cria pendências de dias anteriores ao uso do sistema", async () => {
+    await db.as(manager);
+    const old = await db.one<{ n: number }>(
+      "select count(*)::int as n from public.pending_tasks($1) where operational_day < public.operational_day(now()) - 1",
+      [amiens],
+    );
+    expect(old.n).toBe(0);
+  });
+});

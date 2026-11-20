@@ -74,7 +74,9 @@ async function until(fn, timeout = 15000) {
   }
 }
 
-const nav = (page, name) => page.locator(".sidebar").getByRole("link", { name, exact: true }).click();
+// O nome do link pode incluir a bolinha de pendências ("No Shows 3").
+const nav = (page, name) =>
+  page.locator(".sidebar").getByRole("link", { name: new RegExp(`^${name.replace(/[()]/g, "\\$&")}( \\d+\\+?)?$`) }).click();
 
 (async () => {
   const browser = await chromium.launch();
@@ -108,6 +110,9 @@ const nav = (page, name) => page.locator(".sidebar").getByRole("link", { name, e
     const takeover = p.getByRole("button", { name: "Confirmar e assumir o posto" });
     await Promise.race([p.locator(".bento-hero").waitFor({ timeout: 15000 }), takeover.waitFor({ timeout: 15000 }).then(() => takeover.click())]);
     await p.locator(".bento-hero").waitFor({ timeout: 15000 });
+    // Pop-up de tarefas novas/atrasadas ao entrar (s.7): fecha para seguir o roteiro.
+    const later = p.getByRole("button", { name: "Depois" });
+    if (await until(() => later.isVisible(), 5000)) await later.click();
 
     const names = [`[TESTE] Ana ${RUN}`, `[TESTE] Bia ${RUN}`];
     for (const name of names) {

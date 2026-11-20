@@ -130,8 +130,8 @@ describe("Daily Tasks", () => {
     }];
     rpcResult.pending_tasks = [];
     wrap(<Tasks />);
-    expect(await screen.findByText("Me · office · 10:05")).toBeTruthy();
-    expect(screen.getByText(/float · 10:07/)).toBeTruthy();
+    expect(await screen.findByText("Me · Office · 10:05")).toBeTruthy();
+    expect(screen.getByText(/Float · 10:07/)).toBeTruthy();
   });
 });
 

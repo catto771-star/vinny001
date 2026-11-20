@@ -8,9 +8,13 @@ Sistema de operação dos Lodges (Amiens St. e Connolly), conforme a
 | Fase | Situação |
 |------|----------|
 | 0. Fundação | Pronta e publicada (Supabase `ds-lodge` na Irlanda + Vercel `ds-lodge.vercel.app`). Teste de ponta a ponta 18/18 contra o Supabase real. Falta: criar as contas reais da gestão. Importação do DOCX adiada por decisão da gestão. |
-| 1. Núcleo da operação | A fazer |
+| 1. Núcleo da operação | Pronta e publicada: Folha do dia (Room Check), Seen, ausências, No Show, Handover com rondas, Daily Tasks (modelo de Amiens nos 3 idiomas; Connolly como cópia), Manutenção, Warnings/FW, pendências. Testes de ponta a ponta: presença 12/12, ocorrências 8/8. |
 | 2. Serviços | A fazer |
 | 3. Gestão | A fazer |
+
+## Design
+
+Toda tela segue `docs/DESIGN.md` (editorial, alto contraste, mobile-first, dois efeitos de impacto).
 
 ## Estrutura
 
