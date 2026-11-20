@@ -1,0 +1,28 @@
+import type { MessageKey } from "@/i18n";
+
+const RULES: Array<[RegExp, MessageKey]> = [
+  [/stale_version/, "errors.staleVersion"],
+  [/not_authorised|row-level security|permission denied|42501/, "errors.notAuthorised"],
+  [/stays_one_open_per_bed/, "errors.bedTaken"],
+  [/stays_one_open_per_resident/, "errors.residentHasStay"],
+  [/bed_out_of_service/, "errors.bedOutOfService"],
+  [/reason_required/, "errors.reasonRequired"],
+  [/invalid_.*time|admitted_in_future/, "errors.invalidTime"],
+  [/lodge_required/, "errors.lodgeRequired"],
+  [/role_cannot_take_office/, "errors.roleCannotTakeOffice"],
+  [/role_cannot_take_float/, "errors.roleCannotTakeFloat"],
+  [/JWT expired|refresh_token/i, "errors.sessionEnded"],
+  [/Failed to fetch|NetworkError|network/i, "errors.network"],
+];
+
+/** Converte um erro do Supabase/Postgres numa mensagem traduzível. */
+export function errorKey(error: unknown): MessageKey {
+  const message =
+    typeof error === "string"
+      ? error
+      : error && typeof error === "object" && "message" in error
+        ? String((error as { message: unknown }).message)
+        : "";
+  for (const [pattern, key] of RULES) if (pattern.test(message)) return key;
+  return "errors.generic";
+}

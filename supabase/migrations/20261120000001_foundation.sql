@@ -806,7 +806,9 @@ begin
         'room_code', rm.code, 'room_kind', rm.kind, 'bed_number', b.number,
         'status', s.status, 'admitted_at', s.admitted_at, 'ended_at', s.ended_at,
         'end_reason', s.end_reason, 'out_reason', s.out_reason,
-        'out_decided_at', s.out_decided_at, 'version', s.version
+        'out_decided_at', s.out_decided_at,
+        'out_decided_by_name', (select coalesce(st.display_name, st.full_name) from public.staff st where st.id = s.out_decided_by),
+        'version', s.version
       ) order by s.admitted_at desc)
       from public.stays s
       join public.lodges l on l.id = s.lodge_id

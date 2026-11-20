@@ -1,0 +1,73 @@
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { AuthProvider, useAuth } from "@/auth/AuthProvider";
+import { I18nProvider, useI18n } from "@/i18n";
+import { Layout } from "@/components/Layout";
+import { Notice } from "@/components/Notice";
+import { Audit } from "@/pages/Audit";
+import { BedMap } from "@/pages/BedMap";
+import { ChangePassword } from "@/pages/ChangePassword";
+import { AuthCard, Login } from "@/pages/Login";
+import { Mfa } from "@/pages/Mfa";
+import { ResidentProfile } from "@/pages/ResidentProfile";
+import { Residents } from "@/pages/Residents";
+import { TakePost } from "@/pages/TakePost";
+import { Today } from "@/pages/Today";
+import { Users } from "@/pages/Users";
+
+function Gate() {
+  const { stage, isManagement, staff, post, signOut } = useAuth();
+  const { t } = useI18n();
+
+  switch (stage) {
+    case "loading":
+      return <div className="center muted">{t("app.loading")}</div>;
+    case "signed_out":
+      return <Login />;
+    case "not_staff":
+      return (
+        <AuthCard title={t("auth.title")}>
+          <Notice kind="error">{t("errors.notStaff")}</Notice>
+          <button className="primary" onClick={() => void signOut()}>{t("auth.signOut")}</button>
+        </AuthCard>
+      );
+    case "change_password":
+      return <ChangePassword />;
+    case "mfa_enrol":
+    case "mfa_verify":
+      return <Mfa enrol={stage === "mfa_enrol"} />;
+    case "ready":
+      break;
+  }
+
+  // Porter sem posto vai direto para Assumir Posto (s.3, passo 1).
+  const needsPost = staff?.role === "porter" && !post;
+
+  return (
+    <Routes>
+      <Route path="/post" element={<Layout />}>
+        <Route index element={<TakePost />} />
+      </Route>
+      <Route element={<Layout />}>
+        <Route index element={needsPost ? <Navigate to="/post" replace /> : <Today />} />
+        <Route path="residents" element={<Residents />} />
+        <Route path="residents/:id" element={<ResidentProfile />} />
+        <Route path="beds" element={<BedMap />} />
+        {isManagement && <Route path="users" element={<Users />} />}
+        {isManagement && <Route path="audit" element={<Audit />} />}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+    </Routes>
+  );
+}
+
+export function App() {
+  return (
+    <I18nProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Gate />
+        </BrowserRouter>
+      </AuthProvider>
+    </I18nProvider>
+  );
+}

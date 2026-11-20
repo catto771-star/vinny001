@@ -68,3 +68,16 @@ describe("Relógio e formatos (s.15.2, B52, B55)", () => {
     expect(formatTime(new Date("2026-07-10T12:00:00Z"), "en-IE")).toBe("13:00");
   });
 });
+
+import { fromDublinInputValue, toDublinInputValue } from "./time";
+
+describe("campo de data e hora em Dublin", () => {
+  it("ida e volta, inverno e verão", () => {
+    const winter = new Date("2026-01-10T18:30:00Z");
+    const summer = new Date("2026-07-10T18:30:00Z");
+    expect(toDublinInputValue(winter)).toBe("2026-01-10T18:30");
+    expect(toDublinInputValue(summer)).toBe("2026-07-10T19:30");
+    expect(fromDublinInputValue("2026-07-10T19:30")?.toISOString()).toBe(summer.toISOString());
+    expect(fromDublinInputValue("lixo")).toBeNull();
+  });
+});
