@@ -19,7 +19,8 @@ const ONLY = (process.env.SCENES ?? "").split(",").filter(Boolean);
 const OWNER = { email: process.env.E2E_OWNER_EMAIL, password: process.env.E2E_OWNER_PASSWORD };
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD;
 const NEW_PASSWORD = `Demo${crypto.randomInt(1e6)}Gestao`;
-const RUN = Date.now().toString(36).slice(-4);
+const RUN = process.env.RUN_TAG ?? Date.now().toString(36).slice(-4); // RUN_TAG repete uma rodada (ex.: regravar só uma cena)
+console.log(`RUN_TAG=${RUN}`);
 const REF = process.env.SUPABASE_PROJECT_REF ?? "jbcrhkbhjdiqvwalheyp";
 const admin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 const proxy = process.env.HTTPS_PROXY ? { server: process.env.HTTPS_PROXY, bypass: "localhost,127.0.0.1" } : undefined;
@@ -636,15 +637,31 @@ scene("13", "gestao-rota-ferias-horas", "Gestão: Rota semanal, férias com conf
   await u.nav("Rota");
   await u.say("Rota: a semana em colunas. Buracos de cobertura aparecem em vermelho", 2600);
   await u.click(page.getByRole("button", { name: "Próxima semana" }), 1200);
-  for (const [i, shift] of ["Day 07–19", "Night 19–07"].entries()) {
-    await u.click(page.locator(".rota-day").nth(2 + i).getByRole("button", { name: /Adicionar turno/ }), 900);
+  // Preenche os buracos de cobertura (em vermelho): a função e o Lodge vêm do próprio buraco.
+  for (let i = 0; i < 2; i++) {
+    const gap = page.locator(".rota-gap").first();
+    if (!(await gap.count())) break;
+    const text = (await gap.textContent()) ?? "";
+    await u.say(`Buraco: ${text.replace(/\s+/g, " ").trim()}`, 1800);
+    await u.click(page.locator(".rota-day", { has: gap }).getByRole("button", { name: /Adicionar turno/ }), 900);
     const d = u.dialog();
-    await u.click(d.getByRole("button", { name: new RegExp(shift) }), 700);
-    await u.glide(d.getByLabel("Pessoa"));
-    await d.getByLabel("Pessoa").selectOption({ index: 2 + i });
-    await u.wait(500);
-    await u.click(d.getByRole("button", { name: "Salvar" }), 900);
-    await u.toast("Turno salvo.");
+    if (/Float/.test(text)) await u.click(d.getByRole("button", { name: "Float", exact: true }), 600);
+    else {
+      await u.click(d.getByRole("button", { name: /Night 19–07|Day 07–19/ }).filter({ hasText: /Night/.test(text) ? "Night" : "Day" }), 600);
+      await d.getByLabel("Lodge").selectOption({ label: /Connolly/.test(text) ? "Connolly" : "Amiens St." });
+    }
+    const n = await d.getByLabel("Pessoa").locator("option").count();
+    let saved = false;
+    for (let k = 1; k < n && !saved; k++) {
+      await u.glide(d.getByLabel("Pessoa"));
+      await d.getByLabel("Pessoa").selectOption({ index: k });
+      await u.wait(400);
+      await u.click(d.getByRole("button", { name: "Salvar" }), 600);
+      saved = await page.getByText("Turno salvo.").first().isVisible().catch(() => false) || (await u.until(() => page.getByText("Turno salvo.").first().isVisible(), 2500));
+      if (!saved) await u.say("Quem já tem turno nesse horário é recusado, com a razão", 1800);
+    }
+    if (!saved) throw new Error("nenhuma pessoa livre para o buraco da Rota");
+    await u.wait(900);
   }
   await u.say("Turno novo é rascunho: a equipe só vê o que a gestão publicar", 2400);
   const pub = page.getByRole("button", { name: /Publicar semana/ });
