@@ -29,6 +29,7 @@ const plPL: Messages = {
     comingInPhase: "Dostępne w fazie {phase}",
   },
   errors: {
+    notFound: "Nie znaleziono rekordu. Mógł zostać usunięty albo link jest błędny.",
     fieldRequired: "Wypełnij wymagane pole (nie może być puste).",
     invalidRange: "Wybierz prawidłowy okres (maks. 62 dni) lub miesiąc.",
     intervalTooLong: "Przedział może trwać najwyżej 24 godziny.",

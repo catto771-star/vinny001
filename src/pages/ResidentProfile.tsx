@@ -102,6 +102,7 @@ export function ResidentProfile() {
     return (
       <section className="page">
         <Notice kind="error">{error}</Notice>
+        {error && <Link to="/residents" className="muted">← {t("residents.title")}</Link>}
         {!error && <div className="card"><Skeleton rows={6} label={t("app.loading")} /></div>}
       </section>
     );

@@ -39,4 +39,9 @@ describe("errorKey", () => {
     expect(errorKey({ message: "invalid_line" })).toBe("errors.invalidQuantity");
     expect(errorKey({ message: "lines_required" })).toBe("errors.fieldRequired");
   });
+
+  it("registro inexistente ou id inválido (link velho, URL editada) tem mensagem própria", () => {
+    for (const m of ["resident_not_found", "ticket_not_found", "run_not_found", "post_not_found", "line_not_found", 'invalid input syntax for type uuid: "not-a-uuid"'])
+      expect(errorKey({ message: m }), m).toBe("errors.notFound");
+  });
 });

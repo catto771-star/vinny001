@@ -226,12 +226,17 @@ describe("simulação em massa", () => {
       ["Dinner: marca só de residente que estava no Lodge no dia", `select count(*) n from public.dinner_marks m join public.dinner_services s on s.id=m.service_id join public.stays st on st.id=m.stay_id where st.admitted_at >= public.operational_day_end(s.operational_day) or (st.ended_at is not null and st.ended_at <= public.operational_day_start(s.operational_day))`],
       ["Handover: ronda registrada tem horário de ronda", `select count(*) n from public.handover_entries where kind='round' and round_slot is null`],
       ["Final Written ativo: só uma por estadia aberta ou encerrada", `select count(*) n from (select stay_id from public.warnings where type='final_written' and active group by 1 having count(*)>1) x`],
-      ["checks lançados têm marca para quem estava presente", `select count(*) n from public.room_check_runs r join lateral public.stays_present_at(r.lodge_id, r.checked_at) s on true where r.status='launched' and not exists (select 1 from public.room_check_marks m where m.run_id=r.id and m.stay_id=s.id) and r.entered_at > now() - interval '1 hour'`],
+      ["checks lançados no horário (ou depois) têm marca para quem estava presente", `select count(*) n from public.room_check_runs r join lateral public.stays_present_at(r.lodge_id, r.checked_at) s on true where r.status='launched' and not exists (select 1 from public.room_check_marks m where m.run_id=r.id and m.stay_id=s.id) and r.entered_at > now() - interval '1 hour' and r.checked_at <= r.entered_at`], // checks lançados até 60 min antes do horário (tolerância da regra) ficam de fora
     ];
     const failures: string[] = [];
     for (const [name, sql] of checks) {
       const n = await q(sql);
-      if (n !== 0) failures.push(`${name}: ${n} violações`);
+      if (n !== 0) {
+        failures.push(`${name}: ${n} violações`);
+        // amostra das linhas, para diagnosticar
+        const sample = await db.query(sql.replace(/^select count\(\*\) n from/, "select * from").replace(/select \* from public\.room_check_runs r join lateral public\.stays_present_at\(r\.lodge_id, r\.checked_at\) s on true/, "select r.id run, r.slot, r.checked_at, r.entered_at, r.launched_at, s.id stay, s.admitted_at, s.ended_at, s.created_at stay_created from public.room_check_runs r join lateral public.stays_present_at(r.lodge_id, r.checked_at) s on true")).catch(() => null);
+        if (sample) console.log(`\n[${name}] amostra:\n` + JSON.stringify(sample.rows.slice(0, 3), null, 1));
+      }
     }
     // relatório = lista de origem, nos dois Lodges
     await db.as(A.manager);

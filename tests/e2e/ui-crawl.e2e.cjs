@@ -94,6 +94,23 @@ const note = (kind, where, detail) => {
   findings.get(key).where.add(where);
 };
 let loads = 0;
+let ownerChanged = false; // a senha provisória só vale no primeiro acesso
+
+/** No desktop o idioma fica no topo; no celular, no menu "Mais" da barra inferior. */
+async function setLocale(page, locale, mobile) {
+  if (!mobile) {
+    await page.locator(".lang-select select").waitFor({ timeout: 20000 });
+    await page.selectOption(".lang-select select", locale);
+  } else {
+    await page.locator(".bottom-nav").waitFor({ timeout: 20000 });
+    await page.locator(".bottom-nav button").last().click();
+    const d = page.locator("dialog[open] select").first();
+    await d.waitFor({ timeout: 8000 });
+    await d.selectOption(locale);
+    await page.keyboard.press("Escape");
+  }
+  await page.waitForTimeout(600);
+}
 
 async function crawl(browser, label, email, password, routes, locales, viewports) {
   for (const vp of viewports) {
@@ -125,24 +142,26 @@ async function crawl(browser, label, email, password, routes, locales, viewports
     await page.goto(BASE);
     await page.selectOption(".lang-select select", "pt-PT");
     await page.getByLabel("E-mail").fill(email);
-    await page.getByLabel("Senha").fill(password);
+    await page.getByLabel("Senha").fill(label === "gestão" && ownerChanged ? NEW_PASSWORD : password);
     await page.getByRole("button", { name: "Entrar" }).click();
     if (label === "gestão") {
-      await page.getByText("Escolha uma nova senha").waitFor({ timeout: 15000 });
-      await page.getByLabel("Nova senha", { exact: true }).fill(NEW_PASSWORD);
-      await page.getByLabel("Repita a nova senha").fill(NEW_PASSWORD);
-      await page.getByRole("button", { name: "Salvar" }).click();
+      if (!ownerChanged) {
+        await page.getByText("Escolha uma nova senha").waitFor({ timeout: 15000 });
+        await page.getByLabel("Nova senha", { exact: true }).fill(NEW_PASSWORD);
+        await page.getByLabel("Repita a nova senha").fill(NEW_PASSWORD);
+        await page.getByRole("button", { name: "Salvar" }).click();
+        ownerChanged = true;
+      }
       await page.getByRole("button", { name: "Enviar código" }).click();
       await page.waitForTimeout(1200);
       const { data: link } = await admin.auth.admin.generateLink({ type: "magiclink", email, options: { redirectTo: `${BASE}/` } });
       await page.goto(link.properties.action_link);
     }
     await page.locator(".today-head").waitFor({ timeout: 25000 });
+    where = `${label} ${vp.name}`;
     for (const locale of locales) {
       await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded" });
-      await page.locator(".lang-select select").waitFor({ timeout: 20000 });
-      await page.selectOption(".lang-select select", locale);
-      await page.waitForTimeout(600);
+      await setLocale(page, locale, vp.mobile);
       for (const route of routes) {
         where = `${label} ${vp.name} ${locale} ${route}`;
         const t0 = Date.now();
@@ -173,7 +192,7 @@ async function crawl(browser, label, email, password, routes, locales, viewports
       // volta ao padrão para não deixar o idioma da conta mudado
     }
     await page.goto(`${BASE}/`).catch(() => {});
-    await page.selectOption(".lang-select select", "pt-PT").catch(() => {});
+    await setLocale(page, "pt-PT", vp.mobile).catch(() => {});
     await page.waitForTimeout(500);
     await ctx.close();
   }
@@ -190,9 +209,10 @@ async function crawl(browser, label, email, password, routes, locales, viewports
     const emailOf = (p) => demo.find((x) => x.id === p?.staff_id)?.email;
     const office = emailOf(posts.find((p) => p.function === "office" && p.lodge_id === lodges.find((l) => l.code === "AMIENS")?.id)) ?? "pedro.almeida@demo.ds-lodge.test";
     const float = emailOf(posts.find((p) => p.function === "float")) ?? "tomasz.nowak@demo.ds-lodge.test";
-    await crawl(browser, "Office", office, DEMO_PASSWORD, PORTER_ROUTES, ["pt-PT", "en-IE", "pl-PL"], [DESK, PHONE]);
-    await crawl(browser, "Float", float, DEMO_PASSWORD, PORTER_ROUTES, ["pt-PT"], [PHONE]);
-    await crawl(browser, "gestão", OWNER.email, OWNER.password, ROUTES, ["pt-PT", "en-IE", "pl-PL"], [DESK, PHONE]);
+    const parts = (process.env.CRAWL_PARTS ?? "office,float,gestao").split(",");
+    if (parts.includes("office")) await crawl(browser, "Office", office, DEMO_PASSWORD, PORTER_ROUTES, ["pt-PT", "en-IE", "pl-PL"], [DESK, PHONE]);
+    if (parts.includes("float")) await crawl(browser, "Float", float, DEMO_PASSWORD, PORTER_ROUTES, ["pt-PT"], [PHONE]);
+    if (parts.includes("gestao")) await crawl(browser, "gestão", OWNER.email, OWNER.password, ROUTES, ["pt-PT", "en-IE", "pl-PL"], [DESK, PHONE]);
   } catch (error) {
     note("execução", "crawl", error.message.split("\n")[0]);
   } finally {

@@ -16,6 +16,7 @@ const RULES: Array<[RegExp, MessageKey]> = [
   [/interval_too_long/, "errors.intervalTooLong"],
   [/in_future/, "errors.inFuture"],
   [/invalid_quantity|invalid_line/, "errors.invalidQuantity"],
+  [/_not_found|invalid input syntax for type uuid/, "errors.notFound"],
   [/staff_overlap/, "errors.staffOverlap"],
   [/float_overlap/, "errors.floatOverlap"],
   [/role_not_allowed/, "errors.roleNotAllowed"],
