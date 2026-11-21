@@ -21,8 +21,10 @@
   --fg: #0c0c0d;
   --fg2: #46464b;
   --fg3: #6b6b72;
-  --brand: #ea580c;
+  --brand: #f25000;
   --brand-ink: #c2410c;
+  --on-brand: #0c0c0d;
+  --warning: #b45309;
   --primary: #0c0c0d;
   --primary-ink: #ffffff;
   --positive: #15803d;
@@ -35,7 +37,7 @@
   --glass: rgb(255 255 255 / 0.68);
   --glass-ring: rgb(12 12 13 / 0.06);
   --float-shadow: 0 18px 40px -18px rgb(12 12 13 / 0.35);
-  --glow: rgb(234 88 12 / 0.09);
+  --glow: color-mix(in srgb, var(--brand) 9%, transparent);
   color-scheme: light;
 }
 
@@ -50,8 +52,10 @@
   --fg: #ededed;
   --fg2: #a1a1a6;
   --fg3: #8a8a90;
-  --brand: #ea580c;
-  --brand-ink: #fb923c;
+  --brand: #ff6a1a;
+  --brand-ink: #ff7a2e;
+  --on-brand: #0c0c0d;
+  --warning: #fb923c;
   --primary: #ededed;
   --primary-ink: #141415;
   --positive: #4cc38a;
@@ -64,9 +68,25 @@
   --glass: rgb(25 25 27 / 0.7);
   --glass-ring: rgb(237 237 237 / 0.08);
   --float-shadow: 0 18px 40px -18px rgb(0 0 0 / 0.8);
-  --glow: rgb(251 146 60 / 0.08);
+  --glow: color-mix(in srgb, var(--brand) 12%, transparent);
   color-scheme: dark;
 }
+
+/*
+ * Accent colours (Configurações › Preferências). Orange is the default and
+ * needs no rule. Each other accent sets its fill (--brand), the colour of text
+ * written over the fill (--on-brand) and the colour of accent-coloured text
+ * (--brand-ink) for the light theme, then overrides them for the dark one.
+ * accent.test.ts checks the contrast of every pair.
+ */
+html[data-accent="lime"] { --brand: #6fbf00; --brand-ink: #3f6b00; --on-brand: #0c0c0d; }
+html.dark[data-accent="lime"] { --brand: #b6ff1a; --brand-ink: #b8f53a; }
+html[data-accent="yellow"] { --brand: #e8b800; --brand-ink: #7a5b00; --on-brand: #0c0c0d; }
+html.dark[data-accent="yellow"] { --brand: #ffe600; --brand-ink: #ffe94d; }
+html[data-accent="purple"] { --brand: #9f3aff; --brand-ink: #7b1fd6; --on-brand: #ffffff; }
+html.dark[data-accent="purple"] { --brand: #b266ff; --brand-ink: #c07bff; --on-brand: #0c0c0d; }
+html[data-accent="red"] { --brand: #dc0000; --brand-ink: #c40000; --on-brand: #ffffff; }
+html.dark[data-accent="red"] { --brand: #ff3030; --brand-ink: #ff4d4d; --on-brand: #0c0c0d; }
 
 @theme inline {
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
@@ -82,6 +102,8 @@
   --color-fg3: var(--fg3);
   --color-brand: var(--brand);
   --color-brand-ink: var(--brand-ink);
+  --color-on-brand: var(--on-brand);
+  --color-warning: var(--warning);
   --color-primary: var(--primary);
   --color-primary-ink: var(--primary-ink);
   --color-positive: var(--positive);

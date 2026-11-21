@@ -49,7 +49,7 @@ export function MonthCalendar({ year, month, onMonth, selected, onSelect, count,
                   onDragLeave={onDrop ? () => setOver(null) : undefined}
                   onDrop={onDrop ? (e) => { e.preventDefault(); setOver(null); const p = e.dataTransfer.getData('text/plain'); if (p) onDrop(d, p); } : undefined}
                 >
-                  <div className={`figure mb-1 flex h-6 w-6 items-center justify-center rounded-md text-xs ${d === today ? 'bg-brand text-white' : inMonth ? 'text-fg2' : 'text-fg3/50'}`}>{Number(d.slice(8))}</div>
+                  <div className={`figure mb-1 flex h-6 w-6 items-center justify-center rounded-md text-xs ${d === today ? 'bg-brand text-on-brand' : inMonth ? 'text-fg2' : 'text-fg3/50'}`}>{Number(d.slice(8))}</div>
                   <div className="hidden space-y-0.5 md:block">{renderCell(d)}</div>
                   {n > 0 && <div className="flex gap-0.5 md:hidden">{Array.from({ length: Math.min(n, 3) }, (_, i) => <span key={i} className="h-1 w-1 rounded-full bg-fg3" />)}</div>}
                 </div>

@@ -27,7 +27,7 @@ const CAL_TONE = {
   empty: 'bg-raised text-fg2',
   deficit: 'bg-positive/10 text-positive',
   goal: 'bg-positive/10 text-positive',
-  surplus: 'bg-brand/10 text-brand-ink',
+  surplus: 'bg-warning/10 text-warning',
 } as const;
 
 /** A bento tile: the whole tile opens its section. */

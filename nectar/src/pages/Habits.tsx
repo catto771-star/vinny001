@@ -193,7 +193,7 @@ function TodayView({ habits, completions, today, year, month, setValue, onOpen }
         <WeekStrip habits={habits} completions={completions} today={today} selected={day} onSelect={setDay} />
         {risky.length > 0 && (
           <div className="card border-brand/40">
-            <div className="label mb-2 flex items-center gap-2 text-brand-ink"><AlertTriangle size={14} strokeWidth={1.5} />Em risco hoje</div>
+            <div className="label mb-2 flex items-center gap-2 text-warning"><AlertTriangle size={14} strokeWidth={1.5} />Em risco hoje</div>
             <p className="text-sm text-fg2">Sem registro hoje, estas sequências zeram:</p>
             <ul className="mt-2 flex flex-wrap gap-2">
               {risky.map((h) => (
@@ -270,7 +270,7 @@ function WeekStrip({ habits, completions, today, selected, onSelect }: {
               className={`rounded-xl p-1.5 text-center transition-colors duration-150 disabled:opacity-40 ${d === selected ? 'bg-raised outline outline-1 outline-line-strong' : 'hover:bg-raised/50'}`}
             >
               <div className="text-xs text-fg3">{weekdayShort(weekday(d))}</div>
-              <div className={`figure mx-auto my-1 flex h-9 w-9 items-center justify-center rounded-full text-sm ${perfect ? 'bg-brand text-white' : d === today ? 'border border-brand' : 'border border-line'}`}>
+              <div className={`figure mx-auto my-1 flex h-9 w-9 items-center justify-center rounded-full text-sm ${perfect ? 'bg-brand text-on-brand' : d === today ? 'border border-brand' : 'border border-line'}`}>
                 {Number(d.slice(8))}
               </div>
               <div className="figure text-xs text-fg3">{future ? '' : `${done}/${due.length}`}</div>

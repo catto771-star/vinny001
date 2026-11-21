@@ -18,7 +18,7 @@ import { useProjects } from './projects/useProjects';
 const TABS = ['Ativas', 'Pausadas', 'Concluídas'] as const;
 type Tab = (typeof TABS)[number];
 const TAB_STATUS: Record<Tab, GoalStatus> = { Ativas: 'active', Pausadas: 'paused', Concluídas: 'completed' };
-export const PACE_TONE: Record<Pace, string> = { done: 'text-positive', ahead: 'text-positive', on: 'text-fg2', behind: 'text-brand-ink', late: 'text-negative', open: 'text-fg3' };
+export const PACE_TONE: Record<Pace, string> = { done: 'text-positive', ahead: 'text-positive', on: 'text-fg2', behind: 'text-warning', late: 'text-negative', open: 'text-fg3' };
 const short = (day: string) => `${Number(day.slice(8))}/${day.slice(5, 7)}`;
 
 /** A value in the goal's unit: money as R$, a project as %. */

@@ -20,7 +20,7 @@ const FILTERS = ['Em andamento', 'Pausados', 'Concluídos', 'Arquivados'] as con
 type Filter = (typeof FILTERS)[number];
 
 export const HEALTH_TONE: Record<Health, string> = {
-  late: 'text-negative', risk: 'text-brand-ink', ok: 'text-positive', done: 'text-fg3', open: 'text-fg3',
+  late: 'text-negative', risk: 'text-warning', ok: 'text-positive', done: 'text-fg3', open: 'text-fg3',
 };
 
 const short = (day: string) => `${Number(day.slice(8))}/${day.slice(5, 7)}`;

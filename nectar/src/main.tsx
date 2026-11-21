@@ -4,9 +4,11 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 import { applyTheme, readTheme } from './lib/theme';
+import { applyAccent, readAccent } from './lib/accent';
 import './lib/install';
 
 applyTheme(readTheme());
+applyAccent(readAccent());
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {

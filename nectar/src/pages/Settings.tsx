@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Bell, Bot, Database, Download, HeartPulse, Plug, SlidersHorizontal, Smartphone, Trash2, UserRound } from 'lucide-react';
+import { Bell, Bot, Check, Database, Download, HeartPulse, Plug, SlidersHorizontal, Smartphone, Trash2, UserRound } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { write } from '../lib/useTable';
 import { applyTheme, readTheme, type Theme } from '../lib/theme';
+import { ACCENTS, applyAccent, readAccent, type Accent } from '../lib/accent';
 import { CURRENCIES, type Currency } from '../lib/money';
 import { EXPORT_TABLES, OWN_ROWS_ONLY, START_KEY, TIMEZONES, exportFileName, readStart, tzLabel } from '../lib/prefs';
 import { SECTIONS } from '../components/Layout';
@@ -139,6 +140,7 @@ function Account({ email, s }: { email: string; s: S }) {
 
 function Preferences({ s }: { s: S }) {
   const [theme, setTheme] = useState<Theme>(readTheme());
+  const [accent, setAccent] = useState<Accent>(readAccent());
   const paths = SECTIONS.map((x) => x.path);
   const [start, setStart] = useState(readStart(paths));
   const deviceTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -153,12 +155,30 @@ function Preferences({ s }: { s: S }) {
             ))}
           </div>
         </FieldGroup>
+        <FieldGroup label="Cor de destaque">
+          <div className="flex flex-wrap gap-3" role="group" aria-label="Cor de destaque">
+            {ACCENTS.map((a) => {
+              const on = accent === a.key;
+              return (
+                <button
+                  key={a.key} type="button" aria-pressed={on} aria-label={a.label} title={a.label}
+                  onClick={() => { applyAccent(a.key); setAccent(a.key); }}
+                  className={`flex h-11 w-11 items-center justify-center rounded-full transition-[transform,box-shadow] duration-300 ease-out active:scale-90 ${on ? 'scale-100 shadow-[0_0_0_2px_var(--surface),0_0_0_4px_var(--fg)]' : 'hover:scale-110'}`}
+                  style={{ background: a.swatch }}
+                >
+                  <Check size={18} strokeWidth={3} style={{ color: a.tick }} className={`transition-[opacity,transform] duration-300 ${on ? 'scale-100 opacity-100' : 'scale-50 opacity-0'}`} />
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-xs text-fg3">{ACCENTS.find((a) => a.key === accent)?.label}</p>
+        </FieldGroup>
         <Field label="Abrir o app em">
           <select className="input" value={start} onChange={(e) => { setStart(e.target.value); try { localStorage.setItem(START_KEY, e.target.value); } catch { /* this visit only */ } }}>
             {SECTIONS.filter((x) => x.path !== 'configuracoes').map((x) => <option key={x.path} value={x.path}>{x.label}</option>)}
           </select>
         </Field>
-        <p className="-mt-2 text-xs text-fg3">Tema e tela inicial valem para este aparelho.</p>
+        <p className="-mt-2 text-xs text-fg3">Tema, cor de destaque e tela inicial valem para este aparelho.</p>
       </Card>
       <Card title="Região">
         <Field label="Fuso horário">
