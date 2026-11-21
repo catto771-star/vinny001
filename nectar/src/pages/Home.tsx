@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, Bell, Check, CheckSquare } from 'lucide-react';
+import { ArrowUpRight, Bell, Check, CheckSquare, FolderKanban, Target } from 'lucide-react';
 import { useTable } from '../lib/useTable';
 import { formatDay, formatTime, toDay } from '../lib/dates';
 import { num, plural } from '../lib/format';
@@ -9,13 +9,26 @@ import { isDone, routineFor, type Habit, type HabitCompletion } from '../lib/hab
 import { reminderPanel, type Reminder } from '../lib/reminders';
 import { sumNutrients } from '../lib/nutrition';
 import { workoutSummary } from '../lib/training';
-import { dayHeadline, greeting } from '../lib/today';
+import { goalRows, projectRows } from '../lib/homeProgress';
+import { PACE_LABEL, currentValue, type Goal, type GoalEntry } from '../lib/goals';
+import { HEALTH_LABEL, projectProgress } from '../lib/projects';
+import { bankBalance, type Bank, type InvoicePayment, type Transfer, type Tx } from '../lib/finance';
+import { calorieStatus, dayHeadline, greeting } from '../lib/today';
 import { Empty, Figure, Skeleton } from '../components/ui';
+import { useProjects } from './projects/useProjects';
+import { HEALTH_TONE } from './projects/Projects';
+import { PACE_TONE } from './Goals';
 import { useHealth } from './health/useHealth';
 import { energyForDay } from './health/energyForDay';
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const WEEKDAY = new Intl.DateTimeFormat('pt-BR', { weekday: 'short' });
+const CAL_TONE = {
+  empty: 'bg-raised text-fg2',
+  deficit: 'bg-positive/10 text-positive',
+  goal: 'bg-positive/10 text-positive',
+  surplus: 'bg-brand/10 text-brand-ink',
+} as const;
 
 /** A bento tile: the whole tile opens its section. */
 function Tile({ to, title, meta, className = '', children }: { to: string; title: string; meta?: ReactNode; className?: string; children: ReactNode }) {
@@ -47,6 +60,13 @@ export default function Home() {
   const completions = useTable<HabitCompletion>('habit_completions', 'id,habit_id,completed_date,value');
   const reminders = useTable<Reminder>('reminders', '*', { column: 'datetime' });
   const h = useHealth();
+  const projects = useProjects();
+  const goals = useTable<Goal>('goals', '*', { column: 'created_at' });
+  const entries = useTable<GoalEntry>('goal_entries', '*', { column: 'date' });
+  const banks = useTable<Bank>('banks');
+  const txs = useTable<Tx>('transactions');
+  const transfers = useTable<Transfer>('transfers');
+  const payments = useTable<InvoicePayment>('card_invoice_payments');
   const now = new Date();
   const today = toDay(now);
 
@@ -62,6 +82,20 @@ export default function Home() {
   const summary = workout ? workoutSummary(workout, h.sets.rows, h.workouts.rows, h.typeById) : null;
   const eaten = sumNutrients(h.foodLogs.rows.filter((l) => l.date === today));
   const { target, dayType } = energyForDay(h, today);
+  const cal = calorieStatus(eaten.kcal, target?.kcal ?? 0);
+
+  const projectPct = (id: string) => projectProgress(projects.tasksOf(id), projects.stepsOf(id)).pct;
+  const projectList = projectRows(projects.projects.rows, (p) => projectPct(p.id), today);
+  const goalList = goalRows(goals.rows, (g) => {
+    const bank = banks.rows.find((b) => b.id === g.linked_bank_id);
+    return currentValue(g, {
+      entries: entries.rows, habits: habits.rows, completions: completions.rows,
+      projectPct: g.linked_project_id ? projectPct(g.linked_project_id) : undefined,
+      bankBalance: bank ? bankBalance(bank, txs.rows, transfers.rows, payments.rows) : undefined,
+    });
+  }, today);
+  const loadingProjects = projects.projects.loading || projects.tasks.loading || projects.steps.loading || projects.links.loading;
+  const loadingGoals = goals.loading || entries.loading || banks.loading || txs.loading;
 
   const loadingTasks = tasks.loading;
   const loadingHabits = habits.loading || completions.loading;
@@ -71,39 +105,35 @@ export default function Home() {
 
   return (
     <>
-      <header className="mb-8 md:mb-10">
+      <header className="mb-7 md:mb-8">
         <p className="label">{greeting(now.getHours())} · {capitalize(formatDay(today))}</p>
         {ready
-          ? <h1 className="display mt-3 max-w-[18ch]">{headline}</h1>
-          : <div className="mt-4 space-y-3" aria-busy="true" aria-label="Carregando"><Skeleton className="h-10 w-[80%] max-w-xl" /><Skeleton className="h-10 w-[55%] max-w-sm" /></div>}
+          ? <h1 className="mt-2 max-w-[46ch] text-[20px] leading-7 font-medium tracking-[-0.02em] text-fg md:text-[24px] md:leading-8">{headline}</h1>
+          : <div className="mt-3" aria-busy="true" aria-label="Carregando"><Skeleton className="h-6 w-[70%] max-w-md" /></div>}
       </header>
 
       <div className="stagger grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-12">
-        {/* Calories: the tile that leads the day. */}
-        <Tile to="/saude" title="Calorias" className="col-span-2 lg:order-1 lg:col-span-5"
+        {/* Calories: a compact read of the day, in four lines. */}
+        <Tile to="/saude" title="Calorias" className="col-span-2 lg:order-2 lg:col-span-4"
           meta={<span className="text-xs text-fg3">{dayType === 'training' ? 'dia de treino' : 'dia de descanso'}</span>}>
-          {loadingFood ? <Skeleton className="h-14 w-40" /> : (
-            <div className="flex items-baseline gap-2">
-              <Figure value={num(eaten.kcal)} className="text-[clamp(44px,13vw,64px)] leading-none font-medium tracking-[-0.04em]" />
-              {target && <span className="figure text-[15px] text-fg3">/ {num(target.kcal)} kcal</span>}
-            </div>
-          )}
-          <p className="mt-2 text-sm text-fg2">
-            {!target ? 'Cadastre suas metas em Saúde › Plano.'
-              : eaten.kcal <= target.kcal ? `Faltam ${num(target.kcal - eaten.kcal)} kcal para a meta.` : `${num(eaten.kcal - target.kcal)} kcal acima da meta.`}
-          </p>
-          {target && (
+          {loadingFood ? <div className="space-y-3"><Skeleton className="h-8 w-40" /><Skeleton className="h-3.5 w-28" /><Skeleton className="h-3 w-24" /></div> : !target ? (
             <>
-              <div className="mt-5"><Meter value={eaten.kcal} max={target.kcal} thick /></div>
-              <dl className="mt-6 grid grid-cols-3 gap-4">
-                {([['Proteína', eaten.protein_g, target.protein_g], ['Carbo', eaten.carbs_g, target.carbs_g], ['Gordura', eaten.fat_g, target.fat_g]] as const).map(([label, value, goal]) => (
-                  <div key={label} className="min-w-0">
-                    <dt className="text-xs text-fg3">{label}</dt>
-                    <dd className="mt-1 whitespace-nowrap"><span className="figure text-[17px] text-fg">{num(value)}</span><span className="figure text-xs text-fg3"> / {num(goal)} g</span></dd>
-                    <div className="mt-2"><Meter value={value} max={goal} tone="var(--fg)" /></div>
-                  </div>
-                ))}
-              </dl>
+              <Figure value={num(eaten.kcal)} unit="kcal" className="text-[28px] leading-8 font-medium" />
+              <p className="mt-2 text-sm text-fg2">Cadastre suas metas em Saúde › Plano.</p>
+            </>
+          ) : (
+            <>
+              <div className="flex items-baseline gap-1.5">
+                <Figure value={num(eaten.kcal)} className="text-[28px] leading-8 font-medium tracking-[-0.03em]" />
+                <span className="figure text-sm text-fg3">/ {num(target.kcal)} kcal</span>
+              </div>
+              <div className="mt-3"><Meter value={eaten.kcal} max={target.kcal} /></div>
+              <p className="mt-3 text-sm font-medium">{cal.done}</p>
+              <p className="mt-0.5 text-xs text-fg3">{cal.rest}</p>
+              <p className={`mt-3 inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${CAL_TONE[cal.state]}`}>{cal.verdict}</p>
+              <p className="figure mt-4 text-xs text-fg3">
+                P {num(eaten.protein_g)}/{num(target.protein_g)} · C {num(eaten.carbs_g)}/{num(target.carbs_g)} · G {num(eaten.fat_g)}/{num(target.fat_g)} g
+              </p>
             </>
           )}
         </Tile>
@@ -111,7 +141,7 @@ export default function Home() {
         {/* Habits: one segment per habit of today. */}
         <Tile to="/habitos" title="Hábitos" className="col-span-1 lg:order-3 lg:col-span-4">
           {loadingHabits ? <Skeleton className="h-9 w-20" /> : (
-            <Figure value={doneHabits} unit={`de ${routine.length}`} className="text-[34px] leading-none font-medium" />
+            <Figure value={doneHabits} unit={`de ${routine.length}`} className="text-[28px] leading-8 font-medium" />
           )}
           <div className="mt-4 flex gap-1" aria-hidden>
             {(loadingHabits ? [0, 1, 2, 3] : routine).map((x, i) => (
@@ -137,7 +167,7 @@ export default function Home() {
         <Tile to="/saude" title="Treino" className="col-span-1 lg:order-4 lg:col-span-3">
           {h.workouts.loading ? <Skeleton className="h-9 w-24" /> : summary ? (
             <>
-              <Figure value={num(summary.tonnage)} unit="kg" className="text-[34px] leading-none font-medium" />
+              <Figure value={num(summary.tonnage)} unit="kg" className="text-[28px] leading-8 font-medium" />
               <p className="mt-3 truncate text-sm font-medium">{workout?.title || 'Treino registrado'}</p>
               <p className="mt-0.5 text-xs text-fg3">
                 {summary.sets} {plural(summary.sets, 'série', 'séries')}
@@ -153,7 +183,7 @@ export default function Home() {
         </Tile>
 
         {/* Tasks */}
-        <Tile to="/tarefas" title="Para hoje" className="col-span-2 lg:order-2 lg:col-span-7"
+        <Tile to="/tarefas" title="Para hoje" className="col-span-2 lg:order-1 lg:col-span-8"
           meta={!loadingTasks && <span className="figure text-xs text-fg3">{doneToday} de {doneToday + dueToday.length} feitas</span>}>
           {loadingTasks ? (
             <div className="space-y-4">{[70, 52, 64, 44].map((w) => <Skeleton key={w} className="h-4" style={{ width: `${w}%` }} />)}</div>
@@ -193,6 +223,55 @@ export default function Home() {
                 );
               })}
             </ol>
+          )}
+        </Tile>
+
+        {/* Projects in motion */}
+        <Tile to="/projetos" title="Projetos" className="col-span-2 lg:order-6 lg:col-span-6"
+          meta={projectList.more > 0 && <span className="text-xs text-fg3">+{projectList.more} em andamento</span>}>
+          {loadingProjects ? (
+            <div className="space-y-5">{[0, 1].map((i) => <div key={i} className="space-y-2"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-1.5 w-full" /></div>)}</div>
+          ) : projectList.rows.length === 0 ? <Empty icon={<FolderKanban size={18} strokeWidth={1.5} />}>Nenhum projeto em andamento</Empty> : (
+            <ul className="space-y-5">
+              {projectList.rows.map((r) => (
+                <li key={r.id}>
+                  <div className="mb-2 flex items-baseline gap-3">
+                    <span className="mr-auto truncate text-[15px] font-medium">{r.name}</span>
+                    <span className="figure text-sm">{r.pct}%</span>
+                  </div>
+                  <Meter value={r.pct} max={100} tone={r.color} />
+                  <p className="mt-1.5 text-xs text-fg3">
+                    <span className={HEALTH_TONE[r.health]}>{HEALTH_LABEL[r.health]}</span>
+                    {r.dueText && <> · prazo {r.dueText}{r.daysLeft != null && r.daysLeft >= 0 && <> ({r.daysLeft} {plural(r.daysLeft, 'dia', 'dias')})</>}</>}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Tile>
+
+        {/* Goals in motion */}
+        <Tile to="/metas" title="Metas" className="col-span-2 lg:order-7 lg:col-span-6"
+          meta={goalList.more > 0 && <span className="text-xs text-fg3">+{goalList.more} ativas</span>}>
+          {loadingGoals ? (
+            <div className="space-y-5">{[0, 1].map((i) => <div key={i} className="space-y-2"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-1.5 w-full" /></div>)}</div>
+          ) : goalList.rows.length === 0 ? <Empty icon={<Target size={18} strokeWidth={1.5} />}>Nenhuma meta ativa</Empty> : (
+            <ul className="space-y-5">
+              {goalList.rows.map((r) => (
+                <li key={r.id}>
+                  <div className="mb-2 flex items-baseline gap-3">
+                    <span className="mr-auto truncate text-[15px] font-medium">{r.title}</span>
+                    <span className="figure text-sm">{r.pct}%</span>
+                  </div>
+                  <Meter value={r.pct} max={100} tone="var(--brand)" />
+                  <p className="mt-1.5 text-xs text-fg3">
+                    <span className={PACE_TONE[r.pace]}>{PACE_LABEL[r.pace]}</span>
+                    {r.valueText && <>{' · '}<span className="figure">{r.valueText}</span></>}
+                    {r.dueText && <> · até {r.dueText}</>}
+                  </p>
+                </li>
+              ))}
+            </ul>
           )}
         </Tile>
       </div>

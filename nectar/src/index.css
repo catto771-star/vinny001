@@ -109,7 +109,7 @@ body {
 
 /* Editorial type: big, tight titles; small spaced labels. */
 @utility display {
-  @apply text-[clamp(32px,7.5vw,48px)] leading-[1.02] font-semibold tracking-[-0.04em] text-balance;
+  @apply text-[clamp(26px,5.5vw,34px)] leading-[1.1] font-semibold tracking-[-0.03em] text-balance;
 }
 
 @utility card {
