@@ -28,6 +28,7 @@ const enIE = {
     comingInPhase: "Available in phase {phase}",
   },
   errors: {
+    residentNotInLodge: "This resident is no longer in this Lodge at that time.",
     notFound: "This record was not found. It may have been removed, or the link is wrong.",
     fieldRequired: "Fill in the required field (it cannot be blank).",
     invalidRange: "Choose a valid period (at most 62 days) or month.",

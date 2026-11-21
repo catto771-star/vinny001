@@ -29,6 +29,7 @@ const ptPT: Messages = {
     comingInPhase: "Disponível na fase {phase}",
   },
   errors: {
+    residentNotInLodge: "Este residente não está mais neste Lodge nesse horário.",
     notFound: "Registro não encontrado. Ele pode ter sido removido, ou o link está errado.",
     fieldRequired: "Preencha o campo obrigatório (não pode ficar em branco).",
     invalidRange: "Escolha um período (no máximo 62 dias) ou mês válido.",

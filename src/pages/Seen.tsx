@@ -4,6 +4,7 @@ import { useAuth } from "@/auth/AuthProvider";
 import { useI18n, type MessageKey } from "@/i18n";
 import { supabase } from "@/lib/supabase";
 import { useLatestRequest } from "@/lib/useLatestRequest";
+import { useOccupancy } from "@/lib/useOccupancy";
 import { errorKey } from "@/lib/errors";
 import { roomLabel } from "@/lib/rooms";
 import { operationalDay } from "@/lib/time";
@@ -141,6 +142,10 @@ function RecordSighting({
   onDone: (absenceId: string | null) => void;
 }) {
   const { t } = useI18n();
+  // Só quem está no Lodge agora: quem já saiu aparece na tabela do dia, mas não pode ser "visto" de novo.
+  const { beds } = useOccupancy(lodgeId);
+  const current = new Set(beds.filter((b) => b.stay_id).map((b) => b.stay_id));
+  const candidates = residents.filter((r) => current.has(r.stay_id));
   const [residentId, setResidentId] = useState("");
   const [at, setAt] = useState<Date | null>(new Date());
   const [place, setPlace] = useState("");
@@ -174,7 +179,7 @@ function RecordSighting({
           {t("sheet.resident")}
           <select value={residentId} onChange={(e) => setResidentId(e.target.value)} autoFocus>
             <option value="" />
-            {residents.map((r) => (
+            {candidates.map((r) => (
               <option key={r.stay_id} value={r.resident_id}>
                 {roomLabel(t, r.room_kind, r.room_code)} · {r.bed_number} — {residentName(r)}
               </option>

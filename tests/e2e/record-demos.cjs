@@ -826,18 +826,16 @@ const PREP = {
     const lid = (c) => lodges.find((l) => l.code === c)?.id;
     return { connolly: em(posts.find((p) => p.function === "office" && p.lodge_id === lid("CONNOLLY"))), float: em(posts.find((p) => p.function === "float")) };
   };
+  // Sessão nova a cada cena: a plataforma encerra sessões paradas há 15 minutos (como deve ser).
   const stateFile = async (role) => {
-    if (states[role]) return states[role];
-    const file = path.join(stateDir, `${role}.json`);
-    if (role === "owner") {
-      if (!fs.existsSync(file)) await saveState(browser, OWNER.email, NEW_PASSWORD, file, { management: true });
-    } else if (role === "niamh") {
-      if (!fs.existsSync(file)) await saveState(browser, "niamh.doyle@demo.ds-lodge.test", DEMO_PASSWORD, file);
-    } else if (role === "connolly") {
+    const file = path.join(stateDir, `${role}-${Date.now()}.json`);
+    if (role === "owner") await saveState(browser, OWNER.email, NEW_PASSWORD, file, { management: true });
+    else if (role === "niamh") await saveState(browser, "niamh.doyle@demo.ds-lodge.test", DEMO_PASSWORD, file);
+    else if (role === "connolly") {
       const h = await holders();
       await saveState(browser, h.connolly ?? "lucas.ferreira@demo.ds-lodge.test", DEMO_PASSWORD, file);
     }
-    return (states[role] = file);
+    return file;
   };
   // A conta demo usada nos vídeos fala português.
   await admin.from("staff").update({ locale: "pt-PT" }).eq("email", "niamh.doyle@demo.ds-lodge.test");

@@ -29,6 +29,7 @@ const plPL: Messages = {
     comingInPhase: "Dostępne w fazie {phase}",
   },
   errors: {
+    residentNotInLodge: "Ten mieszkaniec nie przebywa już w tym Lodge o tej porze.",
     notFound: "Nie znaleziono rekordu. Mógł zostać usunięty albo link jest błędny.",
     fieldRequired: "Wypełnij wymagane pole (nie może być puste).",
     invalidRange: "Wybierz prawidłowy okres (maks. 62 dni) lub miesiąc.",

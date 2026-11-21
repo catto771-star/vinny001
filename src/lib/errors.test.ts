@@ -44,4 +44,9 @@ describe("errorKey", () => {
     for (const m of ["resident_not_found", "ticket_not_found", "run_not_found", "post_not_found", "line_not_found", 'invalid input syntax for type uuid: "not-a-uuid"'])
       expect(errorKey({ message: m }), m).toBe("errors.notFound");
   });
+
+  it("residente que não está no Lodge e hora do visto no futuro", () => {
+    expect(errorKey({ message: "resident_not_in_lodge" })).toBe("errors.residentNotInLodge");
+    expect(errorKey({ message: "invalid_seen_time" })).toBe("errors.inFuture");
+  });
 });
