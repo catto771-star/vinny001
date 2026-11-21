@@ -29,6 +29,11 @@ const plPL: Messages = {
     comingInPhase: "Dostępne w fazie {phase}",
   },
   errors: {
+    fieldRequired: "Wypełnij wymagane pole (nie może być puste).",
+    invalidRange: "Wybierz prawidłowy okres (maks. 62 dni) lub miesiąc.",
+    intervalTooLong: "Przedział może trwać najwyżej 24 godziny.",
+    inFuture: "To nie może być w przyszłości.",
+    invalidQuantity: "Sprawdź ilość i cenę.",
     staffOverlap: "Ta osoba ma już zmianę w tym czasie.",
     floatOverlap: "W tym czasie w grafiku jest już Float.",
     roleNotAllowed: "Stanowisko tej osoby nie pozwala na tę funkcję.",

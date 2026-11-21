@@ -21,4 +21,22 @@ describe("errorKey", () => {
     expect(errorKey({ message: "same_lodge" })).toBe("errors.sameLodge");
     expect(errorKey({ message: "invalid_period" })).toBe("errors.invalidPeriod");
   });
+
+  it("campo em branco e entradas fora dos limites (varredura em massa) têm mensagem própria", () => {
+    for (const m of [
+      'new row for relation "residents" violates check constraint "residents_first_name_check"',
+      'new row for relation "maintenance_tickets" violates check constraint "maintenance_tickets_location_check"',
+      'new row for relation "task_extras" violates check constraint "task_extras_title_check"',
+      'new row for relation "products" violates check constraint "products_name_check"',
+      "supplier_required",
+    ]) expect(errorKey({ message: m }), m).toBe("errors.fieldRequired");
+    expect(errorKey({ message: "invalid_range" })).toBe("errors.invalidRange");
+    expect(errorKey({ message: "range_too_large" })).toBe("errors.invalidRange");
+    expect(errorKey({ message: "invalid_month" })).toBe("errors.invalidRange");
+    expect(errorKey({ message: "interval_too_long" })).toBe("errors.intervalTooLong");
+    expect(errorKey({ message: "in_future" })).toBe("errors.inFuture");
+    expect(errorKey({ message: "invalid_quantity" })).toBe("errors.invalidQuantity");
+    expect(errorKey({ message: "invalid_line" })).toBe("errors.invalidQuantity");
+    expect(errorKey({ message: "lines_required" })).toBe("errors.fieldRequired");
+  });
 });

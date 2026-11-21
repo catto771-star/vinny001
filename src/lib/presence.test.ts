@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isAfterPresenceAlert, keyToResult, monthCountLabel, nextResidentIndex, noShowReviewDay, sheetProgress, slotInstant } from "./presence";
+import { isAfterPresenceAlert, resolveDayParam, resolveLodgeParam, keyToResult, monthCountLabel, nextResidentIndex, noShowReviewDay, sheetProgress, slotInstant } from "./presence";
 
 describe("Folha do dia", () => {
   it("progresso conta só linhas com residente; completo quando todos marcados", () => {
@@ -47,5 +47,15 @@ describe("No Show", () => {
   it("contador mensal sem teto", () => {
     expect(monthCountLabel(2)).toBe("2/3");
     expect(monthCountLabel(4)).toBe("4/3");
+  });
+
+  it("parâmetros da folha impressa: dia e Lodge inválidos ou ausentes caem no padrão", () => {
+    expect(resolveDayParam("2026-11-20", "2026-11-21")).toBe("2026-11-20");
+    for (const bad of [null, "", "abc", "2026-13-45", "2026-02-30", "20-11-2026", "2026-11-20; drop table"]) expect(resolveDayParam(bad, "2026-11-21"), String(bad)).toBe("2026-11-21");
+    const lodges = [{ id: "a" }, { id: "c" }];
+    expect(resolveLodgeParam("c", lodges)).toBe("c");
+    expect(resolveLodgeParam("zzz", lodges)).toBe("a");
+    expect(resolveLodgeParam(null, lodges)).toBe("a");
+    expect(resolveLodgeParam(null, [])).toBe("");
   });
 });

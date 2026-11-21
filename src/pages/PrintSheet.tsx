@@ -4,7 +4,8 @@ import { useAuth } from "@/auth/AuthProvider";
 import { useI18n } from "@/i18n";
 import { supabase } from "@/lib/supabase";
 import { roomLabel } from "@/lib/rooms";
-import { formatCivilDate } from "@/lib/time";
+import { formatCivilDate, operationalDay } from "@/lib/time";
+import { resolveDayParam, resolveLodgeParam } from "@/lib/presence";
 import { residentName } from "@/lib/types";
 import { groupByRoom, useOccupancy } from "@/lib/useOccupancy";
 
@@ -22,8 +23,8 @@ export function PrintSheet() {
   const { t, locale } = useI18n();
   const { lodges } = useAuth();
   const [params] = useSearchParams();
-  const lodgeId = params.get("lodge") ?? lodges[0]?.id ?? "";
-  const day = params.get("day") ?? "";
+  const lodgeId = resolveLodgeParam(params.get("lodge"), lodges);
+  const day = resolveDayParam(params.get("day"), operationalDay(new Date()));
   const lodge = lodges.find((l) => l.id === lodgeId);
   const { beds, loading } = useOccupancy(lodgeId);
   const [slots, setSlots] = useState<string[]>([]);

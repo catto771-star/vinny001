@@ -142,6 +142,53 @@ describe("Rota", () => {
     expect(floats.rows).toEqual([{ day2: true }]);
   });
 
+  it("intervalo absurdo é recusado (não gera milhares de dias e trava o banco)", async () => {
+    await db.as(manager);
+    expect(await db.error("select * from public.coverage_gaps('0001-01-01T00:00:00Z', '2099-12-31T00:00:00Z')")).toMatch(/range_too_large/);
+    expect(await db.error("select * from public.coverage_gaps('2026-11-02T00:00:00Z', '2026-11-01T00:00:00Z')")).toMatch(/invalid_range/);
+    expect(await db.error("select * from public.coverage_gaps(null, null)")).toMatch(/invalid_range/);
+    expect(await db.error("select * from public.coverage_gaps('2026-11-02T00:00:00Z', 'infinity')")).toMatch(/range_too_large|invalid_range/);
+    expect(await db.error("select public.publish_rota('0001-01-01T00:00:00Z', '2099-12-31T00:00:00Z')")).toMatch(/range_too_large/);
+    // uma semana (e até 62 dias) continua funcionando
+    expect(await db.error("select * from public.coverage_gaps(now(), now() + interval '62 days')")).toBeNull();
+  });
+
+  it("relatório mensal recusa mês inválido (infinity trava em loop; 2099 e ano 1 não fazem sentido)", async () => {
+    await db.as(manager);
+    for (const bad of ["infinity", "-infinity", "0001-01-01", "2099-12-31"]) {
+      expect(await db.error("select public.report_monthly($1, $2::date)", [amiens, bad]), bad).toMatch(/invalid_month/);
+      expect(await db.error("select * from public.report_details($1, $2::date, 'occupancy.admissions')", [amiens, bad]), bad).toMatch(/invalid_month/);
+    }
+    expect(await db.error("select public.report_monthly($1, null)", [amiens])).toMatch(/invalid_month/);
+    expect(await db.error("select public.report_monthly($1, current_date)", [amiens])).toBeNull();
+  });
+
+  it("entradas absurdas viram recusas claras (varredura em massa): horas, intervalos, quantidades e compras", async () => {
+    const p = await product("Leite fuzz");
+    await db.as(manager);
+    // horas planejadas × efetivas e atuação: intervalo finito e de até 62 dias
+    expect(await db.error("select * from public.staff_hours('2026-11-01T00:00:00Z', 'infinity')")).toMatch(/invalid_range/);
+    expect(await db.error("select * from public.staff_hours('0001-01-01T00:00:00Z', '2099-01-01T00:00:00Z')")).toMatch(/range_too_large/);
+    expect(await db.error("select * from public.staff_work_log($1, '-infinity', now())", [officeA.staffId])).toMatch(/invalid_range/);
+    // horas lançadas pela gestão: no máximo 24 h, e não no futuro
+    const add = (start: string, end: string) => db.error("select public.add_work_interval($1, $2, $3::timestamptz, $4::timestamptz, 'x')", [officeA.staffId, amiens, start, end]);
+    expect(await add("1970-01-01T00:00:00Z", "2099-12-31T00:00:00Z")).toMatch(/interval_too_long/);
+    expect(await add("2099-01-01T08:00:00Z", "2099-01-01T12:00:00Z")).toMatch(/in_future/);
+    expect(await add("2026-11-01T08:00:00Z", "2026-11-01T12:00:00Z")).toBeNull();
+    // quantidades e preços dentro do que a coluna comporta
+    expect(await db.error("select public.transfer_product($1, $2, $3, 1000000000000, null)", [p, amiens, connolly])).toMatch(/invalid_quantity/);
+    const buy = (lines: string, supplier = "Musgrave") => db.error("select public.create_purchase($1, current_date, null, $2::jsonb)", [supplier, lines]);
+    expect(await buy(`[{"product_id":"${p}","quantity":1000000000000,"unit_price":1}]`)).toMatch(/invalid_line/);
+    expect(await buy(`[{"product_id":"${p}","quantity":2,"unit_price":"x"}]`)).toMatch(/invalid_line/);
+    expect(await buy(`[{"product_id":null,"quantity":2,"unit_price":1}]`)).toMatch(/invalid_line/);
+    expect(await buy("{\"a\":1}")).toMatch(/lines_required/);
+    expect(await buy("[1]")).toMatch(/invalid_line/);
+    expect(await buy(`[{"product_id":"${p}","quantity":2,"unit_price":1}]`, "   ")).toMatch(/supplier_required/);
+    // nada ficou gravado pelas compras recusadas
+    await db.asSuperuser();
+    expect((await db.one<{ n: string }>("select count(*) n from public.purchases where supplier in ('Musgrave', '   ')")).n).toBe("0");
+  });
+
   it("horários editáveis inclusive depois do fato (com histórico)", async () => {
     await db.as(manager);
     const id = (await db.one<{ id: string }>(`select public.save_rota_shift(null, $1, $2, 'office', ${at(-2, "07:00")}, ${at(-2, "19:00")}) as id`, [officeA.staffId, amiens])).id;

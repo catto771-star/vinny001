@@ -82,3 +82,15 @@ export function isAfterPresenceAlert(now: Date): boolean {
 export function monthCountLabel(count: number, limit = 3): string {
   return `${count}/${limit}`;
 }
+
+/** Dia vindo da URL (?day=): só aceita uma data real AAAA-MM-DD; senão usa o padrão (o dia operacional atual). */
+export function resolveDayParam(value: string | null, fallback: string): string {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return fallback;
+  const d = new Date(`${value}T00:00:00Z`);
+  return Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== value ? fallback : value;
+}
+
+/** Lodge vindo da URL (?lodge=): só aceita um Lodge que a pessoa enxerga; senão o primeiro. */
+export function resolveLodgeParam(value: string | null, lodges: { id: string }[]): string {
+  return lodges.find((l) => l.id === value)?.id ?? lodges[0]?.id ?? "";
+}

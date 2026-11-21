@@ -29,6 +29,11 @@ const ptPT: Messages = {
     comingInPhase: "Disponível na fase {phase}",
   },
   errors: {
+    fieldRequired: "Preencha o campo obrigatório (não pode ficar em branco).",
+    invalidRange: "Escolha um período (no máximo 62 dias) ou mês válido.",
+    intervalTooLong: "Um intervalo pode ter no máximo 24 horas.",
+    inFuture: "Isso não pode estar no futuro.",
+    invalidQuantity: "Confira a quantidade e o preço.",
     staffOverlap: "Esta pessoa já tem um turno neste horário.",
     floatOverlap: "Já existe um Float na escala neste horário.",
     roleNotAllowed: "O cargo desta pessoa não permite esta função.",

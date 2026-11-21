@@ -28,6 +28,11 @@ const enIE = {
     comingInPhase: "Available in phase {phase}",
   },
   errors: {
+    fieldRequired: "Fill in the required field (it cannot be blank).",
+    invalidRange: "Choose a valid period (at most 62 days) or month.",
+    intervalTooLong: "An interval can be 24 hours at most.",
+    inFuture: "This cannot be in the future.",
+    invalidQuantity: "Check the quantity and price.",
     staffOverlap: "This person already has a shift at that time.",
     floatOverlap: "There is already a Float on the rota at that time.",
     roleNotAllowed: "This person's role cannot take that function.",
