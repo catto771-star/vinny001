@@ -293,14 +293,27 @@ scene("04", "folha-do-dia", "Folha do dia (Room Check): lançar o check pelo tec
     await u.say("V = visto · N = não visto · A = ausência · setas movem a linha. Tudo pelo teclado", 2600);
     await page.locator(".sheet-table tbody tr:has(.result-buttons)").first().click();
     const rows = await page.locator(".sheet-table tbody tr:has(.result-buttons)").count();
+    let explained = false;
     for (let i = 0; i < Math.min(rows, 60); i++) {
       const pending = await page.locator(".sheet-table tr:has(.result-buttons):not(:has(button[aria-pressed='true']))").count();
       if (!pending) break;
       await page.keyboard.press(i === 3 ? "n" : "v");
       await page.waitForTimeout(i < 8 ? 380 : 130);
+      const ask = page.getByRole("dialog").filter({ hasText: "ausência comunicada" });
+      if (await ask.isVisible().catch(() => false)) {
+        if (!explained) { await u.say("Quem tem ausência comunicada: a plataforma pergunta antes de tratar como presente", 2600); explained = true; }
+        await u.click(ask.getByRole("button", { name: "Não, manter a ausência" }), 600);
+      }
     }
     const leftovers = page.locator(".sheet-table tr:has(.result-buttons):not(:has(button[aria-pressed='true']))");
-    for (let k = 0, n = await leftovers.count(); k < n; k++) { await leftovers.first().getByRole("button", { name: "Visto", exact: true }).click().catch(() => {}); await page.waitForTimeout(120); }
+    for (let k = 0, n = await leftovers.count(); k < n; k++) {
+      const row = leftovers.first();
+      await row.evaluate((el) => el.scrollIntoView({ block: "center" })); // a barra fixa de baixo cobre as últimas linhas
+      const absent = row.getByRole("button", { name: "Ausência" });
+      if (await absent.isEnabled().catch(() => false)) await absent.click({ timeout: 4000 }).catch(() => {});
+      else await row.getByRole("button", { name: "Visto", exact: true }).click({ timeout: 4000 }).catch(() => {});
+      await page.waitForTimeout(150);
+    }
     await u.say("A barra de baixo mostra o progresso; só lança quando todos estão marcados", 2200);
     await u.click(page.getByRole("button", { name: "Lançar check" }), 700);
     await page.getByText("Check lançado.").waitFor({ timeout: 15000 });

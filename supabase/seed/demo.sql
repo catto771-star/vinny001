@@ -957,7 +957,8 @@ declare
   v_last date;
   n integer;
 begin
-  select coalesce(array_agg(id), '{}') into v_res from public.residents where is_demo;
+  -- Demo = marcado como demo OU admitido pela equipe demo durante uma demonstração (ex.: admissões feitas pela interface).
+  select coalesce(array_agg(id), '{}') into v_res from public.residents where is_demo or created_by = any (v_staff);
   select coalesce(array_agg(seeded_at), '{}'), min(first_day), max(last_day) into v_runs, v_first, v_last from demo.runs;
   -- Sem auditoria nem bloqueios durante a limpeza (as linhas de auditoria do seed também saem).
   perform demo.set_triggers(false);

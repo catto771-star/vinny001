@@ -4,7 +4,7 @@ import { useAuth } from "@/auth/AuthProvider";
 import { useI18n, type MessageKey } from "@/i18n";
 import { supabase } from "@/lib/supabase";
 import { errorKey } from "@/lib/errors";
-import { defaultTimes, weekDays, weekStart, type RotaFunction } from "@/lib/management";
+import { defaultTimes, rotaRoles, weekDays, weekStart, type RotaFunction } from "@/lib/management";
 import { addDays, dublinParts, dublinWallTimeToDate, formatCivilDate, formatTime, isoDay, operationalDay } from "@/lib/time";
 import { staffName, type StaffRole } from "@/lib/types";
 import { useLatestRequest } from "@/lib/useLatestRequest";
@@ -21,12 +21,6 @@ type Gap = { lodge_id: string | null; lodge_code: string | null; kind: "day" | "
 type Person = { id: string; full_name: string; display_name: string | null; role: StaffRole };
 
 export const FN_LABEL: Record<RotaFunction, MessageKey> = { office: "rota.office", float: "rota.float", cleaner: "rota.cleaner", manager: "rota.managerFn" };
-const FN_ALLOWED: Record<RotaFunction, StaffRole[]> = {
-  office: ["porter", "manager", "owner", "developer"],
-  float: ["porter", "manager", "owner", "developer"],
-  cleaner: ["cleaner"],
-  manager: ["manager", "owner", "developer"],
-};
 
 /** Dia civil (Dublin) em que um instante começa. */
 function civilDay(iso: string): string {
@@ -166,14 +160,14 @@ function ShiftDialog({ day, shift, people, onClose, onDone }: { day: string; shi
   const [endT, setEndT] = useState(shift ? formatTime(shift.ends_at, "en-GB") : defaultTimes(initialFn, false).end);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const eligible = people.filter((p) => FN_ALLOWED[fn].includes(p.role));
+  const eligible = people.filter((p) => rotaRoles(fn).includes(p.role));
 
   function pickFn(next: RotaFunction, night = false) {
     setFn(next);
     const d = defaultTimes(next, night);
     setStartT(d.start);
     setEndT(d.end);
-    if (!FN_ALLOWED[next].includes(people.find((p) => p.id === staffId)?.role ?? "porter")) setStaffId("");
+    if (!rotaRoles(next).includes(people.find((p) => p.id === staffId)?.role ?? "porter")) setStaffId("");
   }
 
   async function submit(e: FormEvent) {

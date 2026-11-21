@@ -183,6 +183,22 @@ describe("demo.seed", () => {
 });
 
 describe("demo.clear", () => {
+  it("residentes admitidos pela equipe demo durante uma demonstração (sem is_demo) também saem", async () => {
+    await db.asSuperuser();
+    const staff = await db.one<{ id: string }>("select id from public.staff where email like '%@demo.ds-lodge.test' and role = 'porter' limit 1");
+    const bed = await db.one<{ id: string; lodge_id: string }>(
+      `select b.id, r.lodge_id from public.beds b join public.rooms r on r.id = b.room_id
+       where b.status = 'in_use' and not exists (select 1 from public.stays s where s.bed_id = b.id and s.status <> 'ended') limit 1`);
+    const res = await db.one<{ id: string }>("insert into public.residents (first_name, last_name, created_by) values ('Admitido na demo', 'Teste', $1) returning id", [staff.id]);
+    await db.query("insert into public.stays (resident_id, lodge_id, bed_id, admitted_at, created_by) values ($1, $2, $3, now(), $4)", [res.id, bed.lodge_id, bed.id, staff.id]);
+    const r = (await db.one<{ r: { residents: number } }>("select demo.clear() r")).r;
+    expect(r.residents).toBe(Number(seeded.residents) + 1);
+    expect((await db.one<{ n: string }>("select count(*) n from public.residents where first_name = 'Admitido na demo'")).n).toBe("0");
+    expect((await db.one<{ n: string }>("select count(*) n from public.stays where bed_id = $1 and status <> 'ended'", [bed.id])).n).toBe("0");
+    // reabastece para os próximos testes do arquivo
+    await db.query("select demo.seed()");
+  }, 60_000);
+
   it("remove tudo o que o seed criou e devolve as contagens ao estado anterior", async () => {
     await db.asSuperuser();
     const r = (await db.one<{ r: { residents: number; staff: number } }>("select demo.clear() r")).r;

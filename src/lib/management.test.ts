@@ -77,3 +77,14 @@ describe("formatação do relatório", () => {
     expect(breakdownLabelKey("by_reason", "unknown_reason")).toBeNull();
   });
 });
+
+import { rotaRoles as rotaRolesFn } from "./management";
+
+describe("quem pode assumir cada função na Rota (mesma regra do banco)", () => {
+  it("Office só Porter; Float Porter ou Manager; Cleaner só Cleaner; função Manager só gestão", () => {
+    expect(rotaRolesFn("office")).toEqual(["porter"]);
+    expect(rotaRolesFn("float")).toEqual(["porter", "manager"]);
+    expect(rotaRolesFn("cleaner")).toEqual(["cleaner"]);
+    expect(rotaRolesFn("manager")).toEqual(["manager", "owner", "developer"]);
+  });
+});

@@ -1,3 +1,4 @@
+import type { StaffRole } from "./types";
 import type { MessageKey } from "@/i18n";
 import { addDays } from "./time";
 
@@ -98,4 +99,14 @@ export function breakdownLabelKey(field: string, name: string): MessageKey | nul
   if (field === "by_reason" && LATE_REASONS.includes(name)) return `handover.reasons.${name}` as MessageKey;
   if (field === "by_priority" && PRIORITIES.includes(name)) return `maintenance.p_${name}` as MessageKey;
   return null;
+}
+
+/** Perfis que podem assumir cada função da Rota — espelha save_rota_shift (role_not_allowed). */
+export function rotaRoles(fn: RotaFunction): StaffRole[] {
+  switch (fn) {
+    case "office": return ["porter"];
+    case "float": return ["porter", "manager"];
+    case "cleaner": return ["cleaner"];
+    case "manager": return ["manager", "owner", "developer"];
+  }
 }
