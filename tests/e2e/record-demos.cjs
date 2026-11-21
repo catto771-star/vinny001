@@ -112,7 +112,8 @@ async function newScene(browser, { name, state, mobile = false, locale = "pt-PT"
 /* ---------- ações com ritmo humano ---------- */
 function ui(page) {
   const api = {
-    say: async (text, ms = 1500) => { await page.evaluate((t) => window.__say && window.__say(t), text); if (ms) await page.waitForTimeout(ms); },
+    say: async (text, ms = 1500) => {
+      if (process.env.TRACE) console.log(`  ${new Date().toISOString().slice(11, 19)} ${text.slice(0, 70)}`); await page.evaluate((t) => window.__say && window.__say(t), text); if (ms) await page.waitForTimeout(ms); },
     quiet: () => page.evaluate(() => window.__say && window.__say("")),
     wait: (ms) => page.waitForTimeout(ms),
     glide: async (loc) => {
@@ -148,7 +149,7 @@ async function saveState(browser, email, password, file, { management = false } 
   const page = await ctx.newPage();
   await login(page, email, password);
   if (management) await managementSecondStep(page, email);
-  await page.locator(".today-head, .post-card, h1").first().waitFor({ timeout: 25000 });
+  await page.locator(".content").first().waitFor({ timeout: 30000 }); // só a plataforma logada tem .content (o h1 também existe no login)
   await page.waitForTimeout(800);
   await ctx.storageState({ path: file });
   await ctx.close();
