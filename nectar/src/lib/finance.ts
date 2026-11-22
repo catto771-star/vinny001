@@ -24,7 +24,8 @@ export interface Tx {
   /** Amount above is in reais; a purchase in another currency keeps what was spent and the rate (reais per unit). */
   currency?: 'BRL' | 'USD' | 'EUR'; original_amount?: number | null; fx_rate?: number | null;
 }
-export interface Bank { id: string; name: string; initial_balance: number; color: string | null }
+/** initial_balance is in the account's own currency; currency defaults to reais. */
+export interface Bank { id: string; name: string; initial_balance: number; color: string | null; currency?: 'BRL' | 'USD' | 'EUR' }
 export interface Card { id: string; name: string; bank_id: string | null; card_type: 'credit' | 'debit'; credit_limit: number | null; closing_day: number | null; due_day: number | null }
 export interface Transfer { id: string; from_bank_id: string; to_bank_id: string; amount: number; date: Day; description: string | null }
 export interface InvoicePayment { id: string; card_id: string; year: number; month: number; amount: number; paid_at: Day; bank_id: string | null }
@@ -185,21 +186,33 @@ export function touchesBank(t: Tx): boolean {
   return !!t.bank_id && !t.is_pending && t.payment_method !== 'credito' && !t.card_id;
 }
 
+// Reais per unit of each foreign currency, today's. Set by the screens that load the rates.
+let bankRates: Partial<Record<'USD' | 'EUR', number>> = {};
+export function setBankRates(rates: Partial<Record<'USD' | 'EUR', number>>) {
+  bankRates = { ...rates };
+}
+
 /** Balance of an account up to a day: initial, entries, transfers and card invoices paid from it. */
 export function bankBalance(bank: Bank, txs: Tx[], transfers: Transfer[], payments: InvoicePayment[], upTo?: Day): number {
-  let c = cents(bank.initial_balance);
+  const own = bank.currency ?? 'BRL';
+  const rate = own === 'BRL' ? 1 : bankRates[own];
+  // Money in reais, expressed in the account's currency at today's rate.
+  const native = (reais: number) => (own === 'BRL' ? reais : rate ? reais / rate : 0);
   const inRange = (d: Day) => !upTo || d <= upTo;
+  let c = cents(bank.initial_balance);
   for (const t of txs) {
     if (t.bank_id !== bank.id || !touchesBank(t) || !inRange(t.date)) continue;
-    c += t.type === 'income' ? cents(t.amount) : -cents(t.amount);
+    const value = t.currency === own && t.original_amount != null ? Number(t.original_amount) : native(Number(t.amount));
+    c += t.type === 'income' ? cents(value) : -cents(value);
   }
   for (const tr of transfers) {
     if (!inRange(tr.date)) continue;
-    if (tr.to_bank_id === bank.id) c += cents(tr.amount);
-    if (tr.from_bank_id === bank.id) c -= cents(tr.amount);
+    if (tr.to_bank_id === bank.id) c += cents(native(Number(tr.amount)));
+    if (tr.from_bank_id === bank.id) c -= cents(native(Number(tr.amount)));
   }
-  for (const p of payments) if (p.bank_id === bank.id && inRange(p.paid_at)) c -= cents(p.amount);
-  return reais(c);
+  for (const p of payments) if (p.bank_id === bank.id && inRange(p.paid_at)) c -= cents(native(Number(p.amount)));
+  // Reais accounts stay exact; a foreign account is converted once, at the end.
+  return own === 'BRL' ? reais(c) : Math.round(reais(c) * (rate ?? 0) * 100) / 100;
 }
 
 export function netWorth(banks: Bank[], txs: Tx[], transfers: Transfer[], payments: InvoicePayment[], upTo?: Day): number {

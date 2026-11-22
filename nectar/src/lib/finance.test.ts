@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   averageLeftoverRate, bankBalance, byCategory, cardUsed, dailyExpenses, installmentSchedule, invoiceFor, invoices,
-  monthlyFlow, monthSummary, netWorth, recurringInMonth, variableProjection, monthlyEquivalent,
+  monthlyFlow, monthSummary, netWorth, recurringInMonth, variableProjection, monthlyEquivalent, setBankRates,
   type Bank, type Card, type RecurringTemplate, type Tx,
 } from './finance';
 
@@ -58,6 +58,34 @@ describe('recurring entries', () => {
     expect(recurringInMonth([netflix], [], [{ recurring_template_id: 'nf', skipped_date: '2026-12-31' }], 2026, 12)[0].skipped).toBe(true);
     expect(recurringInMonth([{ ...netflix, start_date: '2027-01-01' }], [], [], 2026, 12)).toEqual([]);
     expect(recurringInMonth([{ ...netflix, is_active: false }], [], [], 2026, 12)).toEqual([]);
+  });
+});
+
+describe('accounts in another currency', () => {
+  const revolut: Bank = { id: 'rev', name: 'Revolut', initial_balance: 1194, color: null, currency: 'EUR' };
+  const nubank: Bank = { id: 'nubank', name: 'Nubank', initial_balance: 1000, color: null };
+  const RATE = 6.4672;
+  beforeEach(() => setBankRates({ EUR: RATE }));
+  afterEach(() => setBankRates({}));
+
+  it('keeps its balance in euros, shown in reais at the day\'s rate', () => {
+    expect(bankBalance(revolut, [], [], [])).toBeCloseTo(1194 * RATE, 2);
+    expect(bankBalance(revolut, [], [], []) / RATE).toBeCloseTo(1194, 2);
+  });
+  it('moves by the euro amount of an entry in euros, not by its reais value', () => {
+    const salary = tx({ bank_id: 'rev', type: 'income', amount: 680 * RATE, currency: 'EUR', original_amount: 680, fx_rate: RATE, payment_method: 'pix' });
+    expect(bankBalance(revolut, [salary], [], []) / RATE).toBeCloseTo(1194 + 680, 2);
+  });
+  it('converts a transfer in reais at the day\'s rate', () => {
+    const topUp = { id: 'tr', from_bank_id: 'nubank', to_bank_id: 'rev', amount: 1000 * RATE, date: '2026-11-10', description: null };
+    expect(bankBalance(revolut, [], [topUp], []) / RATE).toBeCloseTo(1194 + 1000, 2);
+  });
+  it('leaves reais accounts exactly as they were', () => {
+    const coffee = tx({ bank_id: 'nubank', amount: 12 });
+    expect(bankBalance(nubank, [coffee], [], [])).toBe(988);
+  });
+  it('counts toward net worth in reais', () => {
+    expect(netWorth([revolut, nubank], [], [], [])).toBeCloseTo(1194 * RATE + 1000, 2);
   });
 });
 

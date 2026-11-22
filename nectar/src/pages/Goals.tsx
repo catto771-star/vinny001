@@ -14,6 +14,7 @@ import {
 import { LineChart } from '../components/Charts';
 import { Empty, Field, ListSkeleton, Modal, PageHeader, Stat } from '../components/ui';
 import { useProjects } from './projects/useProjects';
+import { useRates } from './finance/useRates';
 
 const TABS = ['Ativas', 'Pausadas', 'Concluídas'] as const;
 type Tab = (typeof TABS)[number];
@@ -41,6 +42,7 @@ export default function Goals() {
   const transfers = useTable<Transfer>('transfers');
   const payments = useTable<InvoicePayment>('card_invoice_payments');
   const projects = useProjects();
+  useRates(null); // today's rates value the euro and dollar accounts
   const [editing, setEditing] = useState<Partial<Goal> | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const today = toDay(new Date());

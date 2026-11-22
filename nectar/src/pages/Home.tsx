@@ -16,6 +16,7 @@ import { bankBalance, type Bank, type InvoicePayment, type Transfer, type Tx } f
 import { calorieStatus, dayHeadline, greeting } from '../lib/today';
 import { Empty, Figure, Skeleton } from '../components/ui';
 import { useProjects } from './projects/useProjects';
+import { useRates } from './finance/useRates';
 import { HEALTH_TONE } from './projects/Projects';
 import { PACE_TONE } from './Goals';
 import { useHealth } from './health/useHealth';
@@ -61,6 +62,7 @@ export default function Home() {
   const reminders = useTable<Reminder>('reminders', '*', { column: 'datetime' });
   const h = useHealth();
   const projects = useProjects();
+  useRates(null); // today's rates value the euro and dollar accounts
   const goals = useTable<Goal>('goals', '*', { column: 'created_at' });
   const entries = useTable<GoalEntry>('goal_entries', '*', { column: 'date' });
   const banks = useTable<Bank>('banks');

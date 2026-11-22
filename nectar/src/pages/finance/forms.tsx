@@ -162,12 +162,13 @@ export function TxForm({ f, tx, defaults, onClose }: { f: Finance; tx?: Partial<
   );
 }
 
-export function BankForm({ f, bank, onClose }: { f: Finance; bank?: { id: string; name: string; initial_balance: number }; onClose: () => void }) {
+export function BankForm({ f, bank, onClose }: { f: Finance; bank?: { id: string; name: string; initial_balance: number; currency?: Currency }; onClose: () => void }) {
   const [name, setName] = useState(bank?.name ?? '');
   const [initial, setInitial] = useState(bank?.initial_balance?.toString() ?? '0');
+  const [currency, setCurrency] = useState<Currency>(bank?.currency ?? 'BRL');
   async function save(e: FormEvent) {
     e.preventDefault();
-    const row = { name, initial_balance: Number(initial) };
+    const row = { name, initial_balance: Number(initial), currency };
     const ok = bank ? await write(supabase.from('banks').update(row).eq('id', bank.id)) : await write(supabase.from('banks').insert(row));
     if (ok) { await f.banks.reload(); onClose(); }
   }
@@ -178,7 +179,14 @@ export function BankForm({ f, bank, onClose }: { f: Finance; bank?: { id: string
     <Modal title={bank ? 'Editar conta' : 'Nova conta'} onClose={onClose}>
       <form onSubmit={save}>
         <Field label="Nome"><input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nubank, Itaú, carteira…" required autoFocus /></Field>
-        <Field label="Saldo inicial (R$)"><input className="input figure" type="number" step="0.01" value={initial} onChange={(e) => setInitial(e.target.value)} required /></Field>
+        <FieldGroup label="Moeda da conta">
+          <div className="segmented">
+            {CURRENCIES.map((c) => (
+              <button key={c.code} type="button" className={currency === c.code ? 'tab-active' : 'tab'} aria-pressed={currency === c.code} title={c.name} onClick={() => setCurrency(c.code)}>{c.symbol}</button>
+            ))}
+          </div>
+        </FieldGroup>
+        <Field label={`Saldo inicial (${symbolOf(currency)})`}><input className="input figure" type="number" step="0.01" value={initial} onChange={(e) => setInitial(e.target.value)} required /></Field>
         <p className="mb-4 text-xs text-fg3">O saldo de hoje é o inicial mais tudo o que você registrar a partir dele</p>
         <div className="flex gap-2">
           {bank && <button type="button" className="btn-ghost text-negative" onClick={remove}>Excluir</button>}

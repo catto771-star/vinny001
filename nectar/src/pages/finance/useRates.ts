@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { setBankRates } from '../../lib/finance';
 
 export interface RatesAnswer { date?: string; rates?: { USD: number; EUR: number }; source?: string; at?: string; error?: string }
 
@@ -22,7 +23,11 @@ export function useRates(date: string | null) {
     let live = true;
     setAnswer({});
     const p = date ? fetchRates(date) : (todayPromise ??= fetchRates(null).then((r) => { if (r.error) todayPromise = null; return r; }));
-    void p.then((r) => { if (live) setAnswer(r); });
+    void p.then((r) => {
+      // Today's rates also value the accounts held in euros or dollars.
+      if (!date && r.rates) setBankRates(r.rates);
+      if (live) setAnswer(r);
+    });
     return () => { live = false; };
   }, [date]);
   return answer;
