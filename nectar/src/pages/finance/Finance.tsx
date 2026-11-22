@@ -47,6 +47,7 @@ export default function Finance() {
     setNewTx({
       type: t.type, amount: t.amount, description: t.description, date, category: t.category, payment_method: t.payment_method,
       bank_id: t.bank_id, card_id: t.card_id, recurring_template_id: t.id,
+      currency: t.currency, original_amount: t.original_amount, fx_rate: t.fx_rate,
     });
   }
 

@@ -30,7 +30,11 @@ export interface Transfer { id: string; from_bank_id: string; to_bank_id: string
 export interface InvoicePayment { id: string; card_id: string; year: number; month: number; amount: number; paid_at: Day; bank_id: string | null }
 export interface RecurringTemplate {
   id: string; description: string; type: TxType; amount: number; category: string | null; payment_method: string | null;
-  bank_id: string | null; card_id: string | null; recurrence_days: number[]; start_date: Day; is_active: boolean; deleted_at: string | null;
+  bank_id: string | null; card_id: string | null; start_date: Day; is_active: boolean; deleted_at: string | null;
+  /** 'monthly': recurrence_days are days of the month. 'weekly': recurrence_days are weekdays, 0 = Sunday. */
+  recurrence_days: number[]; frequency: 'monthly' | 'weekly';
+  /** The currency the value was agreed in; amount is its reais equivalent at fx_rate. */
+  currency: 'BRL' | 'USD' | 'EUR'; original_amount: number | null; fx_rate: number | null;
 }
 export interface Skip { recurring_template_id: string; skipped_date: Day }
 
@@ -128,6 +132,10 @@ export function recurringInMonth(templates: RecurringTemplate[], txs: Tx[], skip
   for (const t of templates) {
     if (!t.is_active || t.deleted_at) continue;
     if (t.start_date > last) continue;
+    if (t.frequency === 'weekly') {
+      out.push(...weeklyInMonth(t, txs, skips, year, month));
+      continue;
+    }
     const paidThisMonth = txs.filter((x) => x.recurring_template_id === t.id && x.date >= first && x.date <= last)
       .sort((a, b) => a.date.localeCompare(b.date));
     [...new Set(t.recurrence_days)].sort((a, b) => a - b).forEach((d, i) => {
@@ -140,6 +148,32 @@ export function recurringInMonth(templates: RecurringTemplate[], txs: Tx[], skip
     });
   }
   return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** A weekly entry's dates in the month, each matched with the logged entry of that week (a day either side). */
+function weeklyInMonth(t: RecurringTemplate, txs: Tx[], skips: Skip[], year: number, month: number): Occurrence[] {
+  const days = new Set(t.recurrence_days);
+  const dates: Day[] = [];
+  for (let d = 1; d <= daysInMonth(year, month); d++) {
+    const date = dayOf(year, month, d);
+    if (date < t.start_date || !days.has(new Date(Date.UTC(year, month - 1, d)).getUTCDay())) continue;
+    dates.push(date);
+  }
+  const candidates = txs.filter((x) => x.recurring_template_id === t.id && x.date >= dayOf(year, month, 1) && x.date <= dayOf(year, month, 31))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const used = new Set<string>();
+  const gap = (a: Day, b: Day) => Math.abs(Date.parse(a) - Date.parse(b)) / 86400000;
+  return dates.map((date) => {
+    const paid = candidates.find((x) => !used.has(x.id) && gap(x.date, date) <= 3) ?? null;
+    if (paid) used.add(paid.id);
+    return { template: t, date, paid, skipped: skips.some((s) => s.recurring_template_id === t.id && s.skipped_date === date) };
+  });
+}
+
+/** The monthly cost or income of a template, to compare with others. A week is 52/12 of a month. */
+export function monthlyEquivalent(t: RecurringTemplate): number {
+  const perPeriod = Number(t.amount) * t.recurrence_days.length;
+  return t.frequency === 'weekly' ? perPeriod * 52 / 12 : perPeriod;
 }
 
 // ---------------------------------------------------------------------------

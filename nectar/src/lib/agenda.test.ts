@@ -66,7 +66,7 @@ describe('agenda', () => {
   });
   it('lists bills: recurring, pending and card invoices, with their sign', () => {
     const items = buildAgenda('2026-11-01', '2026-11-30', {
-      templates: [{ id: 'rent', description: 'Aluguel', type: 'expense', amount: 1800, category: null, payment_method: 'pix', bank_id: null, card_id: null, recurrence_days: [10], start_date: '2026-01-01', is_active: true, deleted_at: null }],
+      templates: [{ id: 'rent', description: 'Aluguel', type: 'expense', amount: 1800, category: null, payment_method: 'pix', bank_id: null, card_id: null, recurrence_days: [10], start_date: '2026-01-01', is_active: true, deleted_at: null , frequency: 'monthly', currency: 'BRL', original_amount: null, fx_rate: null }],
       txs: [{ id: 'c', description: 'Jantar', type: 'expense', amount: 80, date: '2026-11-02', category: null, payment_method: 'credito', bank_id: null, card_id: 'visa', is_pending: false, installment_purchase_id: null, installment_number: null, recurring_template_id: null }],
       cards: [{ id: 'visa', name: 'Visa', bank_id: null, card_type: 'credit', credit_limit: null, closing_day: 5, due_day: 12 }],
       payments: [], skips: [],

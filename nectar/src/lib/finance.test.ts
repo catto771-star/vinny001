@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   averageLeftoverRate, bankBalance, byCategory, cardUsed, dailyExpenses, installmentSchedule, invoiceFor, invoices,
-  monthlyFlow, monthSummary, netWorth, recurringInMonth, variableProjection,
+  monthlyFlow, monthSummary, netWorth, recurringInMonth, variableProjection, monthlyEquivalent,
   type Bank, type Card, type RecurringTemplate, type Tx,
 } from './finance';
 
@@ -48,7 +48,7 @@ describe('installments', () => {
 
 describe('recurring entries', () => {
   const netflix: RecurringTemplate = { id: 'nf', description: 'Netflix', type: 'expense', amount: 55.9, category: 'Assinaturas', payment_method: 'credito',
-    bank_id: null, card_id: 'visa', recurrence_days: [31], start_date: '2026-01-01', is_active: true, deleted_at: null };
+    bank_id: null, card_id: 'visa', recurrence_days: [31], start_date: '2026-01-01', is_active: true, deleted_at: null , frequency: 'monthly', currency: 'BRL', original_amount: null, fx_rate: null };
   it('falls on its day each month, clamped to the month end', () => {
     expect(recurringInMonth([netflix], [], [], 2027, 2).map((o) => o.date)).toEqual(['2027-02-28']);
   });
@@ -58,6 +58,35 @@ describe('recurring entries', () => {
     expect(recurringInMonth([netflix], [], [{ recurring_template_id: 'nf', skipped_date: '2026-12-31' }], 2026, 12)[0].skipped).toBe(true);
     expect(recurringInMonth([{ ...netflix, start_date: '2027-01-01' }], [], [], 2026, 12)).toEqual([]);
     expect(recurringInMonth([{ ...netflix, is_active: false }], [], [], 2026, 12)).toEqual([]);
+  });
+});
+
+describe('weekly entries', () => {
+  // Wednesday is weekday 3 (0 is Sunday). 2026-11-25 is a Wednesday.
+  const renda: RecurringTemplate = { id: 'rd', description: 'Renda semanal', type: 'income', amount: 4397.7, category: null, payment_method: 'pix',
+    bank_id: 'rev', card_id: null, recurrence_days: [3], start_date: '2026-11-01', is_active: true, deleted_at: null,
+    frequency: 'weekly', currency: 'EUR', original_amount: 680, fx_rate: 6.4672 };
+  it('falls on every chosen weekday of the month', () => {
+    expect(recurringInMonth([renda], [], [], 2026, 11).map((o) => o.date)).toEqual(['2026-11-04', '2026-11-11', '2026-11-18', '2026-11-25']);
+  });
+  it('matches each week with the entry actually logged that week, even if it came a day early or late', () => {
+    const wed = tx({ recurring_template_id: 'rd', date: '2026-11-11', amount: 4300 });
+    const late = tx({ recurring_template_id: 'rd', date: '2026-11-19', amount: 4500 });
+    const occ = recurringInMonth([renda], [wed, late], [], 2026, 11);
+    expect(occ.map((o) => o.paid?.id ?? null)).toEqual([null, wed.id, late.id, null]);
+  });
+  it('can be skipped one week without shifting the others', () => {
+    const skip = [{ recurring_template_id: 'rd', skipped_date: '2026-11-04' }];
+    expect(recurringInMonth([renda], [], skip, 2026, 11).map((o) => o.skipped)).toEqual([true, false, false, false]);
+  });
+  it('counts a weekly entry about 4.33 times a month, and a monthly one once per day listed', () => {
+    expect(monthlyEquivalent(renda)).toBeCloseTo(4397.7 * 52 / 12, 2);
+    expect(monthlyEquivalent({ ...renda, frequency: 'monthly', recurrence_days: [5, 20] } as RecurringTemplate)).toBeCloseTo(4397.7 * 2, 2);
+  });
+  it('keeps monthly entries exactly as before', () => {
+    const netflixM: RecurringTemplate = { id: 'nf', description: 'Netflix', type: 'expense', amount: 55.9, category: null, payment_method: 'credito',
+      bank_id: null, card_id: 'visa', recurrence_days: [31], start_date: '2026-01-01', is_active: true, deleted_at: null, frequency: 'monthly', currency: 'BRL', original_amount: null, fx_rate: null };
+    expect(recurringInMonth([netflixM], [], [], 2026, 11)[0].date).toBe('2026-11-30');
   });
 });
 
@@ -82,7 +111,7 @@ describe('balances', () => {
 
 describe('the month', () => {
   const rent: RecurringTemplate = { id: 'rent', description: 'Aluguel', type: 'expense', amount: 1800, category: 'Moradia', payment_method: 'pix',
-    bank_id: 'nubank', card_id: null, recurrence_days: [10], start_date: '2026-01-01', is_active: true, deleted_at: null };
+    bank_id: 'nubank', card_id: null, recurrence_days: [10], start_date: '2026-01-01', is_active: true, deleted_at: null , frequency: 'monthly', currency: 'BRL', original_amount: null, fx_rate: null };
   const salary: RecurringTemplate = { ...rent, id: 'sal', description: 'Salário', type: 'income', amount: 6000, recurrence_days: [5] };
   const txs = [
     tx({ type: 'income', amount: 6000, date: '2026-11-05', recurring_template_id: 'sal', category: 'Salário' }),
