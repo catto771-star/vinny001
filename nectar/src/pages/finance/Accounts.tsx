@@ -44,26 +44,46 @@ export default function Accounts({ f }: { f: Finance }) {
                 rows={accountRows.map((r) => ({ label: r.bank.name, value: Math.max(0, r.balance), color: r.bank.color || undefined }))}
               />
             )}
-            <ul className="grid gap-3 sm:grid-cols-2">
-              {accountRows.map(({ bank: b, balance }) => {
+            <ul className="grid gap-4 sm:grid-cols-2">
+              {accountRows.map(({ bank: b, balance }, idx) => {
                 const share = positiveSum > 0 && balance > 0 ? Math.round((balance / positiveSum) * 100) : 0;
-                const dot = b.color || 'var(--brand)';
+                const gradients = [
+                  'linear-gradient(135deg, #4f46e5 0%, #2563eb 100%)',
+                  'linear-gradient(135deg, #0d9488 0%, #0284c7 100%)',
+                  'linear-gradient(135deg, #c026d3 0%, #7c3aed 100%)',
+                  'linear-gradient(135deg, #ea580c 0%, #db2777 100%)',
+                ];
+                const bg = b.color ? `linear-gradient(135deg, ${b.color} 0%, #151936 140%)` : gradients[idx % gradients.length];
                 return (
-                  <li key={b.id} className="card glow flex min-w-0 flex-col justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: dot }} aria-hidden="true" />
-                      <span className="mr-auto min-w-0 truncate font-medium">{b.name}</span>
-                      <span className="badge bg-raised font-mono text-[11px] text-fg2">{b.currency ?? 'BRL'}</span>
-                      <button className="icon-btn -mr-2" onClick={() => setBank(b)} aria-label={`Editar ${b.name}`}><Pencil size={15} strokeWidth={1.6} /></button>
+                  <li
+                    key={b.id}
+                    className="relative flex min-h-[158px] min-w-0 flex-col justify-between overflow-hidden rounded-[22px] p-5 text-white shadow-lg transition-transform duration-200 hover:-translate-y-0.5"
+                    style={{ background: bg }}
+                  >
+                    <div className="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-white/10" aria-hidden="true" />
+                    <div className="flex items-center gap-2">
+                      <span className="mr-auto min-w-0 truncate text-sm font-semibold">{b.name}</span>
+                      <span className="rounded-full bg-black/25 px-2.5 py-0.5 font-mono text-[11px] font-semibold backdrop-blur">{b.currency ?? 'BRL'}</span>
+                      <button
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-black/20 text-white/90 transition-colors hover:bg-black/35"
+                        onClick={() => setBank(b)}
+                        aria-label={`Editar ${b.name}`}
+                      >
+                        <Pencil size={14} strokeWidth={1.7} />
+                      </button>
                     </div>
-                    <div>
-                      <Figure value={money(balance)} className={`block truncate text-[22px] leading-7 font-semibold ${balance < 0 ? 'text-negative' : ''}`} />
-                      <div className="mt-2.5 flex items-center gap-2">
-                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-raised">
-                          <div className="h-full rounded-full transition-[width] duration-300" style={{ width: `${share}%`, background: dot }} />
-                        </div>
-                        <span className="figure text-xs text-fg3">{share}%</span>
+                    <div className="my-2 flex items-center justify-between gap-3">
+                      <svg width="34" height="24" viewBox="0 0 34 24" aria-hidden="true" className="opacity-90">
+                        <rect x="0.5" y="0.5" width="33" height="23" rx="5" fill="#fbbf24" fillOpacity="0.28" stroke="#fcd34d" strokeWidth="1" />
+                        <path d="M11 1v22M23 1v22M1 9h10M23 9h10M1 15h10M23 15h10" stroke="#fcd34d" strokeOpacity="0.7" strokeWidth="1" />
+                      </svg>
+                      <Figure value={money(balance)} className="truncate text-[24px] leading-7 font-bold" />
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/25">
+                        <div className="h-full rounded-full bg-white/90 transition-[width] duration-300" style={{ width: `${share}%` }} />
                       </div>
+                      <span className="figure text-xs font-medium text-white/90">{share}%</span>
                     </div>
                   </li>
                 );

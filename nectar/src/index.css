@@ -42,32 +42,32 @@
 }
 
 .dark {
-  --bg: #0b0d11;
-  --sunken: #07090d;
-  --surface: #13161e;
-  --raised: #1c202b;
-  --line: rgb(255 255 255 / 0.07);
-  --line-strong: rgb(255 255 255 / 0.14);
-  --card-ring: rgb(255 255 255 / 0.06);
-  --fg: #f3f4f6;
-  --fg2: #a1a7b4;
-  --fg3: #7c8393;
+  --bg: #0d1025;
+  --sunken: #090b1b;
+  --surface: #151936;
+  --raised: #1e2449;
+  --line: rgb(148 163 255 / 0.1);
+  --line-strong: rgb(148 163 255 / 0.22);
+  --card-ring: rgb(148 163 255 / 0.1);
+  --fg: #f4f6ff;
+  --fg2: #aeb8dc;
+  --fg3: #8390bc;
   --brand: #ff6a1a;
-  --brand-ink: #ff7a2e;
+  --brand-ink: #ff853d;
   --on-brand: #0c0c0d;
-  --warning: #fb923c;
-  --primary: #f3f4f6;
-  --primary-ink: #0b0d11;
-  --positive: #34d399;
-  --negative: #f43f5e;
-  --chart-neutral: #2a303e;
-  --skeleton: #1a1e28;
-  --skeleton-hi: #242938;
-  --indicator: #202532;
-  --indicator-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
-  --glass: rgb(19 22 30 / 0.8);
-  --glass-ring: rgb(255 255 255 / 0.08);
-  --float-shadow: 0 20px 44px -18px rgb(0 0 0 / 0.85);
+  --warning: #fbbf24;
+  --primary: #f4f6ff;
+  --primary-ink: #0d1025;
+  --positive: #2dd4bf;
+  --negative: #fb7185;
+  --chart-neutral: #2b3363;
+  --skeleton: #1b2042;
+  --skeleton-hi: #252c57;
+  --indicator: #252c57;
+  --indicator-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08);
+  --glass: rgb(13 16 37 / 0.86);
+  --glass-ring: rgb(148 163 255 / 0.14);
+  --float-shadow: 0 22px 48px -18px rgb(4 6 20 / 0.9);
   --glow: color-mix(in srgb, var(--brand) 12%, transparent);
   color-scheme: dark;
 }
@@ -84,9 +84,9 @@ html.dark[data-accent="lime"] { --brand: #b6ff1a; --brand-ink: #b8f53a; }
 html[data-accent="yellow"] { --brand: #e8b800; --brand-ink: #7a5b00; --on-brand: #0c0c0d; }
 html.dark[data-accent="yellow"] { --brand: #ffe600; --brand-ink: #ffe94d; }
 html[data-accent="purple"] { --brand: #9f3aff; --brand-ink: #7b1fd6; --on-brand: #ffffff; }
-html.dark[data-accent="purple"] { --brand: #b266ff; --brand-ink: #c07bff; --on-brand: #0c0c0d; }
+html.dark[data-accent="purple"] { --brand: #b266ff; --brand-ink: #c68bff; --on-brand: #0c0c0d; }
 html[data-accent="red"] { --brand: #dc0000; --brand-ink: #c40000; --on-brand: #ffffff; }
-html.dark[data-accent="red"] { --brand: #ff3030; --brand-ink: #ff4d4d; --on-brand: #0c0c0d; }
+html.dark[data-accent="red"] { --brand: #ff3030; --brand-ink: #ff6666; --on-brand: #0c0c0d; }
 
 @theme inline {
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
@@ -131,16 +131,41 @@ body {
 
 /* Crisp studio typography: tight display titles, calm sentence-case labels. */
 @utility display {
-  @apply text-[clamp(26px,5.5vw,32px)] leading-[1.12] font-semibold tracking-[-0.03em] text-balance;
+  @apply text-[clamp(24px,4.5vw,30px)] leading-[1.14] font-semibold tracking-[-0.03em] text-balance;
 }
 
 @utility card {
-  @apply rounded-[18px] bg-surface p-5 transition-[box-shadow,transform,border-color] duration-200 ease-out;
-  box-shadow: 0 0 0 1px var(--card-ring);
+  @apply rounded-[20px] bg-surface p-5 transition-[box-shadow,transform,border-color] duration-200 ease-out;
+  box-shadow: 0 0 0 1px var(--card-ring), 0 12px 30px -24px rgb(4 6 20 / 0.55);
 }
 
 @utility card-hero {
-  @apply rounded-[18px] bg-brand p-5 text-on-brand transition-[box-shadow,transform] duration-200 ease-out;
+  @apply rounded-[20px] bg-brand p-5 text-on-brand transition-[box-shadow,transform] duration-200 ease-out;
+}
+
+/* Vivid LMS jewel KPI tiles (Gold, Indigo, Teal, Pink) inspired by modern LMS & Fintech dashboards. */
+@utility kpi-gold {
+  @apply rounded-[20px] p-5 text-[#111322] transition-[transform,box-shadow] duration-200 ease-out;
+  background: linear-gradient(135deg, #ffd026 0%, #f59e0b 100%);
+  box-shadow: 0 14px 28px -18px rgb(245 158 11 / 0.65);
+}
+
+@utility kpi-indigo {
+  @apply rounded-[20px] p-5 text-white transition-[transform,box-shadow] duration-200 ease-out;
+  background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+  box-shadow: 0 14px 28px -18px rgb(99 102 241 / 0.7);
+}
+
+@utility kpi-teal {
+  @apply rounded-[20px] p-5 text-white transition-[transform,box-shadow] duration-200 ease-out;
+  background: linear-gradient(135deg, #06b6d4 0%, #0d9488 100%);
+  box-shadow: 0 14px 28px -18px rgb(6 182 212 / 0.65);
+}
+
+@utility kpi-pink {
+  @apply rounded-[20px] p-5 text-white transition-[transform,box-shadow] duration-200 ease-out;
+  background: linear-gradient(135deg, #ec4899 0%, #c026d3 100%);
+  box-shadow: 0 14px 28px -18px rgb(236 72 153 / 0.65);
 }
 
 @utility label {

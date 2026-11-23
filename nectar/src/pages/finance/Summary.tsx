@@ -1,24 +1,47 @@
-import { useState, type FormEvent } from 'react';
-import { CalendarClock, Gauge, Plus, Receipt } from 'lucide-react';
+import { useMemo, useState, type FormEvent } from 'react';
+import { ArrowDownLeft, ArrowUpRight, CalendarClock, Gauge, Plus, Receipt, TrendingUp, Wallet } from 'lucide-react';
 import { CURRENCIES, conv, displayCurrency, money, symbolOf, type Currency } from '../../lib/money';
-import { formatDay, toDay } from '../../lib/dates';
-import { EXPENSE_CATEGORIES, bankBalance, byCategory, cardUsed, dailyExpenses, invoices, monthKey, monthSummary, netWorth, recurringInMonth } from '../../lib/finance';
-import { evaluateBudgets, type BudgetStatus, type CategoryBudget } from '../../lib/cashflow';
+import { formatDay, monthName, toDay } from '../../lib/dates';
+import {
+  EXPENSE_CATEGORIES, bankBalance, byCategory, cardUsed, dailyExpenses, invoices, monthKey, monthSummary,
+  netWorth, netWorthHistory, recurringInMonth,
+} from '../../lib/finance';
+import { evaluateBudgets, projectCashFlow, type BudgetStatus, type CategoryBudget } from '../../lib/cashflow';
 import { supabase } from '../../lib/supabase';
 import { write } from '../../lib/useTable';
-import { ColumnChart, DonutChart, SegmentedMeter } from '../../components/Charts';
+import { AreaChart, ColumnChart, DonutChart, SegmentedMeter } from '../../components/Charts';
 import { Empty, Field, FieldGroup, Figure, Modal, Skeleton } from '../../components/ui';
 import { useRates } from './useRates';
 import type { Finance } from './useFinance';
 
 const BUDGET_BADGE: Record<BudgetStatus, { label: string; cls: string; bar: string }> = {
-  ok: { label: 'No ritmo', cls: 'bg-positive/12 text-positive', bar: 'bg-brand' },
-  warn: { label: 'Atenção', cls: 'bg-warning/12 text-warning', bar: 'bg-warning' },
-  over: { label: 'Acima do limite', cls: 'bg-negative/12 text-negative', bar: 'bg-negative' },
+  ok: { label: 'No ritmo', cls: 'bg-positive/15 text-positive', bar: 'bg-brand' },
+  warn: { label: 'Atenção', cls: 'bg-warning/15 text-warning', bar: 'bg-warning' },
+  over: { label: 'Acima do limite', cls: 'bg-negative/15 text-negative', bar: 'bg-negative' },
 };
+
+const BANK_CARD_GRADIENTS = [
+  'linear-gradient(135deg, #4f46e5 0%, #2563eb 100%)',
+  'linear-gradient(135deg, #0d9488 0%, #0284c7 100%)',
+  'linear-gradient(135deg, #c026d3 0%, #7c3aed 100%)',
+  'linear-gradient(135deg, #ea580c 0%, #db2777 100%)',
+];
+
+const shortDay = (d: string) => `${Number(d.slice(8))}/${d.slice(5, 7)}`;
+
+function ChipIcon() {
+  return (
+    <svg width="34" height="24" viewBox="0 0 34 24" aria-hidden="true" className="opacity-90">
+      <rect x="0.5" y="0.5" width="33" height="23" rx="5" fill="#fbbf24" fillOpacity="0.28" stroke="#fcd34d" strokeWidth="1" />
+      <path d="M11 1v22M23 1v22M1 9h10M23 9h10M1 15h10M23 15h10" stroke="#fcd34d" strokeOpacity="0.7" strokeWidth="1" />
+    </svg>
+  );
+}
 
 export default function Summary({ f, year, month, onPay }: { f: Finance; year: number; month: number; onPay: (o: { template_id: string; date: string }) => void }) {
   const [editingBudget, setEditingBudget] = useState<Partial<CategoryBudget> | null>(null);
+  const [mainChart, setMainChart] = useState<'fluxo' | 'patrimonio' | 'diario'>('fluxo');
+  const [donutMode, setDonutMode] = useState<'auto' | 'categorias' | 'contas'>('auto');
   const fx = useRates(null);
   const today = toDay(new Date());
   const occ = recurringInMonth(f.activeTemplates, f.txs.rows, f.skips.rows, year, month);
@@ -35,77 +58,218 @@ export default function Summary({ f, year, month, onPay }: { f: Finance; year: n
     ...dueInvoices.map(({ card, i }) => ({ key: `i${card.id}${i.month}`, date: i.dueDate, label: `Fatura ${card.name}`, amount: i.total, action: undefined })),
   ].sort((a, b) => a.date.localeCompare(b.date));
 
+  const projection = useMemo(() => projectCashFlow({
+    startDay: today,
+    days: 30,
+    startingBalance: worth,
+    templates: f.activeTemplates,
+    txs: f.txs.rows,
+    skips: f.skips.rows,
+    cards: f.cards.rows,
+    payments: f.payments.rows,
+  }), [today, worth, f.activeTemplates, f.txs.rows, f.skips.rows, f.cards.rows, f.payments.rows]);
+
+  const worthCurve = useMemo(
+    () => netWorthHistory(f.banks.rows, f.txs.rows, f.transfers.rows, f.payments.rows, year, month, 6, today),
+    [f.banks.rows, f.txs.rows, f.transfers.rows, f.payments.rows, year, month, today],
+  );
+
   const saveRate = s.income > 0 ? Math.max(0, Math.min(100, Math.round((s.leftover / s.income) * 100))) : 0;
-  const bankSlices = f.banks.rows.map((b) => ({
-    label: b.name,
-    value: Math.max(0, bankBalance(b, f.txs.rows, f.transfers.rows, f.payments.rows, today)),
-    color: b.color || undefined,
+  const accountRows = f.banks.rows.map((b) => ({
+    bank: b,
+    balance: bankBalance(b, f.txs.rows, f.transfers.rows, f.payments.rows, today),
   }));
+  const positiveSum = accountRows.reduce((acc, r) => acc + Math.max(0, r.balance), 0);
+  const bankSlices = accountRows.map((r) => ({
+    label: r.bank.name,
+    value: Math.max(0, r.balance),
+    color: r.bank.color || undefined,
+  }));
+
+  const effectiveDonut = donutMode === 'auto' ? (categories.length > 0 ? 'categorias' : 'contas') : donutMode;
+
+  const chartSwitch = (
+    <div className="segmented" role="tablist" aria-label="Tipo de gráfico">
+      <button type="button" role="tab" aria-selected={mainChart === 'fluxo'} className={mainChart === 'fluxo' ? 'tab-active' : 'tab'} onClick={() => setMainChart('fluxo')}>Fluxo 30d</button>
+      <button type="button" role="tab" aria-selected={mainChart === 'patrimonio'} className={mainChart === 'patrimonio' ? 'tab-active' : 'tab'} onClick={() => setMainChart('patrimonio')}>Patrimônio</button>
+      <button type="button" role="tab" aria-selected={mainChart === 'diario'} className={mainChart === 'diario' ? 'tab-active' : 'tab'} onClick={() => setMainChart('diario')}>Dia a dia</button>
+    </div>
+  );
+
+  const donutSwitch = (
+    <div className="segmented" role="tablist" aria-label="Visão do gráfico de pizza">
+      <button type="button" role="tab" aria-selected={effectiveDonut === 'contas'} className={effectiveDonut === 'contas' ? 'tab-active' : 'tab'} onClick={() => setDonutMode('contas')}>Contas</button>
+      <button type="button" role="tab" aria-selected={effectiveDonut === 'categorias'} className={effectiveDonut === 'categorias' ? 'tab-active' : 'tab'} onClick={() => setDonutMode('categorias')}>Gastos</button>
+    </div>
+  );
 
   return (
     <>
-      {/* Fintech bento KPI row */}
-      <section className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 md:gap-4 xl:grid-cols-4" aria-label="Resumo do mês">
-        <div className="card-hero flex min-w-0 flex-col justify-between">
-          <div className="text-xs font-medium opacity-80">Patrimônio total</div>
+      {/* 4 Vivid Jewel KPI Cards */}
+      <section className="mb-6 grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumo do mês">
+        <div className="kpi-indigo flex min-w-0 flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-white/85">Patrimônio total</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/18"><Wallet size={18} strokeWidth={2} /></span>
+          </div>
           {f.loading ? <Skeleton className="mt-3 h-8 w-32" /> : (
-            <Figure value={money(worth)} className="mt-2 block truncate text-[26px] leading-8 font-semibold" />
+            <Figure value={money(worth)} className="mt-2 block truncate text-[26px] leading-8 font-bold" />
           )}
-          <div className="mt-3 text-xs opacity-80">
+          <div className="mt-3 text-xs text-white/80">
             {f.banks.rows.length} {f.banks.rows.length === 1 ? 'conta ativa' : 'contas ativas'} · hoje
           </div>
         </div>
 
-        <div className="card flex min-w-0 flex-col justify-between">
-          <div className="label">Entra no mês</div>
-          {f.loading ? <Skeleton className="mt-3 h-8 w-28" /> : (
-            <Figure value={money(s.income)} className="mt-2 block truncate text-[24px] leading-8 font-semibold text-positive" />
-          )}
-          <div className="mt-3 text-xs text-fg3">{money(s.received)} recebido · {money(s.toReceive)} a receber</div>
-        </div>
-
-        <div className="card flex min-w-0 flex-col justify-between">
-          <div className="label">Sai no mês</div>
-          {f.loading ? <Skeleton className="mt-3 h-8 w-28" /> : (
-            <Figure value={money(s.expense)} className="mt-2 block truncate text-[24px] leading-8 font-semibold" />
-          )}
-          <div className="mt-3 text-xs text-fg3">{money(s.spent)} pago · {money(s.toSpend)} previsto</div>
-        </div>
-
-        <div className="card flex min-w-0 flex-col justify-between">
+        <div className="kpi-teal flex min-w-0 flex-col justify-between">
           <div className="flex items-center justify-between gap-2">
-            <span className="label">Sobra do mês</span>
-            {s.income > 0 && <span className={`figure text-xs font-medium ${s.leftover < 0 ? 'text-negative' : 'text-positive'}`}>{saveRate}%</span>}
+            <span className="text-xs font-medium text-white/85">Entra no mês</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/18"><ArrowDownLeft size={18} strokeWidth={2} /></span>
           </div>
           {f.loading ? <Skeleton className="mt-3 h-8 w-28" /> : (
-            <Figure value={money(s.leftover)} className={`mt-2 block truncate text-[24px] leading-8 font-semibold ${s.leftover < 0 ? 'text-negative' : ''}`} />
+            <Figure value={money(s.income)} className="mt-2 block truncate text-[24px] leading-8 font-bold" />
+          )}
+          <div className="mt-3 text-xs text-white/80">{money(s.received)} recebido · {money(s.toReceive)} a receber</div>
+        </div>
+
+        <div className="kpi-pink flex min-w-0 flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-white/85">Sai no mês</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/18"><ArrowUpRight size={18} strokeWidth={2} /></span>
+          </div>
+          {f.loading ? <Skeleton className="mt-3 h-8 w-28" /> : (
+            <Figure value={money(s.expense)} className="mt-2 block truncate text-[24px] leading-8 font-bold" />
+          )}
+          <div className="mt-3 text-xs text-white/80">{money(s.spent)} pago · {money(s.toSpend)} previsto</div>
+        </div>
+
+        <div className="kpi-gold flex min-w-0 flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold opacity-80">Sobra do mês</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-black/12"><TrendingUp size={18} strokeWidth={2} /></span>
+          </div>
+          {f.loading ? <Skeleton className="mt-3 h-8 w-28" /> : (
+            <div className="mt-2 flex items-baseline gap-2">
+              <Figure value={money(s.leftover)} className="truncate text-[24px] leading-8 font-bold" />
+              {s.income > 0 && <span className="figure text-xs font-bold opacity-80">{saveRate}%</span>}
+            </div>
           )}
           <div className="mt-3">
             <SegmentedMeter
               pct={s.leftover < 0 ? 100 : saveRate}
               segments={14}
-              height={8}
-              tone={s.leftover < 0 ? 'var(--negative)' : saveRate >= 20 ? 'var(--positive)' : 'var(--brand)'}
+              height={7}
+              tone={s.leftover < 0 ? '#dc2626' : '#111322'}
               label="Taxa de sobra do mês"
             />
           </div>
         </div>
       </section>
 
-      <div className="mb-6 grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
-        <ColumnChart title="Dia a dia" subtitle="Saídas registradas em cada dia do mês; hoje em destaque" unit={symbolOf(displayCurrency())} height={270} highlightLast={false}
-          highlight={today.startsWith(key) ? Number(today.slice(8, 10)) - 1 : -1}
-          points={daily.map((d) => ({ label: String(d.day), value: conv(d.amount) }))} />
+      {/* Main Chart + Smart Donut directly on Resumo */}
+      <div className="mb-6 grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+        <div className="min-w-0">
+          {mainChart === 'fluxo' && (
+            <AreaChart
+              title="Previsão de fluxo de caixa (30 dias)"
+              subtitle={`Previsto em 30d: ${money(projection.endingBalance)} · menor saldo ${money(projection.minBalance)}`}
+              unit={symbolOf(displayCurrency())}
+              height={280}
+              aside={chartSwitch}
+              tone="#fbbf24"
+              points={projection.points.map((pt) => ({
+                label: shortDay(pt.day),
+                value: conv(pt.balance),
+                detail: pt.events.length ? pt.events.map((e) => `${e.amount >= 0 ? '+' : '−'}${money(Math.abs(e.amount))} ${e.label}`).join(' · ') : undefined,
+              }))}
+            />
+          )}
+          {mainChart === 'patrimonio' && (
+            <AreaChart
+              title="Evolução do patrimônio (6 meses)"
+              subtitle="Saldo consolidado das contas ao final de cada mês"
+              unit={symbolOf(displayCurrency())}
+              minZero={false}
+              height={280}
+              aside={chartSwitch}
+              tone="#2dd4bf"
+              points={worthCurve.map((p) => ({
+                label: `${monthName(p.month).slice(0, 3)}/${String(p.year).slice(2)}`,
+                value: conv(p.value),
+                detail: `em ${shortDay(p.date)}`,
+              }))}
+            />
+          )}
+          {mainChart === 'diario' && (
+            <ColumnChart
+              title="Dia a dia"
+              subtitle="Saídas registradas em cada dia do mês; hoje em destaque"
+              unit={symbolOf(displayCurrency())}
+              height={280}
+              highlightLast={false}
+              aside={chartSwitch}
+              highlight={today.startsWith(key) ? Number(today.slice(8, 10)) - 1 : -1}
+              points={daily.map((d) => ({ label: String(d.day), value: conv(d.amount) }))}
+            />
+          )}
+        </div>
+
         <DonutChart
-          title="Para onde foi"
-          subtitle="Distribuição de saídas por categoria no mês"
-          centerLabel="Saídas"
+          title={effectiveDonut === 'contas' ? 'Alocação do patrimônio' : 'Para onde foi'}
+          subtitle={effectiveDonut === 'contas' ? 'Distribuição do saldo entre suas contas' : 'Saídas por categoria neste mês'}
+          centerLabel={effectiveDonut === 'contas' ? 'Contas' : 'Saídas'}
           format={money}
           maxSlices={6}
-          emptyText="As categorias aparecem quando houver saídas no mês"
-          rows={categories.map((c) => ({ label: c.category, value: c.amount }))}
+          size={144}
+          aside={donutSwitch}
+          emptyText={effectiveDonut === 'contas' ? 'Cadastre contas na aba Contas' : 'As categorias aparecem quando houver saídas no mês'}
+          rows={effectiveDonut === 'contas'
+            ? bankSlices
+            : categories.map((c) => ({ label: c.category, value: c.amount }))}
         />
       </div>
+
+      {/* Visual Fintech Bank Cards Strip */}
+      {accountRows.length > 0 && (
+        <section className="mb-6" aria-label="Suas contas">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-[15px] font-semibold">Carteiras e contas</h2>
+            <span className="text-xs text-fg3">{accountRows.length} {accountRows.length === 1 ? 'conta' : 'contas'}</span>
+          </div>
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {accountRows.map(({ bank: b, balance }, idx) => {
+              const share = positiveSum > 0 && balance > 0 ? Math.round((balance / positiveSum) * 100) : 0;
+              const bg = b.color
+                ? `linear-gradient(135deg, ${b.color} 0%, #151936 140%)`
+                : BANK_CARD_GRADIENTS[idx % BANK_CARD_GRADIENTS.length];
+              return (
+                <li
+                  key={b.id}
+                  className="relative flex min-h-[152px] min-w-0 flex-col justify-between overflow-hidden rounded-[22px] p-5 text-white shadow-lg transition-transform duration-200 hover:-translate-y-0.5"
+                  style={{ background: bg }}
+                >
+                  <div className="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-white/10" aria-hidden="true" />
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm font-semibold tracking-tight">{b.name}</span>
+                    <span className="rounded-full bg-black/25 px-2.5 py-0.5 font-mono text-[11px] font-semibold backdrop-blur">
+                      {b.currency ?? 'BRL'}
+                    </span>
+                  </div>
+                  <div className="my-2 flex items-center justify-between gap-3">
+                    <ChipIcon />
+                    <Figure value={money(balance)} className="truncate text-[24px] leading-7 font-bold" />
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/25">
+                      <div className="h-full rounded-full bg-white/90" style={{ width: `${share}%` }} />
+                    </div>
+                    <span className="figure text-xs font-medium text-white/90">{share}% do total</span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       {/* Monthly category budgets with pace marker */}
       <section className="card mb-6" aria-label="Orçamento por categoria">
@@ -192,29 +356,20 @@ export default function Summary({ f, year, month, onPay }: { f: Finance; year: n
           )}
         </section>
         <section className="card">
-          <div className="mb-4 font-medium">Alocação e cartões</div>
-          {!f.banks.rows.length && !f.cards.rows.length ? <Empty icon={<Receipt size={18} strokeWidth={1.5} />}>Cadastre suas contas e cartões na aba Contas</Empty> : (
-            <>
-              {bankSlices.some((x) => x.value > 0) && (
-                <div className="mb-4 pb-4 border-b border-line">
-                  <DonutChart bare rows={bankSlices} format={money} centerLabel="Contas" size={142} />
-                </div>
-              )}
-              {f.cards.rows.length > 0 && (
-                <ul className="divide-y divide-line text-sm">
-                  {f.cards.rows.map((c) => {
-                    const used = cardUsed(c, f.txs.rows, f.payments.rows);
-                    const next = invoices(c, f.txs.rows, f.payments.rows).find((i) => !i.paid);
-                    return (
-                      <li key={c.id} className="flex py-2.5">
-                        <span className="mr-auto">{c.name}<span className="ml-2 text-xs text-fg3">{next ? `fatura vence ${formatDay(next.dueDate)}` : 'sem fatura aberta'}</span></span>
-                        <span className="figure">{money(used)}{c.credit_limit ? <span className="text-fg3"> / {money(c.credit_limit)}</span> : null}</span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </>
+          <div className="mb-3 font-medium">Cartões de crédito</div>
+          {!f.cards.rows.length ? <Empty icon={<Receipt size={18} strokeWidth={1.5} />}>Cadastre seus cartões na aba Contas</Empty> : (
+            <ul className="divide-y divide-line text-sm">
+              {f.cards.rows.map((c) => {
+                const used = cardUsed(c, f.txs.rows, f.payments.rows);
+                const next = invoices(c, f.txs.rows, f.payments.rows).find((i) => !i.paid);
+                return (
+                  <li key={c.id} className="flex py-2.5">
+                    <span className="mr-auto">{c.name}<span className="ml-2 text-xs text-fg3">{next ? `fatura vence ${formatDay(next.dueDate)}` : 'sem fatura aberta'}</span></span>
+                    <span className="figure">{money(used)}{c.credit_limit ? <span className="text-fg3"> / {money(c.credit_limit)}</span> : null}</span>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </section>
       </div>
