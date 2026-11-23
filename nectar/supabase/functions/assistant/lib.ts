@@ -1,8 +1,15 @@
 // Pure parts of the assistant: dates in the user's time zone, the tools the
-// model may call and the checks on their arguments, the system prompt and the
-// history sent along. No Deno or network here, so Vitest covers it.
+// model may call and the checks on their arguments, the system prompt, memory
+// formatting and the history sent along. No Deno or network here, so Vitest covers it.
 
 export interface LocalNow { date: string; time: string; weekday: number }
+
+export interface UndoSpec {
+  table: string;
+  op: 'delete' | 'update';
+  id: string;
+  patch?: Record<string, unknown>;
+}
 
 const WEEKDAYS = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
 
@@ -43,29 +50,100 @@ const fn = (name: string, description: string, properties: Record<string, unknow
   type: 'function', function: { name, description, parameters: { type: 'object', properties, required } },
 });
 
+export const MEMORY_CATEGORIES = ['rotina', 'financas', 'saude', 'projetos', 'preferencia', 'aprendizado'] as const;
+export type MemoryCategory = (typeof MEMORY_CATEGORIES)[number];
+
 /** What the model may do, in the OpenAI tool format OpenRouter takes. */
 export const TOOLS = [
   fn('listar_tarefas', 'Lista tarefas abertas do usuário.', { periodo: { type: 'string', enum: ['hoje', 'atrasadas', 'semana', 'todas'], description: 'hoje inclui as atrasadas' } }, ['periodo']),
-  fn('criar_tarefa', 'Cria uma tarefa.', { titulo: str('Título curto'), data: str('YYYY-MM-DD, opcional'), prioridade: { type: 'string', enum: ['alta', 'media', 'baixa'] } }, ['titulo']),
+  fn('criar_tarefa', 'Cria uma tarefa (opcionalmente vinculada a um projeto e com horário).', {
+    titulo: str('Título curto'),
+    data: str('YYYY-MM-DD, opcional'),
+    hora: str('HH:MM, 24h, opcional'),
+    prioridade: { type: 'string', enum: ['alta', 'media', 'baixa'] },
+    projeto: str('Nome do projeto para vincular, opcional'),
+  }, ['titulo']),
   fn('concluir_tarefa', 'Marca uma tarefa aberta como concluída, pelo id (de listar_tarefas) ou pelo título.', { id: str('id da tarefa, se souber'), titulo: str('título ou parte dele') }),
+  fn('reagendar_tarefa', 'Move uma tarefa aberta para outra data/horário, pelo id ou título.', {
+    id: str('id da tarefa, se souber'),
+    titulo: str('título ou parte dele'),
+    data: str('Nova data YYYY-MM-DD'),
+    hora: str('Novo horário HH:MM, opcional'),
+  }, ['data']),
   fn('criar_lembrete', 'Cria um lembrete num dia e hora.', { titulo: str('O que lembrar'), data: str('YYYY-MM-DD'), hora: str('HH:MM, 24 h') }, ['titulo', 'data', 'hora']),
+  fn('listar_agenda', 'Lista compromissos, tarefas e lembretes num intervalo de datas.', {
+    inicio: str('Data inicial YYYY-MM-DD'),
+    fim: str('Data final YYYY-MM-DD'),
+  }, ['inicio', 'fim']),
+  fn('criar_compromisso', 'Agenda um compromisso (evento) na Agenda.', {
+    titulo: str('Título do compromisso'),
+    data: str('YYYY-MM-DD'),
+    inicio: str('Hora de início HH:MM, opcional se dia inteiro'),
+    fim: str('Hora de término HH:MM, opcional'),
+    local: str('Local, opcional'),
+    observacoes: str('Observações, opcional'),
+  }, ['titulo', 'data']),
   fn('listar_habitos', 'Lista os hábitos de hoje e se já foram feitos.'),
   fn('marcar_habito', 'Registra um hábito como feito hoje (ou com um valor, para quantidade e medição), pelo id ou pelo nome.', { id: str('id do hábito, se souber'), nome: str('nome do hábito'), valor: { type: 'number', description: 'opcional' } }),
+  fn('listar_contas', 'Lista as contas bancárias cadastradas e a moeda de cada uma.'),
   fn('resumo_financeiro', 'Receitas, despesas e principais categorias de um mês.', { ano: { type: 'integer' }, mes: { type: 'integer', description: '1 a 12' } }, ['ano', 'mes']),
-  fn('registrar_transacao', 'Registra um gasto ou uma receita.', {
-    descricao: str('Descrição'), valor: { type: 'number', description: 'Em reais, positivo' }, tipo: { type: 'string', enum: ['despesa', 'receita'] },
-    categoria: str('opcional'), data: str('YYYY-MM-DD, opcional (hoje)'),
+  fn('registrar_transacao', 'Registra um gasto ou receita em BRL, EUR ou USD, opcionalmente numa conta específica (ex.: Revolut, Wise).', {
+    descricao: str('Descrição'),
+    valor: { type: 'number', description: 'Valor positivo na moeda informada' },
+    tipo: { type: 'string', enum: ['despesa', 'receita'] },
+    moeda: { type: 'string', enum: ['BRL', 'EUR', 'USD'], description: 'Padrão BRL (ou moeda da conta)' },
+    conta: str('Nome da conta bancária (ex.: Revolut, Wise), opcional'),
+    categoria: str('Categoria, opcional'),
+    data: str('YYYY-MM-DD, opcional (hoje)'),
+    cotacao: { type: 'number', description: 'Cotação em reais por unidade se moeda estrangeira, opcional' },
   }, ['descricao', 'valor', 'tipo']),
   fn('buscar_notas', 'Procura nas notas do usuário por um texto.', { texto: str('Palavras a procurar') }, ['texto']),
   fn('criar_nota', 'Cria uma nota de conhecimento.', { titulo: str('Título'), texto: str('Conteúdo; uma linha por parágrafo') }, ['titulo']),
   fn('listar_metas', 'Lista as metas ativas com o valor atual e o alvo.'),
+  fn('registrar_progresso_meta', 'Registra um novo valor/aporte numa meta pelo nome ou id.', {
+    id: str('id da meta, se souber'),
+    titulo: str('título ou parte dele'),
+    valor: { type: 'number', description: 'Valor do registro' },
+    nota: str('Observação opcional'),
+    data: str('YYYY-MM-DD, opcional (hoje)'),
+  }, ['valor']),
   fn('listar_projetos', 'Lista os projetos em andamento com tarefas abertas.'),
+  fn('criar_marco_projeto', 'Adiciona um marco (etapa) a um projeto em andamento.', {
+    projeto: str('Nome do projeto'),
+    titulo: str('Título do marco'),
+    prazo: str('Data prevista YYYY-MM-DD, opcional'),
+  }, ['projeto', 'titulo']),
+  fn('registrar_refeicao', 'Registra um alimento ou refeição no diário alimentar de Saúde.', {
+    alimento: str('Nome do alimento ou refeição'),
+    refeicao: { type: 'string', enum: ['cafe', 'almoco', 'jantar', 'lanche'], description: 'Qual refeição do dia' },
+    kcal: { type: 'number', description: 'Calorias (kcal)' },
+    proteina_g: { type: 'number', description: 'Proteína em gramas, opcional' },
+    carbo_g: { type: 'number', description: 'Carboidrato em gramas, opcional' },
+    gordura_g: { type: 'number', description: 'Gordura em gramas, opcional' },
+    quantidade_g: { type: 'number', description: 'Peso aproximado em gramas, opcional (padrão 100)' },
+    data: str('YYYY-MM-DD, opcional (hoje)'),
+  }, ['alimento', 'kcal']),
+  fn('registrar_peso', 'Registra o peso corporal (kg) em Saúde.', {
+    peso_kg: { type: 'number', description: 'Peso em quilogramas (ex.: 78.4)' },
+    observacoes: str('Observação opcional'),
+  }, ['peso_kg']),
+  fn('listar_memorias', 'Lista o que você já aprendeu e guardou sobre o usuário.'),
+  fn('salvar_memoria', 'Guarda uma preferência, regra, rotina ou correção aprendida com o usuário para lembrar em futuras conversas.', {
+    categoria: { type: 'string', enum: [...MEMORY_CATEGORIES] },
+    conteudo: str('Fato claro e conciso (ex.: "Gastos em euro padrão vão na conta Revolut")'),
+  }, ['conteudo']),
+  fn('esquecer_memoria', 'Remove uma memória desatualizada ou corrigida pelo usuário.', {
+    id: str('id da memória, se souber'),
+    trecho: str('trecho do texto da memória'),
+  }),
 ];
 
 export type ToolArgs = Record<string, unknown>;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+const UUID = /^[0-9a-f-]{36}$/i;
 const PRIORITY: Record<string, 'high' | 'medium' | 'low'> = { alta: 'high', media: 'medium', média: 'medium', baixa: 'low' };
+const MEAL_MAP: Record<string, string> = { cafe: 'breakfast', almoco: 'lunch', jantar: 'dinner', lanche: 'snack' };
 
 /**
  * Checks and normalizes a tool call's arguments. Returns the clean arguments
@@ -85,18 +163,35 @@ export function checkArgs(name: string, raw: unknown): { ok: true; args: ToolArg
       if (!titulo) return fail('titulo é obrigatório');
       const data = text('data');
       if (data && !DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
-      return { ok: true, args: { titulo, data: data || null, prioridade: PRIORITY[text('prioridade').toLowerCase()] ?? 'medium' } };
+      const hora = text('hora');
+      if (hora && !TIME.test(hora)) return fail('hora deve ser HH:MM');
+      const projeto = text('projeto', 120);
+      const out: ToolArgs = { titulo, data: data || null, prioridade: PRIORITY[text('prioridade').toLowerCase()] ?? 'medium' };
+      if (hora) out.hora = hora;
+      if (projeto) out.projeto = projeto;
+      return { ok: true, args: out };
     }
     case 'concluir_tarefa':
     case 'marcar_habito': {
       const id = text('id', 64);
       const label = text(name === 'concluir_tarefa' ? 'titulo' : 'nome', 200);
-      const validId = /^[0-9a-f-]{36}$/i.test(id);
+      const validId = UUID.test(id);
       const valor = a.valor === undefined || a.valor === null ? null : Number(a.valor);
       if (valor !== null && !(Number.isFinite(valor) && valor >= 0)) return fail('valor deve ser um número positivo');
       if (validId) return { ok: true, args: name === 'marcar_habito' ? { id, valor } : { id } };
       if (!label) return fail(id ? 'id inválido: use o id que veio da listagem' : `informe o id ou o ${name === 'concluir_tarefa' ? 'título' : 'nome'}`);
       return { ok: true, args: name === 'marcar_habito' ? { id: null, nome: label, valor } : { id: null, titulo: label } };
+    }
+    case 'reagendar_tarefa': {
+      const id = text('id', 64);
+      const titulo = text('titulo', 200);
+      const data = text('data');
+      const hora = text('hora');
+      if (!DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
+      if (hora && !TIME.test(hora)) return fail('hora deve ser HH:MM');
+      if (UUID.test(id)) return { ok: true, args: { id, titulo: null, data, hora: hora || null } };
+      if (!titulo) return fail('informe o id ou o título da tarefa');
+      return { ok: true, args: { id: null, titulo, data, hora: hora || null } };
     }
     case 'criar_lembrete': {
       const titulo = text('titulo');
@@ -106,6 +201,28 @@ export function checkArgs(name: string, raw: unknown): { ok: true; args: ToolArg
       if (!DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
       if (!TIME.test(hora)) return fail('hora deve ser HH:MM');
       return { ok: true, args: { titulo, data, hora } };
+    }
+    case 'listar_agenda': {
+      const inicio = text('inicio');
+      const fim = text('fim');
+      if (!DATE.test(inicio) || !DATE.test(fim)) return fail('inicio e fim devem ser YYYY-MM-DD');
+      if (fim < inicio) return fail('fim deve ser igual ou posterior a inicio');
+      return { ok: true, args: { inicio, fim } };
+    }
+    case 'criar_compromisso': {
+      const titulo = text('titulo');
+      const data = text('data');
+      const inicio = text('inicio');
+      const fim = text('fim');
+      if (!titulo) return fail('titulo é obrigatório');
+      if (!DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
+      if (inicio && !TIME.test(inicio)) return fail('inicio deve ser HH:MM');
+      if (fim && !TIME.test(fim)) return fail('fim deve ser HH:MM');
+      if (inicio && fim && fim <= inicio) return fail('fim deve ser depois de inicio');
+      return {
+        ok: true,
+        args: { titulo, data, inicio: inicio || null, fim: fim || null, local: text('local', 140) || null, observacoes: text('observacoes', 500) || null },
+      };
     }
     case 'resumo_financeiro': {
       const ano = Number(a.ano);
@@ -118,11 +235,21 @@ export function checkArgs(name: string, raw: unknown): { ok: true; args: ToolArg
       const valor = Math.round(Number(a.valor) * 100) / 100;
       const tipo = text('tipo');
       const data = text('data');
+      const moedaRaw = text('moeda').toUpperCase();
+      const moeda = moedaRaw ? (['BRL', 'EUR', 'USD'].includes(moedaRaw) ? moedaRaw : '') : null;
+      const conta = text('conta', 80);
+      const cotacao = a.cotacao === undefined || a.cotacao === null ? null : Number(a.cotacao);
       if (!descricao) return fail('descricao é obrigatória');
-      if (!(valor > 0) || valor > 10_000_000) return fail('valor deve ser positivo, em reais');
+      if (!(valor > 0) || valor > 10_000_000) return fail('valor deve ser positivo');
       if (tipo !== 'despesa' && tipo !== 'receita') return fail('tipo deve ser despesa ou receita');
+      if (moeda === '') return fail('moeda deve ser BRL, EUR ou USD');
       if (data && !DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
-      return { ok: true, args: { descricao, valor, tipo, categoria: text('categoria', 60) || null, data: data || null } };
+      if (cotacao !== null && !(Number.isFinite(cotacao) && cotacao > 0)) return fail('cotacao deve ser positiva');
+      const out: ToolArgs = { descricao, valor, tipo, categoria: text('categoria', 60) || null, data: data || null };
+      if (moeda) out.moeda = moeda;
+      if (conta) out.conta = conta;
+      if (cotacao !== null) out.cotacao = cotacao;
+      return { ok: true, args: out };
     }
     case 'buscar_notas': {
       const texto = text('texto', 100);
@@ -134,17 +261,90 @@ export function checkArgs(name: string, raw: unknown): { ok: true; args: ToolArg
       if (!titulo) return fail('titulo é obrigatório');
       return { ok: true, args: { titulo, texto: text('texto', 8000) } };
     }
+    case 'registrar_progresso_meta': {
+      const id = text('id', 64);
+      const titulo = text('titulo', 160);
+      const valor = Number(a.valor);
+      const data = text('data');
+      if (!Number.isFinite(valor)) return fail('valor numérico é obrigatório');
+      if (data && !DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
+      if (!UUID.test(id) && !titulo) return fail('informe o id ou o título da meta');
+      return { ok: true, args: { id: UUID.test(id) ? id : null, titulo: titulo || null, valor, nota: text('nota', 200) || null, data: data || null } };
+    }
+    case 'criar_marco_projeto': {
+      const projeto = text('projeto', 140);
+      const titulo = text('titulo', 160);
+      const prazo = text('prazo');
+      if (!projeto) return fail('projeto é obrigatório');
+      if (!titulo) return fail('titulo é obrigatório');
+      if (prazo && !DATE.test(prazo)) return fail('prazo deve ser YYYY-MM-DD');
+      return { ok: true, args: { projeto, titulo, prazo: prazo || null } };
+    }
+    case 'registrar_refeicao': {
+      const alimento = text('alimento', 160);
+      const kcal = Math.round(Number(a.kcal));
+      const refRaw = text('refeicao').toLowerCase() || 'lanche';
+      const meal = MEAL_MAP[refRaw] ?? 'snack';
+      const data = text('data');
+      if (!alimento) return fail('alimento é obrigatório');
+      if (!(kcal >= 0 && kcal <= 10000)) return fail('kcal inválido');
+      if (data && !DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
+      const numOr0 = (k: string) => { const n = Number(a[k]); return Number.isFinite(n) && n >= 0 ? Math.round(n * 10) / 10 : 0; };
+      const q = Number(a.quantidade_g);
+      return {
+        ok: true,
+        args: {
+          alimento, meal, kcal,
+          proteina_g: numOr0('proteina_g'), carbo_g: numOr0('carbo_g'), gordura_g: numOr0('gordura_g'),
+          quantidade_g: Number.isFinite(q) && q > 0 ? Math.round(q) : 100,
+          data: data || null,
+        },
+      };
+    }
+    case 'registrar_peso': {
+      const peso = Math.round(Number(a.peso_kg) * 10) / 10;
+      if (!(peso >= 25 && peso <= 350)) return fail('peso_kg deve estar entre 25 e 350');
+      return { ok: true, args: { peso_kg: peso, observacoes: text('observacoes', 200) || null } };
+    }
+    case 'salvar_memoria': {
+      const conteudo = text('conteudo', 400);
+      const catRaw = text('categoria').toLowerCase();
+      const categoria = (MEMORY_CATEGORIES as readonly string[]).includes(catRaw) ? catRaw : 'preferencia';
+      if (!conteudo) return fail('conteudo é obrigatório');
+      return { ok: true, args: { categoria, conteudo } };
+    }
+    case 'esquecer_memoria': {
+      const id = text('id', 64);
+      const trecho = text('trecho', 160);
+      if (!UUID.test(id) && !trecho) return fail('informe id ou trecho da memória');
+      return { ok: true, args: { id: UUID.test(id) ? id : null, trecho: trecho || null } };
+    }
     case 'listar_habitos':
+    case 'listar_contas':
     case 'listar_metas':
     case 'listar_projetos':
+    case 'listar_memorias':
       return { ok: true, args: {} };
     default:
       return fail(`ferramenta desconhecida: ${name}`);
   }
 }
 
-/** Tool calls that change data; the reply lists them so the user sees what was done. */
-export const WRITES = new Set(['criar_tarefa', 'concluir_tarefa', 'criar_lembrete', 'marcar_habito', 'registrar_transacao', 'criar_nota']);
+/** Tool calls that change data; the reply lists them so the user sees what was done (and can undo). */
+export const WRITES = new Set([
+  'criar_tarefa', 'concluir_tarefa', 'reagendar_tarefa', 'criar_lembrete', 'criar_compromisso',
+  'marcar_habito', 'registrar_transacao', 'criar_nota', 'registrar_progresso_meta',
+  'criar_marco_projeto', 'registrar_refeicao', 'registrar_peso', 'salvar_memoria', 'esquecer_memoria',
+]);
+
+/** Validates an optional base64 image data URL sent from the browser for multimodal prompts. */
+export function validImageDataUrl(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const s = raw.trim();
+  if (!/^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(s)) return null;
+  if (s.length > 4_000_000) return null;
+  return s;
+}
 
 /** A note's text as blocks in the BlockNote shape the app reads. */
 export function textToBlocks(text: string): unknown[] {
@@ -165,23 +365,45 @@ export function textToBlocks(text: string): unknown[] {
 // Prompt and history
 // ---------------------------------------------------------------------------
 
-export interface Snapshot { name?: string | null; tasksToday: string[]; tasksLate: number; habitsToday: string[]; goals: string[] }
+export interface Snapshot {
+  name?: string | null;
+  displayCurrency?: string | null;
+  tasksToday: string[];
+  tasksLate: number;
+  habitsToday: string[];
+  goals: string[];
+  eventsToday?: string[];
+  projects?: string[];
+  accounts?: { name: string; currency: string }[];
+  memories?: { category: string; content: string }[];
+}
 
 export function systemPrompt(now: LocalNow, tz: string, s: Snapshot): string {
   const lines = [
-    'Você é o assistente do Painel, o app pessoal de organização do usuário: tarefas, hábitos, lembretes, saúde, finanças, projetos, metas e notas.',
-    `Hoje é ${WEEKDAYS[now.weekday]}, ${now.date.split('-').reverse().join('/')}, ${now.time} (${tz}).${s.name ? ` O usuário se chama ${s.name}.` : ''}`,
-    'Responda em português do Brasil, curto e direto, sem enrolação. Use listas só quando ajudarem.',
-    'Use as ferramentas para consultar e alterar os dados; nunca invente dados nem ids. Para concluir uma tarefa ou marcar um hábito, passe o título ou o nome. Nunca diga que algo não existe sem consultar antes (listar_tarefas com periodo "todas").',
-    'Datas relativas (amanhã, sexta) você converte para YYYY-MM-DD a partir de hoje. Valores em reais.',
-    'Se faltar algo essencial para uma ação (ex.: valor de um gasto), pergunte antes de agir. Depois de alterar algo, confirme em uma frase o que foi feito.',
-    'Você não dá diagnóstico médico nem recomendação de investimento específica; pode organizar informações e sugerir hábitos razoáveis.',
+    'Você é o assistente autônomo do Painel, o sistema pessoal do usuário (tarefas, hábitos, agenda, lembretes, saúde, finanças multimoeda, projetos, metas e notas).',
+    `Hoje é ${WEEKDAYS[now.weekday]}, ${now.date.split('-').reverse().join('/')}, ${now.time} (${tz}).${s.name ? ` O usuário se chama ${s.name}.` : ''}${s.displayCurrency ? ` Moeda principal de exibição: ${s.displayCurrency}.` : ''}`,
+    'Responda em português do Brasil, direto, claro e prático. Use listas curtas só quando ajudarem.',
+    'Autonomia e precisão:',
+    '- Use as ferramentas para consultar e agir; nunca invente dados nem ids. Encadeie quantas ferramentas forem necessárias para resolver o pedido por completo numa única resposta.',
+    '- Para concluir/reagendar tarefa ou marcar hábito, passe o título/nome. Nunca diga que algo não existe sem consultar antes (listar_tarefas com periodo "todas").',
+    '- Converta datas relativas (hoje, amanhã, sexta) para YYYY-MM-DD a partir de hoje. Em finanças, respeite a moeda citada (EUR, USD ou BRL) e escolha a conta adequada conforme o que você sabe do usuário.',
+    '- Se o usuário enviar uma foto de recibo/nota fiscal ou prato de comida, extraia os dados com cuidado e registre usando a ferramenta certa (ou confirme se algum valor estiver ilegível).',
+    '- Aprendizado contínuo: sempre que o usuário revelar uma preferência duradoura, regra financeira (ex.: conta padrão por moeda), rotina de trabalho/estudo ou corrigir seu comportamento, chame salvar_memoria para lembrar nas próximas conversas. Se uma regra mudar, use esquecer_memoria e salve a nova.',
+    '- Só pergunte antes quando faltar dado essencial (ex.: valor de um gasto) ou para exclusões permanentes. Depois de agir, confirme de forma objetiva o que foi feito.',
+    '- Você não dá diagnóstico médico nem recomendação de investimento específica.',
     '',
     'Resumo de hoje:',
     `- Tarefas para hoje: ${s.tasksToday.length ? s.tasksToday.join('; ') : 'nenhuma'}${s.tasksLate ? ` (mais ${s.tasksLate} atrasadas)` : ''}`,
     `- Hábitos de hoje: ${s.habitsToday.length ? s.habitsToday.join('; ') : 'nenhum'}`,
     `- Metas ativas: ${s.goals.length ? s.goals.join('; ') : 'nenhuma'}`,
   ];
+  if (s.eventsToday?.length) lines.push(`- Compromissos hoje: ${s.eventsToday.join('; ')}`);
+  if (s.projects?.length) lines.push(`- Projetos ativos: ${s.projects.join('; ')}`);
+  if (s.accounts?.length) lines.push(`- Contas bancárias: ${s.accounts.map((a) => `${a.name} (${a.currency})`).join(', ')}`);
+  if (s.memories?.length) {
+    lines.push('', 'O que você já aprendeu sobre o usuário (use automaticamente):');
+    for (const m of s.memories) lines.push(`- [${m.category}] ${m.content}`);
+  }
   return lines.join('\n');
 }
 
@@ -234,15 +456,28 @@ export function keyHint(key: string): string | null {
 // Models
 // ---------------------------------------------------------------------------
 
-export const PAID_MODELS = ['deepseek/deepseek-chat-v3.1', 'deepseek/deepseek-chat-v3-0324', 'deepseek/deepseek-chat'];
+/** Default priority: Claude Sonnet 4 first for strong autonomous multi-step tool calling, with safe fallbacks. */
+export const PAID_MODELS = [
+  'anthropic/claude-sonnet-4',
+  'anthropic/claude-3.7-sonnet',
+  'google/gemini-2.5-pro',
+  'openai/gpt-4.1-mini',
+  'deepseek/deepseek-chat-v3.1',
+];
+
 /** Free variants: no credits needed, a daily message limit. */
 export const FREE_MODELS = ['deepseek/deepseek-chat-v3.1:free', 'deepseek/deepseek-chat-v3-0324:free', 'deepseek/deepseek-chat:free'];
 
-/** Order to try: a chosen model alone; else the last that worked first, then paid, then free. */
-export function modelCandidates(preferred?: string, working?: string | null): string[] {
+/** Order to try: env override alone; else user's chosen model first, then last working, then paid, then free. */
+export function modelCandidates(preferred?: string, working?: string | null, userModel?: string | null): string[] {
   if (preferred) return [preferred];
-  const all = [...PAID_MODELS, ...FREE_MODELS];
-  return working && all.includes(working) ? [working, ...all.filter((m) => m !== working)] : all;
+  const base = [...PAID_MODELS, ...FREE_MODELS];
+  const ordered: string[] = [];
+  const push = (m?: string | null) => { if (m && !ordered.includes(m)) ordered.push(m); };
+  push(userModel);
+  if (working && base.includes(working)) push(working);
+  for (const m of base) push(m);
+  return ordered;
 }
 
 export interface CatalogModel { id: string; context_length?: number; supported_parameters?: string[] }

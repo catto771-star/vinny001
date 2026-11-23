@@ -26,7 +26,7 @@ export function tzLabel(tz: string, at = new Date()): string {
 
 /** Tables of a user's data, in the order a backup would restore them. */
 export const EXPORT_TABLES = [
-  'user_settings', 'task_tags', 'tasks', 'task_recurring_templates', 'task_recurrences', 'habits', 'habit_completions', 'reminders',
+  'user_settings', 'assistant_memories', 'task_tags', 'tasks', 'task_recurring_templates', 'task_recurrences', 'habits', 'habit_completions', 'reminders',
   'reminder_recurring_templates', 'events', 'projects', 'project_steps', 'project_tasks', 'project_tags', 'goals', 'goal_entries',
   'knowledge_areas', 'knowledge_blocks', 'knowledge_connections', 'diary_entries', 'brain_entries', 'chat_messages',
   'automations', 'automation_runs', 'banks', 'cards', 'transaction_recurring_templates', 'installment_purchases',
@@ -40,6 +40,20 @@ export const EXPORT_TABLES = [
 export const OWN_ROWS_ONLY = ['foods', 'exercises', 'set_types'];
 /** Left out on purpose: device keys and send log (per device), and the public exchange-rate cache. */
 export const NOT_EXPORTED = ['push_subscriptions', 'notification_log', 'fx_rates'];
+
+export const AI_MODELS = [
+  { id: 'anthropic/claude-sonnet-4', label: 'Claude Sonnet 4', note: 'Mais autônomo e preciso (recomendado)' },
+  { id: 'anthropic/claude-3.7-sonnet', label: 'Claude 3.7 Sonnet', note: 'Alternativa Anthropic rápida e estável' },
+  { id: 'google/gemini-2.5-pro', label: 'Gemini 2.5 Pro', note: 'Contexto longo e forte em fotos/análises' },
+  { id: 'openai/gpt-4.1-mini', label: 'GPT-4.1 mini', note: 'Rápido e econômico para comandos diários' },
+  { id: 'deepseek/deepseek-chat-v3.1', label: 'DeepSeek V3.1', note: 'Econômico' },
+] as const;
+
+export function modelLabel(id: string): string {
+  const known = AI_MODELS.find((m) => m.id === id);
+  if (known) return known.label;
+  return id.split('/').pop() ?? id;
+}
 
 export function exportFileName(now: Date): string {
   const p = (n: number) => String(n).padStart(2, '0');

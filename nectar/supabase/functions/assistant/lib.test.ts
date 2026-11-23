@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TOOLS, addDays, checkArgs, cleanKey, history, keyHint, maskKey, modelCandidates, pickFreeModels, exchangeRows, matchByName, skipFor, withoutSkipped, localNow, systemPrompt, textToBlocks, zonedToUtc } from './lib';
+import { TOOLS, addDays, checkArgs, cleanKey, history, keyHint, maskKey, modelCandidates, pickFreeModels, exchangeRows, matchByName, skipFor, withoutSkipped, localNow, systemPrompt, textToBlocks, validImageDataUrl, zonedToUtc } from './lib';
 
 const SP = 'America/Sao_Paulo';
 
@@ -88,16 +88,39 @@ describe('api key', () => {
 });
 
 describe('models', () => {
-  it('tries the paid DeepSeek models, then the free ones', () => {
+  it('tries Claude Sonnet 4 and paid models first, then free fallbacks', () => {
     const all = modelCandidates();
-    expect(all[0]).toBe('deepseek/deepseek-chat-v3.1');
+    expect(all[0]).toBe('anthropic/claude-sonnet-4');
     expect(all.filter((m) => m.endsWith(':free')).length).toBeGreaterThan(0);
     expect(all.findIndex((m) => m.endsWith(':free'))).toBeGreaterThan(all.findIndex((m) => !m.endsWith(':free')));
   });
-  it('starts with the one that worked last, and a chosen model stands alone', () => {
+  it('respects userModel first, then last working, and env override stands alone', () => {
     expect(modelCandidates(undefined, 'deepseek/deepseek-chat:free')[0]).toBe('deepseek/deepseek-chat:free');
+    expect(modelCandidates(undefined, 'deepseek/deepseek-chat:free', 'google/gemini-2.5-pro')[0]).toBe('google/gemini-2.5-pro');
     expect(new Set(modelCandidates(undefined, 'deepseek/deepseek-chat:free')).size).toBe(modelCandidates().length);
-    expect(modelCandidates('deepseek/deepseek-r1')).toEqual(['deepseek/deepseek-r1']);
+    expect(modelCandidates('anthropic/claude-sonnet-4')).toEqual(['anthropic/claude-sonnet-4']);
+  });
+});
+
+describe('autonomy helpers', () => {
+  it('includes learned memories and accounts in the system prompt', () => {
+    const p = systemPrompt({ date: '2026-11-23', time: '10:00', weekday: 1 }, SP, {
+      name: 'Vini', displayCurrency: 'EUR', tasksToday: [], tasksLate: 0, habitsToday: [], goals: [],
+      accounts: [{ name: 'Revolut', currency: 'EUR' }],
+      memories: [{ category: 'financas', content: 'Gastos em euro vão na Revolut' }],
+    });
+    expect(p).toContain('Revolut (EUR)');
+    expect(p).toContain('[financas] Gastos em euro vão na Revolut');
+  });
+
+  it('validates multimodal image data URLs and checks new tool args', () => {
+    expect(validImageDataUrl('data:image/jpeg;base64,AAAA')).toBe('data:image/jpeg;base64,AAAA');
+    expect(validImageDataUrl('https://evil.example/x.png')).toBeNull();
+    expect(checkArgs('registrar_transacao', { descricao: 'Tesco', valor: 14.5, tipo: 'despesa', moeda: 'EUR', conta: 'Revolut' }))
+      .toEqual({ ok: true, args: { descricao: 'Tesco', valor: 14.5, tipo: 'despesa', categoria: null, data: null, moeda: 'EUR', conta: 'Revolut' } });
+    expect(checkArgs('salvar_memoria', { categoria: 'financas', conteudo: 'Euro sempre na Revolut' }))
+      .toEqual({ ok: true, args: { categoria: 'financas', conteudo: 'Euro sempre na Revolut' } });
+    expect(checkArgs('criar_compromisso', { titulo: 'Dentista', data: '2026-11-25', inicio: '15:00', fim: '14:00' })).toMatchObject({ ok: false });
   });
 });
 

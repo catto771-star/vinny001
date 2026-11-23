@@ -6,7 +6,7 @@ import { write } from '../lib/useTable';
 import { applyTheme, readTheme, type Theme } from '../lib/theme';
 import { ACCENTS, applyAccent, readAccent, type Accent } from '../lib/accent';
 import { CURRENCIES, type Currency } from '../lib/money';
-import { EXPORT_TABLES, OWN_ROWS_ONLY, START_KEY, TIMEZONES, exportFileName, readStart, tzLabel } from '../lib/prefs';
+import { AI_MODELS, EXPORT_TABLES, OWN_ROWS_ONLY, START_KEY, TIMEZONES, exportFileName, modelLabel, readStart, tzLabel } from '../lib/prefs';
 import { SECTIONS } from '../components/Layout';
 import { Field, FieldGroup, PageHeader } from '../components/ui';
 import { InstallCard, NotificationsCard } from './NotificationSettings';
@@ -22,15 +22,15 @@ const GROUPS = [
 ] as const;
 type Group = (typeof GROUPS)[number]['key'];
 
-interface Row { display_name: string | null; timezone: string; display_currency: Currency; height_cm: number | null; sex: 'M' | 'F' | null }
-const EMPTY: Row = { display_name: null, timezone: 'America/Sao_Paulo', display_currency: 'BRL', height_cm: null, sex: null };
+interface Row { display_name: string | null; timezone: string; display_currency: Currency; height_cm: number | null; sex: 'M' | 'F' | null; assistant_model: string }
+const EMPTY: Row = { display_name: null, timezone: 'America/Sao_Paulo', display_currency: 'BRL', height_cm: null, sex: null, assistant_model: 'anthropic/claude-sonnet-4' };
 
 /** The settings row of the signed-in user, read once and saved field by field. */
 function useSettingsRow() {
   const [row, setRow] = useState<Row>(EMPTY);
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
-    void supabase.from('user_settings').select('display_name,timezone,display_currency,height_cm,sex').maybeSingle().then(({ data }) => {
+    void supabase.from('user_settings').select('display_name,timezone,display_currency,height_cm,sex,assistant_model').maybeSingle().then(({ data }) => {
       if (data) setRow({ ...EMPTY, ...data } as Row);
       setLoaded(true);
     });
@@ -73,7 +73,7 @@ export default function Settings({ email }: { email: string }) {
           {group === 'preferencias' && <Preferences s={settings} />}
           {group === 'saude' && <HealthProfile s={settings} />}
           {group === 'notificacoes' && <NotificationsCard />}
-          {group === 'conectores' && <Connectors />}
+          {group === 'conectores' && <Connectors s={settings} />}
           {group === 'app' && <InstallCard />}
           {group === 'dados' && <DataPrivacy />}
         </div>
@@ -243,7 +243,7 @@ function Connector({ name, status, children }: { name: string; status: Status; c
   );
 }
 
-function Connectors() {
+function Connectors({ s }: { s: S }) {
   const [ai, setAi] = useState<{ status: Status; model: string | null }>({ status: 'checking', model: null });
   const [testing, setTesting] = useState<string | null>(null);
   useEffect(() => {
@@ -265,9 +265,30 @@ function Connectors() {
       <Connector name="Assistente de IA (OpenRouter)" status={ai.status}>
         {ai.status === 'off'
           ? <p>Salve a chave do OpenRouter no Supabase em Edge Functions → Secrets, com o nome OPENROUTER_API_KEY.</p>
-          : <p>Usa o DeepSeek quando há crédito na conta do OpenRouter e modelos gratuitos quando não há.{ai.model && <> Último modelo que respondeu: <span className="figure text-fg">{ai.model}</span>.</>}</p>}
-        <p className="mt-2 text-xs text-fg3">Créditos e chaves em openrouter.ai, em Settings → Credits e Keys.</p>
+          : (
+            <>
+              <p>
+                Usa o modelo escolhido abaixo via OpenRouter com fallback automático se a conta ficar sem créditos.
+                {ai.model && <> Último modelo que respondeu: <span className="figure text-fg">{modelLabel(ai.model)}</span>.</>}
+              </p>
+              <div className="mt-4">
+                <Field label="Modelo preferido">
+                  <select
+                    className="input"
+                    value={s.row.assistant_model}
+                    onChange={(e) => void s.save({ assistant_model: e.target.value })}
+                  >
+                    {AI_MODELS.map((m) => (
+                      <option key={m.id} value={m.id}>{m.label} — {m.note}</option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+            </>
+          )}
+        <p className="mt-1 text-xs text-fg3">Créditos e chaves em openrouter.ai, em Settings → Credits e Keys.</p>
       </Connector>
+      <AssistantMemories />
       <Connector name="Cotações (Banco Central do Brasil)" status="ok">
         <p>Dólar e euro pela PTAX, sem cadastro. Reserva: Banco Central Europeu.</p>
         <button className="btn-ghost -ml-2 mt-2" onClick={testFx}>Testar agora</button>
@@ -278,6 +299,76 @@ function Connectors() {
       </Connector>
       <GoogleCalendar />
     </>
+  );
+}
+
+interface MemoryRow { id: string; category: string; content: string; source: string }
+const MEM_CATS = ['preferencia', 'rotina', 'financas', 'saude', 'projetos', 'aprendizado'] as const;
+
+function AssistantMemories() {
+  const [rows, setRows] = useState<MemoryRow[]>([]);
+  const [content, setContent] = useState('');
+  const [category, setCategory] = useState<(typeof MEM_CATS)[number]>('preferencia');
+  const [busy, setBusy] = useState(false);
+
+  async function load() {
+    const { data } = await supabase.from('assistant_memories').select('id,category,content,source').order('updated_at', { ascending: false }).limit(50);
+    setRows((data ?? []) as MemoryRow[]);
+  }
+  useEffect(() => { void load(); }, []);
+
+  async function add(e: FormEvent) {
+    e.preventDefault();
+    const text = content.trim();
+    if (!text || busy) return;
+    setBusy(true);
+    const ok = await write(supabase.from('assistant_memories').insert({ category, content: text, source: 'user' }));
+    setBusy(false);
+    if (ok) { setContent(''); void load(); }
+  }
+
+  async function remove(id: string) {
+    if (await write(supabase.from('assistant_memories').delete().eq('id', id))) {
+      setRows((list) => list.filter((r) => r.id !== id));
+    }
+  }
+
+  return (
+    <Card title="Memória e aprendizado do Assistente">
+      <p className="mb-4 text-sm text-fg2">
+        O Assistente aprende suas regras e rotina ao conversar e também segue tudo o que você cadastrar aqui.
+      </p>
+      <form onSubmit={add} className="mb-4 space-y-2">
+        <div className="flex flex-wrap gap-2">
+          <select className="input w-36 shrink-0" aria-label="Categoria da memória" value={category} onChange={(e) => setCategory(e.target.value as (typeof MEM_CATS)[number])}>
+            {MEM_CATS.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <input
+            className="input min-w-0 flex-1"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Ex.: Gastos em euro padrão vão na conta Revolut"
+            maxLength={400}
+          />
+          <button className="btn-secondary shrink-0" disabled={busy || !content.trim()}>Ensinar</button>
+        </div>
+      </form>
+      {rows.length === 0 ? (
+        <p className="text-xs text-fg3">Nenhuma memória salva ainda. Ensine uma regra acima ou conte no chat.</p>
+      ) : (
+        <ul className="divide-y divide-line">
+          {rows.map((m) => (
+            <li key={m.id} className="flex items-start gap-2.5 py-2.5 text-sm">
+              <span className="badge bg-raised text-fg3">{m.category}</span>
+              <span className="min-w-0 flex-1 text-fg">{m.content}</span>
+              <button type="button" className="icon-btn h-7 w-7 shrink-0" onClick={() => void remove(m.id)} aria-label={`Esquecer: ${m.content}`}>
+                <Trash2 size={14} strokeWidth={1.6} aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   );
 }
 
