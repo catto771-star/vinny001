@@ -34,11 +34,11 @@ const CAL_TONE = {
 /** A bento tile: the whole tile opens its section. */
 function Tile({ to, title, meta, className = '', children }: { to: string; title: string; meta?: ReactNode; className?: string; children: ReactNode }) {
   return (
-    <Link to={to} className={`card glow group flex min-w-0 flex-col outline-none ${className}`}>
+    <Link to={to} className={`card glow group flex min-w-0 flex-col focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-bg ${className}`}>
       <div className="mb-4 flex items-center gap-2">
         <h2 className="label mr-auto">{title}</h2>
         {meta}
-        <ArrowUpRight size={16} strokeWidth={1.75} className="text-fg3 transition-transform duration-300 ease-out group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-fg" />
+        <ArrowUpRight size={16} strokeWidth={1.75} aria-hidden="true" className="text-fg3 transition-transform duration-300 ease-out group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-fg" />
       </div>
       {children}
     </Link>
@@ -116,7 +116,7 @@ export default function Home() {
 
       <div className="stagger grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-12">
         {/* Calories: a compact read of the day, in four lines. */}
-        <Tile to="/saude" title="Calorias" className="col-span-2 lg:order-2 lg:col-span-4"
+        <Tile to="/saude" title="Calorias" className="order-4 col-span-2 lg:order-2 lg:col-span-4"
           meta={<span className="text-xs text-fg3">{dayType === 'training' ? 'dia de treino' : 'dia de descanso'}</span>}>
           {loadingFood ? <div className="space-y-3"><Skeleton className="h-8 w-40" /><Skeleton className="h-3.5 w-28" /><Skeleton className="h-3 w-24" /></div> : !target ? (
             <>
@@ -141,7 +141,7 @@ export default function Home() {
         </Tile>
 
         {/* Habits: one segment per habit of today. */}
-        <Tile to="/habitos" title="Hábitos" className="col-span-1 lg:order-3 lg:col-span-4">
+        <Tile to="/habitos" title="Hábitos" className="order-2 col-span-1 lg:order-3 lg:col-span-4">
           {loadingHabits ? <Skeleton className="h-9 w-20" /> : (
             <Figure value={doneHabits} unit={`de ${routine.length}`} className="text-[28px] leading-8 font-medium" />
           )}
@@ -166,7 +166,7 @@ export default function Home() {
         </Tile>
 
         {/* Workout */}
-        <Tile to="/saude" title="Treino" className="col-span-1 lg:order-4 lg:col-span-3">
+        <Tile to="/saude" title="Treino" className="order-3 col-span-1 lg:order-4 lg:col-span-3">
           {h.workouts.loading ? <Skeleton className="h-9 w-24" /> : summary ? (
             <>
               <Figure value={num(summary.tonnage)} unit="kg" className="text-[28px] leading-8 font-medium" />
@@ -185,7 +185,7 @@ export default function Home() {
         </Tile>
 
         {/* Tasks */}
-        <Tile to="/tarefas" title="Para hoje" className="col-span-2 lg:order-1 lg:col-span-8"
+        <Tile to="/tarefas" title="Para hoje" className="order-1 col-span-2 lg:order-1 lg:col-span-8"
           meta={!loadingTasks && <span className="figure text-xs text-fg3">{doneToday} de {doneToday + dueToday.length} feitas</span>}>
           {loadingTasks ? (
             <div className="space-y-4">{[70, 52, 64, 44].map((w) => <Skeleton key={w} className="h-4" style={{ width: `${w}%` }} />)}</div>
@@ -197,7 +197,7 @@ export default function Home() {
                   <li key={t.id} className="flex items-center gap-3 border-b border-line py-3 text-[15px] last:border-0">
                     <span className={`h-2 w-2 shrink-0 rounded-full ${t.priority === 'high' ? 'bg-negative' : t.priority === 'medium' ? 'bg-brand' : 'bg-fg3/40'}`} aria-hidden />
                     <span className="mr-auto truncate">{t.title}</span>
-                    {late ? <span className="shrink-0 rounded-full bg-negative/10 px-2 py-0.5 text-xs font-medium text-negative">atrasada</span>
+                    {late ? <span className="badge bg-negative/10 text-negative">atrasada</span>
                       : t.due_date && !t.due_all_day && <span className="figure shrink-0 text-xs text-fg3">{formatTime(t.due_date)}</span>}
                   </li>
                 );
@@ -207,7 +207,7 @@ export default function Home() {
         </Tile>
 
         {/* Next reminders */}
-        <Tile to="/lembretes" title="A seguir" className="col-span-2 lg:order-5 lg:col-span-5">
+        <Tile to="/lembretes" title="A seguir" className="order-5 col-span-2 lg:order-5 lg:col-span-5">
           {reminders.loading ? (
             <div className="space-y-3">{[60, 45, 52].map((w) => <Skeleton key={w} className="h-4" style={{ width: `${w}%` }} />)}</div>
           ) : next.length === 0 ? <Empty icon={<Bell size={18} strokeWidth={1.5} />}>Nenhum lembrete pendente</Empty> : (
@@ -229,7 +229,7 @@ export default function Home() {
         </Tile>
 
         {/* Projects in motion */}
-        <Tile to="/projetos" title="Projetos" className="col-span-2 lg:order-6 lg:col-span-6"
+        <Tile to="/projetos" title="Projetos" className="order-6 col-span-2 lg:order-6 lg:col-span-6"
           meta={projectList.more > 0 && <span className="text-xs text-fg3">+{projectList.more} em andamento</span>}>
           {loadingProjects ? (
             <div className="space-y-5">{[0, 1].map((i) => <div key={i} className="space-y-2"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-1.5 w-full" /></div>)}</div>
@@ -253,7 +253,7 @@ export default function Home() {
         </Tile>
 
         {/* Goals in motion */}
-        <Tile to="/metas" title="Metas" className="col-span-2 lg:order-7 lg:col-span-6"
+        <Tile to="/metas" title="Metas" className="order-7 col-span-2 lg:order-7 lg:col-span-6"
           meta={goalList.more > 0 && <span className="text-xs text-fg3">+{goalList.more} ativas</span>}>
           {loadingGoals ? (
             <div className="space-y-5">{[0, 1].map((i) => <div key={i} className="space-y-2"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-1.5 w-full" /></div>)}</div>

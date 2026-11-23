@@ -122,9 +122,9 @@ export default function Habits() {
                       <Flame size={14} strokeWidth={1.5} />{currentStreak(h, rows, today)}
                     </div>
                   </div>
-                  <div className="flex flex-col">
-                    <button className="icon-btn h-6 w-6" disabled={i === 0} onClick={() => move(h, -1)} aria-label={`Subir ${h.name}`}><ArrowUp size={14} strokeWidth={1.5} /></button>
-                    <button className="icon-btn h-6 w-6" disabled={i === active.length - 1} onClick={() => move(h, 1)} aria-label={`Descer ${h.name}`}><ArrowDown size={14} strokeWidth={1.5} /></button>
+                  <div className="flex flex-col gap-0.5">
+                    <button className="icon-btn h-8 w-8 md:h-6 md:w-6" disabled={i === 0} onClick={() => move(h, -1)} aria-label={`Subir ${h.name}`}><ArrowUp size={14} strokeWidth={1.5} /></button>
+                    <button className="icon-btn h-8 w-8 md:h-6 md:w-6" disabled={i === active.length - 1} onClick={() => move(h, 1)} aria-label={`Descer ${h.name}`}><ArrowDown size={14} strokeWidth={1.5} /></button>
                   </div>
                 </li>
               );
@@ -182,8 +182,8 @@ function TodayView({ habits, completions, today, year, month, setValue, onOpen }
   const best = Math.max(0, ...habits.map((h) => (isWeekly(h) ? 0 : currentStreak(h, completions, today))));
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-      <div className="space-y-6">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="min-w-0 space-y-6">
         <div className="card grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Stat label="Constância no mês" value={pct(scheduled ? done / scheduled : 0)} accent />
           <Stat label="Dias perfeitos" value={perfect} hint={`de ${Number(today.slice(8))} dias`} />
@@ -205,7 +205,7 @@ function TodayView({ habits, completions, today, year, month, setValue, onOpen }
           </div>
         )}
       </div>
-      <section className="card h-fit" aria-label="Rotina do dia">
+      <section className="card h-fit min-w-0" aria-label="Rotina do dia">
         <div className="mb-3 flex items-baseline gap-2">
           <div className="label mr-auto">{day === today ? 'Rotina de hoje' : sentence(formatDay(day))}</div>
           <span className="figure text-xs text-fg3">{doneDay}/{routine.length}</span>
@@ -251,14 +251,14 @@ function WeekStrip({ habits, completions, today, selected, onSelect }: {
   const days = weekOf(selected);
   const thisWeek = days.includes(today);
   return (
-    <div className="card">
+    <div className="card min-w-0">
       <div className="mb-3 flex items-center gap-2">
         <div className="label mr-auto">{thisWeek ? 'Sua semana' : `Semana de ${Number(days[0].slice(8))}/${days[0].slice(5, 7)}`}</div>
         <button className="icon-btn" onClick={() => onSelect(addDays(selected, -7))} aria-label="Semana anterior"><ChevronLeft size={16} strokeWidth={1.5} /></button>
         {!thisWeek && <button className="btn-ghost h-8" onClick={() => onSelect(today)}>Hoje</button>}
         <button className="icon-btn" disabled={thisWeek} onClick={() => onSelect(addDays(selected, 7) > today ? today : addDays(selected, 7))} aria-label="Próxima semana"><ChevronRight size={16} strokeWidth={1.5} /></button>
       </div>
-      <div className="grid grid-cols-7 gap-1 sm:gap-2">
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-2">
         {days.map((d) => {
           const due = routineFor(habits, d, completions);
           const done = due.filter((h) => isDone(h, find(completions, h, d))).length;
@@ -267,13 +267,13 @@ function WeekStrip({ habits, completions, today, selected, onSelect }: {
           return (
             <button
               key={d} disabled={future} onClick={() => onSelect(d)} aria-pressed={d === selected} aria-label={formatDay(d)}
-              className={`rounded-xl p-1.5 text-center transition-colors duration-150 disabled:opacity-40 ${d === selected ? 'bg-raised outline outline-1 outline-line-strong' : 'hover:bg-raised/50'}`}
+              className={`min-w-0 rounded-xl px-0.5 py-1.5 text-center transition-colors duration-150 disabled:opacity-40 sm:p-1.5 ${d === selected ? 'bg-raised outline outline-1 outline-line-strong' : 'hover:bg-raised/50'}`}
             >
-              <div className="text-xs text-fg3">{weekdayShort(weekday(d))}</div>
-              <div className={`figure mx-auto my-1 flex h-9 w-9 items-center justify-center rounded-full text-sm ${perfect ? 'bg-brand text-on-brand' : d === today ? 'border border-brand' : 'border border-line'}`}>
+              <div className="truncate text-[11px] text-fg3 sm:text-xs">{weekdayShort(weekday(d))}</div>
+              <div className={`figure mx-auto my-1 flex h-8 w-8 items-center justify-center rounded-full text-xs sm:h-9 sm:w-9 sm:text-sm ${perfect ? 'bg-brand text-on-brand' : d === today ? 'border border-brand' : 'border border-line'}`}>
                 {Number(d.slice(8))}
               </div>
-              <div className="figure text-xs text-fg3">{future ? '' : `${done}/${due.length}`}</div>
+              <div className="figure truncate text-[11px] text-fg3 sm:text-xs">{future ? '' : `${done}/${due.length}`}</div>
             </button>
           );
         })}

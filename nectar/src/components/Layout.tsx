@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   Bell, CalendarDays, CheckSquare, Dumbbell, FolderKanban, Gauge, LogOut, Menu, Moon, Notebook, Repeat,
@@ -10,23 +10,25 @@ import { Modal } from './ui';
 import { Motion } from './Motion';
 import { Toaster } from './Toaster';
 
-export const SECTIONS: readonly { path: string; label: string; icon: LucideIcon; mobile?: boolean }[] = [
-  { path: 'inicio', label: 'Início', icon: Gauge, mobile: true },
-  { path: 'assistente', label: 'Assistente', icon: Bot },
-  { path: 'agenda', label: 'Agenda', icon: CalendarDays },
-  { path: 'tarefas', label: 'Tarefas', icon: CheckSquare, mobile: true },
-  { path: 'habitos', label: 'Hábitos', icon: Repeat, mobile: true },
-  { path: 'saude', label: 'Saúde', icon: Dumbbell, mobile: true },
-  { path: 'projetos', label: 'Projetos', icon: FolderKanban },
-  { path: 'lembretes', label: 'Lembretes', icon: Bell },
-  { path: 'financas', label: 'Finanças', icon: Wallet },
-  { path: 'conhecimento', label: 'Conhecimento', icon: Notebook },
-  { path: 'metas', label: 'Metas', icon: Target },
-  { path: 'piloto-automatico', label: 'Piloto automático', icon: Workflow },
-  { path: 'configuracoes', label: 'Configurações', icon: Settings },
+type NavGroup = 'Dia a dia' | 'Vida e finanças' | 'Sistema';
+
+export const SECTIONS: readonly { path: string; label: string; icon: LucideIcon; group: NavGroup; mobile?: boolean }[] = [
+  { path: 'inicio', label: 'Início', icon: Gauge, group: 'Dia a dia', mobile: true },
+  { path: 'assistente', label: 'Assistente', icon: Bot, group: 'Dia a dia' },
+  { path: 'agenda', label: 'Agenda', icon: CalendarDays, group: 'Dia a dia' },
+  { path: 'tarefas', label: 'Tarefas', icon: CheckSquare, group: 'Dia a dia', mobile: true },
+  { path: 'habitos', label: 'Hábitos', icon: Repeat, group: 'Dia a dia', mobile: true },
+  { path: 'lembretes', label: 'Lembretes', icon: Bell, group: 'Dia a dia' },
+  { path: 'saude', label: 'Saúde', icon: Dumbbell, group: 'Vida e finanças', mobile: true },
+  { path: 'financas', label: 'Finanças', icon: Wallet, group: 'Vida e finanças' },
+  { path: 'projetos', label: 'Projetos', icon: FolderKanban, group: 'Vida e finanças' },
+  { path: 'metas', label: 'Metas', icon: Target, group: 'Vida e finanças' },
+  { path: 'conhecimento', label: 'Conhecimento', icon: Notebook, group: 'Vida e finanças' },
+  { path: 'piloto-automatico', label: 'Piloto automático', icon: Workflow, group: 'Sistema' },
+  { path: 'configuracoes', label: 'Configurações', icon: Settings, group: 'Sistema' },
 ];
 
-const ICON = { size: 18, strokeWidth: 1.5 } as const;
+const ICON = { size: 18, strokeWidth: 1.5, 'aria-hidden': true } as const;
 
 /** The mark: a weight plate seen from the front, drawn flat in one color. */
 export function Mark({ size = 20 }: { size?: number }) {
@@ -54,43 +56,61 @@ export default function Layout({ email }: { email: string }) {
   };
   const row = ({ isActive }: { isActive: boolean }) =>
     `relative z-[1] flex h-9 items-center gap-2.5 rounded-[10px] px-3 text-sm transition-colors duration-300 ${
-      isActive ? 'bg-indicator font-medium text-fg shadow-[var(--indicator-shadow)]' : 'text-fg2 hover:text-fg'
+      isActive ? 'bg-indicator font-medium text-fg shadow-[var(--indicator-shadow)]' : 'text-fg2 hover:bg-raised/60 hover:text-fg'
     }`;
   const mobile = SECTIONS.filter((s) => s.mobile);
   const inMore = !mobile.some((s) => pathname.startsWith(`/${s.path}`));
 
   return (
     <div className="min-h-screen md:flex">
+      <a href="#main-content" className="skip-link">Pular para o conteúdo</a>
       <Motion />
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col px-3 py-5 md:flex">
-        <div className="mb-7 flex h-8 items-center gap-2 px-3">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-y-auto px-3 py-5 md:flex">
+        <div className="mb-6 flex h-8 items-center gap-2 px-3">
           <Mark />
           <span className="text-[17px] font-semibold tracking-[-0.02em]">Painel</span>
         </div>
         <nav className="slide-group side-nav relative flex flex-col gap-0.5" aria-label="Seções">
-          {SECTIONS.map(({ path, label, icon: Icon }) => (
-            <NavLink key={path} to={`/${path}`} className={row}>
-              {({ isActive }) => (
-                <>
-                  <Icon {...ICON} className={`transition-colors duration-300 ${isActive ? 'text-brand' : 'text-fg3'}`} />
-                  {label}
-                </>
-              )}
-            </NavLink>
-          ))}
+          {SECTIONS.map(({ path, label, icon: Icon, group }, i) => {
+            const showGroup = i > 0 && SECTIONS[i - 1].group !== group;
+            return (
+              <Fragment key={path}>
+                {showGroup && (
+                  <div className="mt-4 mb-1 px-3 text-[11px] font-medium tracking-[0.06em] text-fg3 uppercase select-none" aria-hidden="true">
+                    {group}
+                  </div>
+                )}
+                <NavLink to={`/${path}`} className={row}>
+                  {({ isActive }) => (
+                    <>
+                      <Icon {...ICON} className={`transition-colors duration-300 ${isActive ? 'text-brand' : 'text-fg3'}`} />
+                      <span className="truncate">{label}</span>
+                    </>
+                  )}
+                </NavLink>
+              </Fragment>
+            );
+          })}
         </nav>
-        <div className="mt-auto pt-3">
-          <div className="truncate px-3 pb-2 text-xs text-fg3">{email}</div>
-          <div className="flex gap-1">
-            <button className="icon-btn" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'}>
+        <div className="mt-auto border-t border-line pt-3">
+          <div className="truncate px-3 pb-2 text-xs text-fg3" title={email}>{email}</div>
+          <div className="flex gap-1 px-1">
+            <button
+              className="icon-btn"
+              onClick={toggleTheme}
+              title={theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'}
+              aria-label={theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'}
+            >
               {theme === 'dark' ? <Sun {...ICON} /> : <Moon {...ICON} />}
             </button>
-            <button className="icon-btn" onClick={() => supabase.auth.signOut()} aria-label="Sair"><LogOut {...ICON} /></button>
+            <button className="icon-btn" onClick={() => supabase.auth.signOut()} title="Sair" aria-label="Sair">
+              <LogOut {...ICON} />
+            </button>
           </div>
         </div>
       </aside>
 
-      <main key={pathname} className="enter mx-auto w-full min-w-0 max-w-[1440px] px-4 pt-7 pb-36 sm:px-6 md:px-10 md:pt-10 md:pb-16">
+      <main id="main-content" tabIndex={-1} key={pathname} className="enter mx-auto w-full min-w-0 max-w-[1440px] px-4 pt-7 pb-36 outline-none sm:px-6 md:px-10 md:pt-10 md:pb-16">
         <Outlet />
       </main>
 
@@ -107,6 +127,9 @@ export default function Layout({ email }: { email: string }) {
           </NavLink>
         ))}
         <button
+          type="button"
+          aria-expanded={more}
+          aria-haspopup="dialog"
           className={`relative z-[1] flex h-14 flex-col items-center justify-center gap-1 rounded-[16px] text-[11px] font-medium transition-[color,transform] duration-300 active:scale-[0.94] ${inMore ? 'text-brand-ink' : 'text-fg2'}`}
           onClick={() => setMore(true)}
         >
@@ -116,19 +139,20 @@ export default function Layout({ email }: { email: string }) {
 
       {more && (
         <Modal title="Seções" onClose={() => setMore(false)}>
-          <nav className="grid grid-cols-2 gap-2">
+          <nav className="grid grid-cols-2 gap-2" aria-label="Mais seções">
             {SECTIONS.filter((s) => !s.mobile).map(({ path, label, icon: Icon }) => (
               <NavLink
                 key={path} to={`/${path}`} onClick={() => setMore(false)}
                 className={({ isActive }) => `flex h-12 items-center gap-2.5 rounded-[14px] px-3.5 text-sm font-medium transition-[background-color,transform] duration-200 active:scale-[0.97] ${isActive ? 'bg-primary text-primary-ink' : 'bg-raised text-fg'}`}
               >
-                <Icon {...ICON} />{label}
+                <Icon {...ICON} />
+                <span className="truncate">{label}</span>
               </NavLink>
             ))}
           </nav>
-          <div className="mt-5 flex gap-2 pt-1">
-            <button className="btn-secondary" onClick={toggleTheme}>{theme === 'dark' ? <Sun {...ICON} /> : <Moon {...ICON} />}{theme === 'dark' ? 'Tema claro' : 'Tema escuro'}</button>
-            <button className="btn-ghost ml-auto" onClick={() => supabase.auth.signOut()}><LogOut {...ICON} />Sair</button>
+          <div className="mt-5 flex gap-2 border-t border-line pt-4">
+            <button type="button" className="btn-secondary" onClick={toggleTheme}>{theme === 'dark' ? <Sun {...ICON} /> : <Moon {...ICON} />}{theme === 'dark' ? 'Tema claro' : 'Tema escuro'}</button>
+            <button type="button" className="btn-ghost ml-auto" onClick={() => supabase.auth.signOut()}><LogOut {...ICON} />Sair</button>
           </div>
         </Modal>
       )}

@@ -75,8 +75,8 @@ export default function Assistant() {
   return (
     <div className="flex h-[calc(100dvh-9rem)] flex-col md:h-[calc(100dvh-5rem)]">
       <PageHeader
-        title="Assistente" subtitle="IA pelo OpenRouter (DeepSeek com crédito; modelos gratuitos sem), com acesso às suas tarefas, hábitos, finanças, metas, projetos e notas"
-        action={list.length > 0 ? <button className="btn-ghost" onClick={clear}><Trash2 size={16} strokeWidth={1.5} />Limpar conversa</button> : undefined}
+        title="Assistente" subtitle="Converse sobre sua rotina ou peça ações em tarefas, hábitos, finanças, metas, projetos e notas."
+        action={list.length > 0 ? <button className="btn-ghost" onClick={clear}><Trash2 size={16} strokeWidth={1.5} aria-hidden="true" />Limpar conversa</button> : undefined}
       />
       <section className="card flex min-h-0 flex-1 flex-col p-0" aria-label="Conversa">
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6" role="log" aria-live="polite">
@@ -114,8 +114,17 @@ export default function Assistant() {
           </div>
         )}
         {list.length < 2 && !sending && (
-          <div className="flex gap-2 overflow-x-auto px-4 pb-3 sm:px-6" aria-label="Sugestões">
-            {SUGGESTIONS.map((s) => <button key={s} className="shrink-0 rounded-full border border-line px-3 py-1.5 text-sm text-fg2 hover:bg-raised" onClick={() => void send(s)}>{s}</button>)}
+          <div className="flex flex-wrap gap-2 px-4 pb-3 sm:px-6" aria-label="Sugestões">
+            {SUGGESTIONS.map((s) => (
+              <button
+                key={s}
+                type="button"
+                className="rounded-full border border-line-strong bg-surface px-3.5 py-2 text-left text-[13px] text-fg2 transition-colors duration-150 hover:bg-raised hover:text-fg active:scale-[0.98]"
+                onClick={() => void send(s)}
+              >
+                {s}
+              </button>
+            ))}
           </div>
         )}
         <form className="flex items-end gap-2 border-t border-line p-3 sm:px-6" onSubmit={(e: FormEvent) => { e.preventDefault(); void send(text); }}>

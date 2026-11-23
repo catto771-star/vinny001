@@ -1,16 +1,17 @@
 import { useState, type ReactNode } from 'react';
 import { num } from '../lib/format';
+import { hasChartData, nextChartIndex, type ChartPoint } from '../lib/charts';
 
 // Single-series charts in SVG, on the theme's tokens. Bars are neutral and
 // only the current period takes the accent; a line takes the accent. Mono
-// labels on a hairline grid, a hover tooltip, a value on the last point
-// only, and a table view.
+// labels on a hairline grid, hover/tap/keyboard tooltips, a value on the last
+// point only, and a table view.
 
-export interface Point { label: string; value: number | null; detail?: string }
+export type Point = ChartPoint;
 
 const ACCENT = 'var(--brand)';
 const NEUTRAL = 'var(--chart-neutral)';
-const PAD = { top: 20, right: 16, bottom: 28, left: 48 };
+const PAD = { top: 22, right: 16, bottom: 28, left: 48 };
 
 function niceMax(max: number): number {
   if (max <= 0) return 1;
@@ -26,10 +27,11 @@ function lastIndex<T>(xs: T[], ok: (x: T) => boolean): number {
 
 const fmt = (n: number) => (Math.abs(n) >= 10000 ? `${num(n / 1000, 0)} mil` : num(n));
 
-export function ChartFrame({ title, subtitle, points, unit, children, aside }: {
-  title: string; subtitle?: string; points: Point[]; unit: string; children: ReactNode; aside?: ReactNode;
+export function ChartFrame({ title, subtitle, points, unit, children, aside, emptyText = 'Sem registros neste período' }: {
+  title: string; subtitle?: string; points: Point[]; unit: string; children: ReactNode; aside?: ReactNode; emptyText?: string;
 }) {
   const [table, setTable] = useState(false);
+  const populated = hasChartData(points);
   return (
     <figure className="card">
       <figcaption className="mb-4 flex flex-wrap items-start gap-3">
@@ -38,9 +40,22 @@ export function ChartFrame({ title, subtitle, points, unit, children, aside }: {
           {subtitle && <div className="text-[13px] leading-5 text-fg3">{subtitle}</div>}
         </div>
         {aside}
-        <button className="text-[13px] text-fg3 underline-offset-4 hover:text-fg hover:underline" onClick={() => setTable(!table)}>{table ? 'Ver gráfico' : 'Ver tabela'}</button>
+        {populated && (
+          <button
+            type="button"
+            aria-pressed={table}
+            className="rounded-lg px-2.5 py-1 text-[13px] font-medium text-fg2 transition-colors duration-150 hover:bg-raised hover:text-fg"
+            onClick={() => setTable(!table)}
+          >
+            {table ? 'Ver gráfico' : 'Ver tabela'}
+          </button>
+        )}
       </figcaption>
-      {table ? (
+      {!populated ? (
+        <div className="flex min-h-[140px] items-center justify-center rounded-[14px] bg-raised/50 px-4 py-8 text-center text-sm text-fg3">
+          {emptyText}
+        </div>
+      ) : table ? (
         <table className="w-full text-sm">
           <tbody>
             {points.map((p) => (
@@ -62,23 +77,23 @@ function Grid({ ticks, y, w, unit }: { ticks: number[]; y: (v: number) => number
       {ticks.map((t) => (
         <g key={t}>
           <line x1={PAD.left} x2={w - PAD.right} y1={y(t)} y2={y(t)} className="stroke-line" strokeWidth={1} />
-          <text x={PAD.left - 8} y={y(t) + 4} textAnchor="end" className="fill-fg3 font-mono text-[10px]">{fmt(t)}</text>
+          <text x={PAD.left - 8} y={y(t) + 4} textAnchor="end" className="fill-fg3 font-mono text-[11px]">{fmt(t)}</text>
         </g>
       ))}
-      <text x={PAD.left - 8} y={PAD.top - 8} textAnchor="end" className="fill-fg3 font-mono text-[10px]">{unit}</text>
+      <text x={PAD.left - 8} y={PAD.top - 8} textAnchor="end" className="fill-fg3 font-mono text-[11px]">{unit}</text>
     </g>
   );
 }
 
 function Tooltip({ x, y, w, point, unit }: { x: number; y: number; w: number; point: Point; unit: string }) {
   const text = `${point.label}: ${point.value === null ? 'sem dado' : `${fmt(point.value)} ${unit}`}${point.detail ? ` · ${point.detail}` : ''}`;
-  const tw = Math.min(300, text.length * 6.2 + 20);
+  const tw = Math.min(310, text.length * 6.4 + 22);
   const left = Math.min(Math.max(x - tw / 2, 0), w - tw);
   const top = Math.max(0, y - 34);
   return (
     <g pointerEvents="none">
       <rect x={left} y={top} width={tw} height={24} rx={6} className="fill-raised stroke-line-strong" strokeWidth={1} />
-      <text x={left + 10} y={top + 16} className="fill-fg text-[11px]">{text}</text>
+      <text x={left + 11} y={top + 16} className="fill-fg text-[11px] font-medium">{text}</text>
     </g>
   );
 }
@@ -98,9 +113,22 @@ export function ColumnChart({ title, subtitle, points, unit, height = 220, highl
   const y = (v: number) => PAD.top + (H - PAD.top - PAD.bottom) * (1 - v / max);
   const base = y(0);
   const lastIdx = lastIndex(points, (p) => p.value !== null && p.value > 0);
+  const labelEvery = points.length > 16 ? 2 : 1;
   return (
     <ChartFrame title={title} subtitle={subtitle} points={points} unit={unit} aside={aside}>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={title} onMouseLeave={() => setHover(null)}>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        role="img"
+        tabIndex={0}
+        aria-label={`${title}. Use as setas esquerda e direita para inspecionar os valores.`}
+        onMouseLeave={() => setHover(null)}
+        onBlur={() => setHover(null)}
+        onKeyDown={(e) => {
+          const next = nextChartIndex(hover, points.length, e.key);
+          if (next !== hover) { e.preventDefault(); setHover(next); }
+        }}
+      >
         <Grid ticks={[0, max / 2, max]} y={y} w={W} unit={unit} />
         {points.map((p, i) => {
           const cx = PAD.left + band * i + band / 2;
@@ -109,18 +137,19 @@ export function ColumnChart({ title, subtitle, points, unit, height = 220, highl
           const h = Math.max(0, base - top);
           const r = Math.min(4, h, bar / 2);
           const lead = highlight !== undefined ? i === highlight : highlightLast ? i === points.length - 1 : i === lastIdx;
+          const showLabel = i % labelEvery === 0 || i === points.length - 1 || i === hover;
           return (
-            <g key={p.label + i} onMouseEnter={() => setHover(i)}>
+            <g key={p.label + i} onMouseEnter={() => setHover(i)} onClick={() => setHover((cur) => (cur === i ? null : i))} className="cursor-pointer">
               <rect x={cx - band / 2} y={PAD.top} width={band} height={H - PAD.top - PAD.bottom} fill="transparent" />
               {h > 0 && (
                 <path
                   d={`M${cx - bar / 2},${base} V${top + r} Q${cx - bar / 2},${top} ${cx - bar / 2 + r},${top} H${cx + bar / 2 - r} Q${cx + bar / 2},${top} ${cx + bar / 2},${top + r} V${base} Z`}
                   fill={lead ? ACCENT : NEUTRAL}
                   className="transition-opacity duration-150"
-                  opacity={hover === null || hover === i ? 1 : 0.6}
+                  opacity={hover === null || hover === i ? 1 : 0.55}
                 />
               )}
-              <text x={cx} y={H - 10} textAnchor="middle" className="fill-fg3 font-mono text-[10px]">{p.label}</text>
+              {showLabel && <text x={cx} y={H - 10} textAnchor="middle" className="fill-fg3 font-mono text-[11px]">{p.label}</text>}
               {i === lastIdx && hover === null && <text x={cx} y={top - 6} textAnchor="middle" className="fill-fg2 font-mono text-[11px]">{fmt(v)}</text>}
             </g>
           );
@@ -152,14 +181,26 @@ export function LineChart({ title, subtitle, points, unit, minZero = true, heigh
   const last = lastIndex(points, (p) => p.value !== null);
   return (
     <ChartFrame title={title} subtitle={subtitle} points={points} unit={unit} aside={aside}>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={title} onMouseLeave={() => setHover(null)}>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        role="img"
+        tabIndex={0}
+        aria-label={`${title}. Use as setas esquerda e direita para inspecionar os valores.`}
+        onMouseLeave={() => setHover(null)}
+        onBlur={() => setHover(null)}
+        onKeyDown={(e) => {
+          const next = nextChartIndex(hover, points.length, e.key);
+          if (next !== hover) { e.preventDefault(); setHover(next); }
+        }}
+      >
         <Grid ticks={[lo, (lo + hi) / 2, hi]} y={y} w={W} unit={unit} />
         <path d={d} fill="none" stroke={ACCENT} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
         {points.map((p, i) => (
-          <g key={p.label + i} onMouseEnter={() => setHover(i)}>
+          <g key={p.label + i} onMouseEnter={() => setHover(i)} onClick={() => setHover((cur) => (cur === i ? null : i))} className="cursor-pointer">
             <rect x={x(i) - Math.max(step, 16) / 2} y={PAD.top} width={Math.max(step, 16)} height={H - PAD.top - PAD.bottom} fill="transparent" />
             {(i === 0 || i === points.length - 1 || points.length <= 8) && (
-              <text x={x(i)} y={H - 10} textAnchor="middle" className="fill-fg3 font-mono text-[10px]">{p.label}</text>
+              <text x={x(i)} y={H - 10} textAnchor="middle" className="fill-fg3 font-mono text-[11px]">{p.label}</text>
             )}
           </g>
         ))}

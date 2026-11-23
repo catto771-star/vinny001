@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { FOCUSABLE_SELECTOR, nextFocusIndex } from '../lib/a11y';
 
 export function PageHeader({ title, subtitle, tabs, tab, onTab, action }: {
   title: string;
@@ -95,6 +96,8 @@ const prefersReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion:
 export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const [closing, setClosing] = useState(false);
   const done = useRef(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
   const close = useCallback(() => {
     if (done.current) return;
     done.current = true;
@@ -103,11 +106,30 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
     window.setTimeout(onClose, 200);
   }, [onClose]);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const panel = panelRef.current;
+    if (panel) {
+      const auto = panel.querySelector<HTMLElement>('[autofocus]');
+      if (auto) auto.focus();
+      else if (!panel.contains(document.activeElement)) panel.focus();
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { close(); return; }
+      if (e.key !== 'Tab' || !panel) return;
+      const nodes = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+      if (!nodes.length) { e.preventDefault(); panel.focus(); return; }
+      const idx = nodes.indexOf(document.activeElement as HTMLElement);
+      const next = nextFocusIndex(idx, nodes.length, e.shiftKey);
+      if (next >= 0) { e.preventDefault(); nodes[next].focus(); }
+    };
     window.addEventListener('keydown', onKey);
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = overflow; };
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = overflow;
+      if (opener && opener.isConnected) opener.focus();
+    };
   }, [close]);
   // Rendered on <body>: an animated page around it must not decide where "the screen" is.
   return createPortal(
@@ -116,14 +138,16 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
       data-closing={closing || undefined} onClick={close}
     >
       <div
-        className="modal-panel max-h-[90vh] w-full overflow-y-auto rounded-t-[24px] bg-surface px-5 pt-3 pb-[calc(28px+env(safe-area-inset-bottom))] shadow-[var(--float-shadow)] sm:max-w-md sm:rounded-[24px] sm:p-6"
+        ref={panelRef}
+        tabIndex={-1}
+        className="modal-panel max-h-[90vh] w-full overflow-y-auto rounded-t-[24px] bg-surface px-5 pt-3 pb-[calc(28px+env(safe-area-inset-bottom))] shadow-[var(--float-shadow)] outline-none sm:max-w-md sm:rounded-[24px] sm:p-6"
         data-closing={closing || undefined}
-        onClick={(e) => e.stopPropagation()} role="dialog" aria-label={title} aria-modal="true"
+        onClick={(e) => e.stopPropagation()} role="dialog" aria-labelledby={titleId} aria-modal="true"
       >
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line-strong sm:hidden" aria-hidden />
         <div className="mb-5 flex items-center gap-2">
-          <h2 className="mr-auto text-xl leading-7 font-semibold tracking-[-0.02em]">{title}</h2>
-          <button className="icon-btn -mr-2" onClick={close} aria-label="Fechar"><X size={18} strokeWidth={1.75} /></button>
+          <h2 id={titleId} className="mr-auto text-xl leading-7 font-semibold tracking-[-0.02em]">{title}</h2>
+          <button type="button" className="icon-btn -mr-2" onClick={close} aria-label="Fechar"><X size={18} strokeWidth={1.75} aria-hidden="true" /></button>
         </div>
         {children}
       </div>

@@ -144,7 +144,7 @@ body {
 }
 
 @utility btn {
-  @apply inline-flex h-10 items-center justify-center gap-2 rounded-[12px] px-4 text-sm font-medium transition-[background-color,color,opacity,transform,box-shadow] duration-200 ease-out select-none active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 md:h-9;
+  @apply inline-flex h-11 items-center justify-center gap-2 rounded-[12px] px-4 text-sm font-medium transition-[background-color,color,opacity,transform,box-shadow] duration-200 ease-out select-none active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 md:h-9;
 }
 
 @utility btn-primary {
@@ -161,7 +161,15 @@ body {
 }
 
 @utility icon-btn {
-  @apply inline-flex h-10 w-10 items-center justify-center rounded-[10px] text-fg3 transition-[background-color,color,transform] duration-200 ease-out hover:bg-raised hover:text-fg active:scale-[0.92] md:h-8 md:w-8;
+  @apply inline-flex h-11 w-11 items-center justify-center rounded-[10px] text-fg3 transition-[background-color,color,transform] duration-200 ease-out hover:bg-raised hover:text-fg active:scale-[0.92] md:h-8 md:w-8;
+}
+
+@utility badge {
+  @apply inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium leading-5;
+}
+
+@utility skip-link {
+  @apply fixed top-3 left-3 z-50 -translate-y-20 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-ink shadow-[var(--float-shadow)] transition-transform duration-150 focus:translate-y-0;
 }
 
 @utility input {
@@ -169,7 +177,7 @@ body {
 }
 
 @utility tab {
-  @apply relative z-[1] inline-flex h-9 shrink-0 items-center rounded-[9px] px-3.5 text-sm whitespace-nowrap text-fg2 transition-colors duration-300 ease-out hover:text-fg md:h-8 md:px-3;
+  @apply relative z-[1] inline-flex h-10 shrink-0 items-center rounded-[9px] px-3.5 text-sm whitespace-nowrap text-fg2 transition-colors duration-300 ease-out hover:text-fg md:h-8 md:px-3;
 }
 
 @utility tab-active {

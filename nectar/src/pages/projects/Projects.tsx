@@ -22,6 +22,13 @@ type Filter = (typeof FILTERS)[number];
 export const HEALTH_TONE: Record<Health, string> = {
   late: 'text-negative', risk: 'text-warning', ok: 'text-positive', done: 'text-fg3', open: 'text-fg3',
 };
+const HEALTH_BADGE: Record<Health, string> = {
+  late: 'bg-negative/10 text-negative',
+  risk: 'bg-warning/10 text-warning',
+  ok: 'bg-positive/10 text-positive',
+  done: 'bg-raised text-fg2',
+  open: 'bg-raised text-fg3',
+};
 
 const short = (day: string) => `${Number(day.slice(8))}/${day.slice(5, 7)}`;
 
@@ -125,21 +132,23 @@ function ProjectCard({ project: p, data, today, onOpen }: { project: Project; da
   const { health } = projectHealth(p, prog.pct, today);
   const next = nextStep(steps);
   return (
-    <li>
-      <button className="card flex h-full w-full flex-col text-left transition-colors duration-150 hover:border-line-strong" onClick={onOpen}>
-        <div className="mb-3 flex items-center gap-2">
-          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: p.color }} />
-          <span className="mr-auto truncate font-medium">{p.name}</span>
-          <span className={`text-xs ${HEALTH_TONE[health]}`}>{p.status === 'paused' ? STATUS_LABEL.paused : HEALTH_LABEL[health]}</span>
+    <li className="min-w-0">
+      <button type="button" className="card glow flex h-full w-full min-w-0 flex-col text-left" onClick={onOpen}>
+        <div className="mb-3 flex w-full min-w-0 items-center gap-2">
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: p.color }} aria-hidden="true" />
+          <span className="mr-auto min-w-0 truncate font-medium">{p.name}</span>
+          <span className={`badge ${p.status === 'paused' ? 'bg-raised text-fg2' : HEALTH_BADGE[health]}`}>
+            {p.status === 'paused' ? STATUS_LABEL.paused : HEALTH_LABEL[health]}
+          </span>
         </div>
         {p.description && <p className="mb-3 line-clamp-2 text-sm text-fg3">{p.description}</p>}
         <div className="mt-auto">
-          <div className="mb-1 flex items-baseline text-xs text-fg3">
+          <div className="mb-1.5 flex items-baseline text-xs text-fg3">
             <span className="mr-auto">{prog.by === 'steps' ? `${prog.done}/${prog.total} marcos` : `${prog.done}/${prog.total} tarefas`}</span>
-            <span className="figure text-sm text-fg">{prog.pct}%</span>
+            <span className="figure text-sm font-medium text-fg">{prog.pct}%</span>
           </div>
-          <div className="h-1.5 rounded-sm bg-raised" role="progressbar" aria-valuenow={prog.pct} aria-valuemin={0} aria-valuemax={100} aria-label={`Progresso de ${p.name}`}>
-            <div className="h-1.5 rounded-sm" style={{ width: `${prog.pct}%`, background: p.color }} />
+          <div className="h-1.5 overflow-hidden rounded-full bg-raised" role="progressbar" aria-valuenow={prog.pct} aria-valuemin={0} aria-valuemax={100} aria-label={`Progresso de ${p.name}`}>
+            <div className="meter-fill h-full rounded-full" style={{ width: `${prog.pct}%`, background: p.color }} />
           </div>
           <div className="mt-3 flex gap-3 text-xs text-fg3">
             <span className="mr-auto truncate">{next ? `Próximo: ${next.title}${next.due_date ? ` · ${short(next.due_date)}` : ''}` : steps.length ? 'Todos os marcos feitos' : 'Sem marcos'}</span>

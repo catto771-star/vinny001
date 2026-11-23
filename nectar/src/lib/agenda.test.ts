@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { monthGrid, moveToDay, weekOf } from './calendar';
 import { sentence } from './dates';
-import { buildAgenda, projectedRecurringTasks } from './agenda';
+import { buildAgenda, partitionWeekDay, projectedRecurringTasks, type AgendaItem } from './agenda';
 import type { Task } from './tasks';
 
 const NOW = new Date(2026, 10, 18, 9, 0); // Wednesday 18 Nov 2026, 09:00
@@ -91,3 +91,20 @@ describe('Google events', () => {
     expect(items.map((i) => i.detail)).toEqual(['GRU · Google Agenda', undefined]);
   });
 });
+
+describe('partitionWeekDay', () => {
+  it('places timed items first, keeps bills/timed habits in primary, and collapses untimed habits', () => {
+    const items: AgendaItem[] = [
+      { key: 'h1', kind: 'habit', day: '2026-11-22', title: 'Cardio', time: null, done: true, overdue: false },
+      { key: 'h2', kind: 'habit', day: '2026-11-22', title: 'Inglês', time: null, done: false, overdue: false },
+      { key: 'm1', kind: 'money', day: '2026-11-22', title: 'Renda semanal', time: null, done: false, overdue: false, amount: 680 },
+      { key: 'r1', kind: 'reminder', day: '2026-11-22', title: 'Plantão', time: '18:30', done: false, overdue: true },
+      { key: 'h3', kind: 'habit', day: '2026-11-22', title: 'Meditar', time: '07:00', done: false, overdue: false },
+    ];
+    const part = partitionWeekDay(items);
+    expect(part.primary.map((i) => i.key)).toEqual(['h3', 'r1', 'm1']);
+    expect(part.allDayHabits.map((i) => i.key)).toEqual(['h1', 'h2']);
+    expect(part.habitsDone).toBe(1);
+  });
+});
+

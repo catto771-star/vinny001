@@ -116,3 +116,32 @@ export function projectedRecurringTasks(
   }
   return out;
 }
+
+/**
+ * Splits a single day's agenda items for the Week view so timed events, tasks,
+ * reminders, workouts and bills stand out at the top while untimed daily habits
+ * can be collapsed into a compact progress pill instead of flooding all 7 columns.
+ */
+export function partitionWeekDay(items: readonly AgendaItem[]): {
+  primary: AgendaItem[];
+  allDayHabits: AgendaItem[];
+  habitsDone: number;
+} {
+  const primary: AgendaItem[] = [];
+  const allDayHabits: AgendaItem[] = [];
+  for (const item of items) {
+    if (item.kind === 'habit' && !item.time) allDayHabits.push(item);
+    else primary.push(item);
+  }
+  primary.sort((a, b) => {
+    const aTimed = a.time ? 0 : 1;
+    const bTimed = b.time ? 0 : 1;
+    return aTimed - bTimed || (a.time ?? '').localeCompare(b.time ?? '') || a.title.localeCompare(b.title, 'pt');
+  });
+  return {
+    primary,
+    allDayHabits,
+    habitsDone: allDayHabits.filter((h) => h.done).length,
+  };
+}
+

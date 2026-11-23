@@ -60,16 +60,18 @@ export default function Finance() {
         tab={tab}
         onTab={(t) => setTab(t as Tab)}
         action={
-          <div className="flex flex-wrap items-center gap-1">
-            <div className="segmented mr-2" role="group" aria-label="Ver valores em">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="segmented" role="group" aria-label="Ver valores em">
               {CURRENCIES.map((c) => (
                 <button key={c.code} type="button" className={currency === c.code ? 'tab-active' : 'tab'} aria-pressed={currency === c.code} title={c.name} onClick={() => void chooseCurrency(c.code)}>{c.symbol}</button>
               ))}
             </div>
-            <button className="icon-btn" onClick={() => shift(-1)} aria-label="Mês anterior"><ChevronLeft size={16} strokeWidth={1.5} /></button>
-            {!isCurrent && <button className="btn-ghost h-8" onClick={() => setYm({ year: now.getFullYear(), month: now.getMonth() + 1 })}>Hoje</button>}
-            <button className="icon-btn" onClick={() => shift(1)} aria-label="Próximo mês"><ChevronRight size={16} strokeWidth={1.5} /></button>
-            <button className="btn-primary ml-2" onClick={() => setNewTx({})}><Plus size={16} strokeWidth={1.5} />Lançamento</button>
+            <div className="flex items-center gap-0.5">
+              <button type="button" className="icon-btn" onClick={() => shift(-1)} aria-label="Mês anterior"><ChevronLeft size={16} strokeWidth={1.5} aria-hidden="true" /></button>
+              {!isCurrent && <button type="button" className="btn-ghost h-8" onClick={() => setYm({ year: now.getFullYear(), month: now.getMonth() + 1 })}>Hoje</button>}
+              <button type="button" className="icon-btn" onClick={() => shift(1)} aria-label="Próximo mês"><ChevronRight size={16} strokeWidth={1.5} aria-hidden="true" /></button>
+            </div>
+            <button type="button" className="btn-primary" onClick={() => setNewTx({})}><Plus size={16} strokeWidth={1.5} aria-hidden="true" />Lançamento</button>
           </div>
         }
       />

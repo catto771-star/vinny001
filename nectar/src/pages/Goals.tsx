@@ -20,6 +20,14 @@ const TABS = ['Ativas', 'Pausadas', 'Concluídas'] as const;
 type Tab = (typeof TABS)[number];
 const TAB_STATUS: Record<Tab, GoalStatus> = { Ativas: 'active', Pausadas: 'paused', Concluídas: 'completed' };
 export const PACE_TONE: Record<Pace, string> = { done: 'text-positive', ahead: 'text-positive', on: 'text-fg2', behind: 'text-warning', late: 'text-negative', open: 'text-fg3' };
+const PACE_BADGE: Record<Pace, string> = {
+  done: 'bg-positive/10 text-positive',
+  ahead: 'bg-positive/10 text-positive',
+  on: 'bg-raised text-fg2',
+  behind: 'bg-warning/10 text-warning',
+  late: 'bg-negative/10 text-negative',
+  open: 'bg-raised text-fg3',
+};
 const short = (day: string) => `${Number(day.slice(8))}/${day.slice(5, 7)}`;
 
 /** A value in the goal's unit: money as R$, a project as %. */
@@ -96,18 +104,18 @@ export default function Goals() {
           )}
           <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {shown.map(({ g, current, progress, pace, expected, daysLeft, perWeek, projected }) => (
-              <li key={g.id}>
-                <button className="card flex h-full w-full flex-col text-left transition-colors duration-150 hover:border-line-strong" onClick={() => setOpenId(g.id)}>
-                  <div className="mb-1 flex items-center gap-2 text-xs text-fg3">
-                    <span className="mr-auto">{TYPE_LABEL[g.goal_type]}{linkName(g) ? ` · ${linkName(g)}` : ''}</span>
-                    <span className={PACE_TONE[pace]}>{PACE_LABEL[pace]}</span>
+              <li key={g.id} className="min-w-0">
+                <button type="button" className="card glow flex h-full w-full min-w-0 flex-col text-left" onClick={() => setOpenId(g.id)}>
+                  <div className="mb-1.5 flex w-full min-w-0 items-center gap-2 text-xs text-fg3">
+                    <span className="mr-auto min-w-0 truncate">{TYPE_LABEL[g.goal_type]}{linkName(g) ? ` · ${linkName(g)}` : ''}</span>
+                    <span className={`badge ${PACE_BADGE[pace]}`}>{PACE_LABEL[pace]}</span>
                   </div>
                   <div className="mb-3 font-medium">{g.title}</div>
                   <div className="mt-auto">
                     <div className="mb-1.5 flex items-baseline gap-2">
                       <span className="figure text-xl">{fmt(g, current)}</span>
                       <span className="figure text-sm text-fg3">de {fmt(g, targetOf(g))}</span>
-                      <span className="figure ml-auto text-sm">{Math.round(progress * 100)}%</span>
+                      <span className="figure ml-auto text-sm font-medium">{Math.round(progress * 100)}%</span>
                     </div>
                     <ProgressBar progress={progress} expected={expected} label={g.title} />
                     <div className="mt-2 text-xs text-fg3">

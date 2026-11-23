@@ -6,7 +6,7 @@ import { useTable, write } from '../lib/useTable';
 import { addDays, formatDay, formatTime, monthName, toDay, sentence } from '../lib/dates';
 import { weekOf } from '../lib/calendar';
 import { brl } from '../lib/format';
-import { buildAgenda, KIND_LABEL, type AgendaItem, type AgendaKind, type Event } from '../lib/agenda';
+import { buildAgenda, KIND_LABEL, partitionWeekDay, type AgendaItem, type AgendaKind, type Event } from '../lib/agenda';
 import type { Task } from '../lib/tasks';
 import type { Reminder } from '../lib/reminders';
 import type { Habit, HabitCompletion } from '../lib/habits';
@@ -89,14 +89,14 @@ export default function Agenda() {
           </div>
         }
       />
-      <div className="mb-5 flex flex-wrap gap-1" role="group" aria-label="Mostrar">
+      <div className="mb-5 flex flex-wrap gap-1.5" role="group" aria-label="Mostrar">
         {KINDS.map((k) => {
           const on = kinds.has(k);
           const Icon = ICON[k];
           return (
-            <button key={k} aria-pressed={on} onClick={() => { const n = new Set(kinds); if (on) n.delete(k); else n.add(k); setKinds(n); }}
-              className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-[13px] transition-colors duration-150 ${on ? 'border-line-strong bg-raised text-fg' : 'border-line text-fg3 hover:text-fg2'}`}>
-              <Icon size={14} strokeWidth={1.5} />{KIND_LABEL[k]}
+            <button key={k} type="button" aria-pressed={on} onClick={() => { const n = new Set(kinds); if (on) n.delete(k); else n.add(k); setKinds(n); }}
+              className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition-colors duration-150 md:h-8 ${on ? 'border-primary bg-primary text-primary-ink' : 'border-line-strong bg-surface text-fg2 hover:bg-raised hover:text-fg'}`}>
+              <Icon size={14} strokeWidth={1.6} aria-hidden="true" />{KIND_LABEL[k]}
             </button>
           );
         })}
@@ -106,17 +106,41 @@ export default function Agenda() {
         <DayList items={items} day={day} onToggle={toggle} onOpen={openEvent} />
       ) : view === 'Semana' ? (
         <div className="grid gap-3 lg:grid-cols-7">
-          {weekOf(day).map((d) => (
-            <section key={d} className={`card p-3 ${d === today ? 'border-line-strong' : ''}`}>
-              <button className="mb-2 w-full text-left" onClick={() => { setDay(d); setView('Dia'); }}>
-                <div className="text-xs text-fg3">{sentence(formatDay(d).split(',')[0])}</div>
-                <div className={`figure text-lg ${d === today ? 'text-brand-ink' : ''}`}>{Number(d.slice(8))}</div>
-              </button>
-              <ul className="space-y-1">
-                {items.filter((i) => i.day === d).map((i) => <ItemRow key={i.key} i={i} compact onToggle={toggle} onOpen={openEvent} />)}
-              </ul>
-            </section>
-          ))}
+          {weekOf(day).map((d) => {
+            const { primary, allDayHabits, habitsDone } = partitionWeekDay(items.filter((i) => i.day === d));
+            return (
+              <section key={d} className={`card flex min-w-0 flex-col p-3.5 ${d === today ? 'ring-1 ring-brand/40' : ''}`}>
+                <button type="button" className="mb-3 flex items-baseline justify-between rounded-lg px-1 py-0.5 text-left transition-colors hover:bg-raised" onClick={() => { setDay(d); setView('Dia'); }}>
+                  <div>
+                    <div className="text-xs text-fg3">{sentence(formatDay(d).split(',')[0])}</div>
+                    <div className={`figure text-lg font-medium ${d === today ? 'text-brand-ink' : ''}`}>{Number(d.slice(8))}</div>
+                  </div>
+                  {d === today && <span className="badge bg-brand/12 text-brand-ink">hoje</span>}
+                </button>
+                {primary.length > 0 ? (
+                  <ul className="space-y-1">
+                    {primary.map((i) => <ItemRow key={i.key} i={i} compact onToggle={toggle} onOpen={openEvent} />)}
+                  </ul>
+                ) : allDayHabits.length === 0 ? (
+                  <p className="px-1 py-2 text-xs text-fg3">Dia livre</p>
+                ) : (
+                  <p className="px-1 py-1 text-xs text-fg3">Sem horários marcados</p>
+                )}
+                {allDayHabits.length > 0 && (
+                  <details className="mt-3 border-t border-line pt-2.5">
+                    <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-lg px-1.5 py-1 text-xs font-medium text-fg2 transition-colors hover:bg-raised">
+                      <Repeat size={12} strokeWidth={1.6} aria-hidden="true" className="shrink-0 text-fg3" />
+                      <span className="mr-auto truncate">{allDayHabits.length} {allDayHabits.length === 1 ? 'hábito' : 'hábitos'}</span>
+                      <span className="figure text-fg3">{habitsDone}/{allDayHabits.length}</span>
+                    </summary>
+                    <ul className="mt-1.5 space-y-1">
+                      {allDayHabits.map((i) => <ItemRow key={i.key} i={i} compact onToggle={toggle} onOpen={openEvent} />)}
+                    </ul>
+                  </details>
+                )}
+              </section>
+            );
+          })}
         </div>
       ) : (
         <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
