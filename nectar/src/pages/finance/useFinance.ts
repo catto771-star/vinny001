@@ -17,14 +17,16 @@ export function useFinance() {
   const templates = useTable<RecurringTemplate>('transaction_recurring_templates', '*', { column: 'created_at' });
   const skips = useTable<Skip>('transaction_recurring_skips');
   const purchases = useTable<InstallmentPurchase>('installment_purchases', '*', { column: 'first_installment_date', ascending: false });
+  const projects = useTable<{ id: string; name: string; is_template: boolean; archived_at: string | null }>('projects', 'id,name,is_template,archived_at', { column: 'name' });
   const derived = useMemo(() => ({
     bankById: new Map(banks.rows.map((b) => [b.id, b])),
     cardById: new Map(cards.rows.map((c) => [c.id, c])),
     activeTemplates: templates.rows.filter((t) => !t.deleted_at),
-  }), [banks.rows, cards.rows, templates.rows]);
+    activeProjects: projects.rows.filter((p) => !p.is_template && !p.archived_at),
+  }), [banks.rows, cards.rows, templates.rows, projects.rows]);
   const loading = banks.loading || txs.loading || cards.loading;
   const reloadMoney = () => Promise.all([txs.reload(), transfers.reload(), payments.reload()]);
-  return { banks, cards, txs, transfers, payments, templates, skips, purchases, loading, reloadMoney, ...derived };
+  return { banks, cards, txs, transfers, payments, templates, skips, purchases, projects, loading, reloadMoney, ...derived };
 }
 
 export type Finance = ReturnType<typeof useFinance>;

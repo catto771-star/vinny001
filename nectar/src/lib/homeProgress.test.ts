@@ -55,6 +55,10 @@ describe('goals on the home screen', () => {
     expect(r).toMatchObject({ pct: 75, valueText: '9 de 12 livros' });
     const { rows: [m] } = goalRows([goal({ id: 'b', title: 'Reserva', goal_type: 'financial', target_value: 30000, linked_bank_id: 'x' })], () => 20500, TODAY);
     expect(m.valueText.replace(/\s/g, ' ')).toBe('R$ 20.500,00 de R$ 30.000,00');
+    const { rows: [eur] } = goalRows([goal({ id: 'e', title: 'Reserva EUR', goal_type: 'financial', currency: 'EUR', target_value: 5000 })], () => 1250, TODAY);
+    expect(eur.valueText).toContain('€');
+    expect(eur.valueText).toContain('1.250,00');
+    expect(eur.valueText).toContain('5.000,00');
     const { rows: [p] } = goalRows([goal({ id: 'c', title: 'Casa pronta', goal_type: 'project', linked_project_id: 'p' })], () => 33, TODAY);
     expect(p).toMatchObject({ pct: 33, valueText: '' }); // the percentage already says it
   });

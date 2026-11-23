@@ -10,7 +10,8 @@ import {
 } from '../../lib/projects';
 import type { Priority } from '../../lib/tasks';
 import { ColumnChart, RankedBars } from '../../components/Charts';
-import { Empty, Field, ListSkeleton, Modal, PageHeader, Stat } from '../../components/ui';
+import { CURRENCIES, formatIn, symbolOf, type Currency } from '../../lib/money';
+import { Empty, Field, FieldGroup, ListSkeleton, Modal, PageHeader, Stat } from '../../components/ui';
 import { useProjects, type ProjectsData } from './useProjects';
 import ProjectView from './ProjectView';
 
@@ -144,14 +145,20 @@ function ProjectCard({ project: p, data, today, onOpen }: { project: Project; da
         {p.description && <p className="mb-3 line-clamp-2 text-sm text-fg3">{p.description}</p>}
         <div className="mt-auto">
           <div className="mb-1.5 flex items-baseline text-xs text-fg3">
-            <span className="mr-auto">{prog.by === 'steps' ? `${prog.done}/${prog.total} marcos` : `${prog.done}/${prog.total} tarefas`}</span>
+            <span className="mr-auto">
+              {prog.total === 0 ? 'Sem tarefas — toque para começar' : prog.by === 'steps' ? `${prog.done}/${prog.total} marcos` : `${prog.done}/${prog.total} tarefas`}
+            </span>
             <span className="figure text-sm font-medium text-fg">{prog.pct}%</span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-raised" role="progressbar" aria-valuenow={prog.pct} aria-valuemin={0} aria-valuemax={100} aria-label={`Progresso de ${p.name}`}>
             <div className="meter-fill h-full rounded-full" style={{ width: `${prog.pct}%`, background: p.color }} />
           </div>
           <div className="mt-3 flex gap-3 text-xs text-fg3">
-            <span className="mr-auto truncate">{next ? `Próximo: ${next.title}${next.due_date ? ` · ${short(next.due_date)}` : ''}` : steps.length ? 'Todos os marcos feitos' : 'Sem marcos'}</span>
+            <span className="mr-auto truncate">
+              {next ? `Próximo: ${next.title}${next.due_date ? ` · ${short(next.due_date)}` : ''}`
+                : steps.length ? 'Todos os marcos feitos'
+                  : p.budget != null ? `Orçamento ${formatIn(Number(p.budget), p.budget_currency ?? 'BRL')}` : 'Sem marcos'}
+            </span>
             {p.due_date && <span className="figure shrink-0">prazo {short(p.due_date)}</span>}
           </div>
         </div>
@@ -204,6 +211,8 @@ export function ProjectForm({ data, project, templates = [], template, onClose, 
   const [priority, setPriority] = useState<Priority>(project?.priority ?? 'medium');
   const [start, setStart] = useState(project?.start_date ?? toDay(new Date()));
   const [due, setDue] = useState(project?.due_date ?? '');
+  const [budget, setBudget] = useState(project?.budget != null ? String(project.budget) : '');
+  const [budgetCurrency, setBudgetCurrency] = useState<Currency>(project?.budget_currency ?? 'BRL');
   const [color, setColor] = useState(project?.color ?? template?.color ?? COLORS[0]);
   const [templateId, setTemplateId] = useState(template?.id ?? '');
   const [saving, setSaving] = useState(false);
@@ -211,7 +220,12 @@ export function ProjectForm({ data, project, templates = [], template, onClose, 
   async function save(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
-    const row = { name, description: description || null, status, priority, start_date: start, due_date: due || null, color };
+    const parsedBudget = budget.trim() ? Number(budget.replace(',', '.')) : null;
+    const row = {
+      name, description: description || null, status, priority, start_date: start, due_date: due || null, color,
+      budget: parsedBudget != null && Number.isFinite(parsedBudget) ? parsedBudget : null,
+      budget_currency: budgetCurrency,
+    };
     if (project) {
       await data.patchProject(project.id, row);
       onSaved(project.id);
@@ -262,6 +276,20 @@ export function ProjectForm({ data, project, templates = [], template, onClose, 
               <option value="high">Alta</option><option value="medium">Média</option><option value="low">Baixa</option>
             </select>
           </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label={`Orçamento (${symbolOf(budgetCurrency)}, opcional)`}>
+            <input className="input figure" inputMode="decimal" placeholder="Ex.: 2500" value={budget} onChange={(e) => setBudget(e.target.value)} />
+          </Field>
+          <FieldGroup label="Moeda do orçamento">
+            <div className="segmented w-full">
+              {CURRENCIES.map((c) => (
+                <button key={c.code} type="button" className={`flex-1 ${budgetCurrency === c.code ? 'tab-active' : 'tab'}`} aria-pressed={budgetCurrency === c.code} onClick={() => setBudgetCurrency(c.code)}>
+                  {c.symbol}
+                </button>
+              ))}
+            </div>
+          </FieldGroup>
         </div>
         <div className="mb-4" role="group" aria-label="Cor">
           <span className="mb-1.5 block text-[13px] leading-5 text-fg2">Cor</span>

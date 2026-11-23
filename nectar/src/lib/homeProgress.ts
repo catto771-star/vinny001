@@ -2,8 +2,9 @@
 // the most behind first, a few at a time. Progress and pace come from the same
 // rules as the Projetos and Metas screens, so the numbers always agree.
 import { diffDays, projectHealth, type Health, type Project } from './projects';
-import { goalPace, goalProgress, targetOf, type Goal, type Pace } from './goals';
-import { brl, num, plural } from './format';
+import { goalCurrency, goalPace, goalProgress, targetOf, type Goal, type Pace } from './goals';
+import { num, plural } from './format';
+import { formatIn } from './money';
 import type { Day } from './dates';
 
 const short = (day: Day) => `${Number(day.slice(8))}/${day.slice(5, 7)}`;
@@ -33,7 +34,7 @@ export function projectRows(projects: Project[], pctOf: (p: Project) => number, 
 function valueText(goal: Goal, current: number): string {
   if (goal.goal_type === 'project') return ''; // the percentage says it all
   const target = targetOf(goal);
-  const fmt = (n: number) => goal.goal_type === 'financial' ? brl(n)
+  const fmt = (n: number) => goal.goal_type === 'financial' ? formatIn(n, goalCurrency(goal))
     : goal.goal_type === 'project' ? `${Math.round(n)}%`
       : goal.goal_type === 'habit' ? num(n, 0)
         : num(n);

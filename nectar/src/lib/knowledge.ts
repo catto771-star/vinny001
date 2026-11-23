@@ -3,7 +3,7 @@ import { searchKey, searchWords } from './text';
 
 export interface Area { id: string; name: string; emoji: string | null; color: string | null; description: string | null; parent_area_id: string | null }
 export interface Note {
-  id: string; area_id: string | null; title: string; content: unknown; content_text: string; summary: string | null;
+  id: string; area_id: string | null; project_id?: string | null; title: string; content: unknown; content_text: string; summary: string | null;
   tags: string[]; importance: number; is_pinned: boolean; is_favorite: boolean; created_at: string; updated_at: string;
 }
 export interface Connection { id: string; source_block_id: string; target_block_id: string; connection_type: string; auto_generated: boolean }

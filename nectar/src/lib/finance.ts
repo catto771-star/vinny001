@@ -23,6 +23,7 @@ export interface Tx {
   recurring_template_id: string | null;
   /** Amount above is in reais; a purchase in another currency keeps what was spent and the rate (reais per unit). */
   currency?: 'BRL' | 'USD' | 'EUR'; original_amount?: number | null; fx_rate?: number | null;
+  project_id?: string | null;
 }
 /** initial_balance is in the account's own currency; currency defaults to reais. */
 export interface Bank { id: string; name: string; initial_balance: number; color: string | null; currency?: 'BRL' | 'USD' | 'EUR' }

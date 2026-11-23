@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { currentValue, goalPace, goalProgress, goalSeries, type Goal, type GoalEntry } from './goals';
+import {
+  currentValue, goalCurrency, goalPace, goalProgress, goalSeries, linkedBankIdsOf, sumLinkedAccountsInGoalCurrency,
+  type Goal, type GoalEntry,
+} from './goals';
 import type { Habit } from './habits';
 
 const TODAY = '2026-11-18';
@@ -19,12 +22,38 @@ describe('current value', () => {
   it('follows the linked project, account or habit', () => {
     expect(currentValue(goal({ goal_type: 'project', linked_project_id: 'p' }), { entries: [], projectPct: 40 })).toBe(40);
     expect(currentValue(goal({ goal_type: 'financial', linked_bank_id: 'b' }), { entries: [entry('2026-11-02', 99)], bankBalance: 1500 })).toBe(1500);
+    expect(currentValue(goal({ goal_type: 'financial', linked_bank_ids: ['b1', 'b2'] }), { entries: [], bankBalance: 2450 })).toBe(2450);
     expect(currentValue(goal({ goal_type: 'financial' }), { entries: [entry('2026-11-02', 300), entry('2026-11-09', 200)] })).toBe(500);
     const habit = { id: 'h', target_value: 1 } as Habit;
     const c = (d: string, value = 1) => ({ id: d, habit_id: 'h', completed_date: d, value });
     expect(currentValue(goal({ goal_type: 'habit', linked_habit_id: 'h' }), {
       entries: [], habits: [habit], completions: [c('2026-10-31'), c('2026-11-01'), c('2026-11-05'), c('2026-11-06', 0), c('2026-12-02')],
     })).toBe(2);
+  });
+});
+
+describe('multi-currency and multi-account goals', () => {
+  it('deduplicates linked_bank_ids and falls back to legacy linked_bank_id', () => {
+    expect(linkedBankIdsOf(goal({ linked_bank_id: 'b1' }))).toEqual(['b1']);
+    expect(linkedBankIdsOf(goal({ linked_bank_id: 'b1', linked_bank_ids: ['b2', 'b1', 'b2'] }))).toEqual(['b2', 'b1']);
+    expect(linkedBankIdsOf(goal({}))).toEqual([]);
+    expect(goalCurrency(goal({}))).toBe('BRL');
+    expect(goalCurrency(goal({ currency: 'EUR' }))).toBe('EUR');
+  });
+
+  it('sums multiple linked accounts and converts total BRL into EUR/USD', () => {
+    const banks = [{ id: 'revolut' }, { id: 'wise' }, { id: 'nubank' }];
+    const balances: Record<string, number> = { revolut: 6200, wise: 3100, nubank: 1000 };
+    const eurGoal = goal({ goal_type: 'financial', currency: 'EUR', linked_bank_ids: ['revolut', 'wise'] });
+    expect(sumLinkedAccountsInGoalCurrency(eurGoal, banks, (id) => balances[id] ?? 0, { EUR: 6.2 })).toBe(1500);
+
+    const brlGoal = goal({ goal_type: 'financial', currency: 'BRL', linked_bank_ids: ['revolut', 'nubank'] });
+    expect(sumLinkedAccountsInGoalCurrency(brlGoal, banks, (id) => balances[id] ?? 0)).toBe(7200);
+
+    // No linked accounts -> undefined (manual aportes mode)
+    expect(sumLinkedAccountsInGoalCurrency(goal({ goal_type: 'financial' }), banks, (id) => balances[id] ?? 0)).toBeUndefined();
+    // Missing exchange rate -> 0 until quote loads
+    expect(sumLinkedAccountsInGoalCurrency(eurGoal, banks, (id) => balances[id] ?? 0, {})).toBe(0);
   });
 });
 
@@ -37,10 +66,16 @@ describe('progress', () => {
     expect(goalProgress(goal({ target_value: null }), 50)).toBe(0);
     expect(goalProgress(goal({ goal_type: 'project', target_value: null }), 60)).toBe(0.6);
   });
-  it('counts what was already saved when adding up', () => {
+  it('counts what was already saved when adding up or when progress_from_zero is enabled', () => {
     // R$ 1.000 already saved toward R$ 10.000 is 10%, not 0%.
     expect(goalProgress(goal({ goal_type: 'financial', start_value: 1000, target_value: 10000 }), 1000)).toBe(0.1);
     expect(goalProgress(goal({ start_value: 2, target_value: 12 }), 3)).toBe(0.25);
+    // Custom 'last' goal with progress_from_zero=true counts €1.194 toward €5.000 as 23.88%, not 0%.
+    expect(goalProgress(goal({ goal_type: 'custom', measure: 'last', start_value: 1194, target_value: 5000, progress_from_zero: true }), 1194))
+      .toBeCloseTo(1194 / 5000, 5);
+    // Explicit progress_from_zero=false counts from start_value.
+    expect(goalProgress(goal({ goal_type: 'custom', measure: 'last', start_value: 1194, target_value: 5000, progress_from_zero: false }), 1194))
+      .toBe(0);
   });
 });
 

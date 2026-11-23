@@ -12,7 +12,7 @@ import { reminderPanel, type Reminder } from '../lib/reminders';
 import { sumNutrients } from '../lib/nutrition';
 import { workoutSummary } from '../lib/training';
 import { goalRows, nextHabitQuickValue, projectRows } from '../lib/homeProgress';
-import { PACE_LABEL, currentValue, type Goal, type GoalEntry } from '../lib/goals';
+import { PACE_LABEL, currentValue, sumLinkedAccountsInGoalCurrency, type Goal, type GoalEntry } from '../lib/goals';
 import { HEALTH_LABEL, projectProgress } from '../lib/projects';
 import { bankBalance, type Bank, type InvoicePayment, type Transfer, type Tx } from '../lib/finance';
 import { calorieStatus, dayHeadline, greeting } from '../lib/today';
@@ -70,7 +70,7 @@ export default function Home() {
   const reminders = useTable<Reminder>('reminders', '*', { column: 'datetime' });
   const h = useHealth();
   const projects = useProjects();
-  useRates(null); // today's rates value the euro and dollar accounts
+  const fx = useRates(null); // today's rates value euro and dollar accounts and multi-currency goals
   const goals = useTable<Goal>('goals', '*', { column: 'created_at' });
   const entries = useTable<GoalEntry>('goal_entries', '*', { column: 'date' });
   const banks = useTable<Bank>('banks');
@@ -139,14 +139,16 @@ export default function Home() {
 
   const projectPct = (id: string) => projectProgress(projects.tasksOf(id), projects.stepsOf(id)).pct;
   const projectList = projectRows(projects.projects.rows, (p) => projectPct(p.id), today);
-  const goalList = goalRows(goals.rows, (g) => {
-    const bank = banks.rows.find((b) => b.id === g.linked_bank_id);
-    return currentValue(g, {
-      entries: entries.rows, habits: habits.rows, completions: completions.rows,
-      projectPct: g.linked_project_id ? projectPct(g.linked_project_id) : undefined,
-      bankBalance: bank ? bankBalance(bank, txs.rows, transfers.rows, payments.rows) : undefined,
-    });
-  }, today);
+  const bankById = new Map(banks.rows.map((x) => [x.id, x]));
+  const balanceBrlOf = (id: string) => {
+    const bank = bankById.get(id);
+    return bank ? bankBalance(bank, txs.rows, transfers.rows, payments.rows) : 0;
+  };
+  const goalList = goalRows(goals.rows, (g) => currentValue(g, {
+    entries: entries.rows, habits: habits.rows, completions: completions.rows,
+    projectPct: g.linked_project_id ? projectPct(g.linked_project_id) : undefined,
+    bankBalance: sumLinkedAccountsInGoalCurrency(g, banks.rows, balanceBrlOf, fx.rates),
+  }), today);
   const loadingProjects = projects.projects.loading || projects.tasks.loading || projects.steps.loading || projects.links.loading;
   const loadingGoals = goals.loading || entries.loading || banks.loading || txs.loading;
 

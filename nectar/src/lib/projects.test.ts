@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  burnup, columnOf, diffDays, fromTemplate, kanban, moveTo, nextStep, projectHealth, projectProgress, toTemplate, trajectory,
+  burnup, columnOf, diffDays, fromTemplate, kanban, moveTo, nextStep, projectBudgetSummary, projectHealth, projectProgress, toTemplate, trajectory,
   type ProjectTask, type Step,
 } from './projects';
+import type { Tx } from './finance';
 
 const task = (over: Partial<ProjectTask>): ProjectTask => ({
   id: 't', title: 'T', description: null, status: 'pending', completed: false, completed_at: null, priority: 'medium',
@@ -10,6 +11,11 @@ const task = (over: Partial<ProjectTask>): ProjectTask => ({
 });
 const step = (over: Partial<Step>): Step => ({
   id: 's', project_id: 'p', title: 'S', description: null, due_date: null, completed: false, completed_at: null, order_index: 0, offset_days: null, ...over,
+});
+const tx = (over: Partial<Tx>): Tx => ({
+  id: 'tx', description: 'Gasto', type: 'expense', amount: 100, date: '2026-11-10', category: 'Compras',
+  payment_method: 'pix', bank_id: null, card_id: null, is_pending: false, installment_purchase_id: null,
+  installment_number: null, recurring_template_id: null, project_id: 'p1', ...over,
 });
 const TODAY = '2026-11-18';
 
@@ -100,5 +106,35 @@ describe('templates', () => {
   it('counts days between dates', () => {
     expect(diffDays('2026-11-01', '2026-11-18')).toBe(17);
     expect(diffDays('2026-10-25', '2026-11-05')).toBe(11); // across the DST-free Brazilian calendar
+  });
+});
+
+describe('projectBudgetSummary', () => {
+  it('sums linked expenses and income in BRL and compares against budget', () => {
+    const summary = projectBudgetSummary(
+      { id: 'p1', budget: 1000, budget_currency: 'BRL' },
+      [
+        tx({ id: '1', amount: 300, category: 'Compras', project_id: 'p1' }),
+        tx({ id: '2', amount: 450.5, category: 'Serviços', project_id: 'p1' }),
+        tx({ id: '3', type: 'income', amount: 200, category: 'Reembolso', project_id: 'p1' }),
+        tx({ id: '4', amount: 999, project_id: 'other' }),
+      ],
+    );
+    expect(summary).toMatchObject({
+      currency: 'BRL', budget: 1000, expenseBrl: 750.5, incomeBrl: 200, spent: 750.5, pct: 75, overBudget: false, txCount: 3,
+    });
+    expect(summary.byCategory).toEqual([
+      { category: 'Serviços', amountBrl: 450.5 },
+      { category: 'Compras', amountBrl: 300 },
+    ]);
+  });
+
+  it('converts expenses to EUR budget and detects overrun', () => {
+    const summary = projectBudgetSummary(
+      { id: 'p1', budget: 500, budget_currency: 'EUR' },
+      [tx({ id: '1', amount: 3720, project_id: 'p1' })],
+      { EUR: 6.2 },
+    );
+    expect(summary).toMatchObject({ currency: 'EUR', spent: 600, pct: 120, overBudget: true });
   });
 });

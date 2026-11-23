@@ -1,18 +1,20 @@
 import { useState, type FormEvent } from 'react';
-import { CheckCircle2, Pause, Play, Plus, Target, Trash2 } from 'lucide-react';
+import { Check, CheckCircle2, Pause, Play, Plus, Target, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTable, write } from '../lib/useTable';
 import { formatDay, sentence, toDay } from '../lib/dates';
-import { brl, num, plural } from '../lib/format';
+import { num, plural } from '../lib/format';
+import { CURRENCIES, formatIn, symbolOf, type Currency } from '../lib/money';
 import { bankBalance, type Bank, type InvoicePayment, type Transfer, type Tx } from '../lib/finance';
 import type { Habit, HabitCompletion } from '../lib/habits';
 import { projectProgress } from '../lib/projects';
 import {
-  PACE_LABEL, TYPE_LABEL, currentValue, goalPace, goalProgress, goalSeries, targetOf,
+  PACE_LABEL, TYPE_LABEL, currentValue, goalCurrency, goalPace, goalProgress, goalSeries, linkedBankIdsOf,
+  sumLinkedAccountsInGoalCurrency, targetOf,
   type Goal, type GoalEntry, type GoalStatus, type GoalType, type Pace,
 } from '../lib/goals';
 import { LineChart } from '../components/Charts';
-import { Empty, Field, ListSkeleton, Modal, PageHeader, Stat } from '../components/ui';
+import { Empty, Field, FieldGroup, ListSkeleton, Modal, PageHeader, Stat } from '../components/ui';
 import { useProjects } from './projects/useProjects';
 import { useRates } from './finance/useRates';
 
@@ -30,10 +32,10 @@ const PACE_BADGE: Record<Pace, string> = {
 };
 const short = (day: string) => `${Number(day.slice(8))}/${day.slice(5, 7)}`;
 
-/** A value in the goal's unit: money as R$, a project as %. */
+/** A value in the goal's unit: money in its chosen currency, a project as %. */
 function fmt(goal: Goal, n: number | null): string {
   if (n == null) return '—';
-  if (goal.goal_type === 'financial') return brl(n);
+  if (goal.goal_type === 'financial') return formatIn(n, goalCurrency(goal));
   if (goal.goal_type === 'project') return `${Math.round(n)}%`;
   if (goal.goal_type === 'habit') return `${num(n, 0)} ${plural(n, 'vez', 'vezes')}`;
   return `${num(n)}${goal.unit ? ` ${goal.unit}` : ''}`;
@@ -50,29 +52,37 @@ export default function Goals() {
   const transfers = useTable<Transfer>('transfers');
   const payments = useTable<InvoicePayment>('card_invoice_payments');
   const projects = useProjects();
-  useRates(null); // today's rates value the euro and dollar accounts
+  const fx = useRates(null); // today's rates value euro and dollar accounts and multi-currency goals
   const [editing, setEditing] = useState<Partial<Goal> | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const today = toDay(new Date());
 
-  const valueOf = (g: Goal) => {
-    const bank = banks.rows.find((b) => b.id === g.linked_bank_id);
-    return currentValue(g, {
-      entries: entries.rows, habits: habits.rows, completions: completions.rows,
-      projectPct: g.linked_project_id ? projectProgress(projects.tasksOf(g.linked_project_id), projects.stepsOf(g.linked_project_id)).pct : undefined,
-      bankBalance: bank ? bankBalance(bank, txs.rows, transfers.rows, payments.rows) : undefined,
-    });
+  const bankById = new Map(banks.rows.map((b) => [b.id, b]));
+  const balanceBrlOf = (id: string) => {
+    const bank = bankById.get(id);
+    return bank ? bankBalance(bank, txs.rows, transfers.rows, payments.rows) : 0;
   };
+
+  const valueOf = (g: Goal) => currentValue(g, {
+    entries: entries.rows, habits: habits.rows, completions: completions.rows,
+    projectPct: g.linked_project_id ? projectProgress(projects.tasksOf(g.linked_project_id), projects.stepsOf(g.linked_project_id)).pct : undefined,
+    bankBalance: sumLinkedAccountsInGoalCurrency(g, banks.rows, balanceBrlOf, fx.rates),
+  });
   const rows = goals.rows.map((g) => {
     const current = valueOf(g);
     return { g, current, progress: goalProgress(g, current), ...goalPace(g, current, today) };
   });
   const shown = rows.filter((r) => r.g.status === TAB_STATUS[tab]);
   const active = rows.filter((r) => r.g.status === 'active');
-  const linkName = (g: Goal) =>
-    g.goal_type === 'habit' ? habits.rows.find((h) => h.id === g.linked_habit_id)?.name
-      : g.goal_type === 'project' ? projects.projects.rows.find((p) => p.id === g.linked_project_id)?.name
-        : g.goal_type === 'financial' ? banks.rows.find((b) => b.id === g.linked_bank_id)?.name ?? 'aportes' : undefined;
+  const linkName = (g: Goal) => {
+    if (g.goal_type === 'habit') return habits.rows.find((h) => h.id === g.linked_habit_id)?.name;
+    if (g.goal_type === 'project') return projects.projects.rows.find((p) => p.id === g.linked_project_id)?.name;
+    if (g.goal_type === 'financial') {
+      const names = linkedBankIdsOf(g).map((id) => bankById.get(id)?.name).filter((x): x is string => !!x);
+      return names.length ? names.join(' + ') : 'aportes';
+    }
+    return undefined;
+  };
   const open = rows.find((r) => r.g.id === openId);
 
   async function setStatus(g: Goal, status: GoalStatus) {
@@ -112,7 +122,7 @@ export default function Goals() {
                   </div>
                   <div className="mb-3 font-medium">{g.title}</div>
                   <div className="mt-auto">
-                    <div className="mb-1.5 flex items-baseline gap-2">
+                    <div className="mb-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                       <span className="figure text-xl">{fmt(g, current)}</span>
                       <span className="figure text-sm text-fg3">de {fmt(g, targetOf(g))}</span>
                       <span className="figure ml-auto text-sm font-medium">{Math.round(progress * 100)}%</span>
@@ -168,7 +178,9 @@ function GoalDetail({ row, entries, linkName, today, onClose, onEdit, onStatus, 
   onClose: () => void; onEdit: () => void; onStatus: (s: GoalStatus) => void; onEntries: () => void; onDelete: () => void;
 }) {
   const { g, current, progress, pace, expected, perWeek, projected } = row;
-  const manual = g.goal_type === 'custom' || (g.goal_type === 'financial' && !g.linked_bank_id);
+  const linkedCount = linkedBankIdsOf(g).length;
+  const manual = g.goal_type === 'custom' || (g.goal_type === 'financial' && linkedCount === 0);
+  const curSymbol = symbolOf(goalCurrency(g));
   const [value, setValue] = useState('');
   const [date, setDate] = useState(today);
   const [note, setNote] = useState('');
@@ -201,14 +213,14 @@ function GoalDetail({ row, entries, linkName, today, onClose, onEdit, onStatus, 
 
       {series.length > 1 && (
         <div className="-mx-5 mb-5 sm:mx-0">
-          <LineChart title="Evolução" points={series.map((p) => ({ label: short(p.date), value: p.value }))} unit={g.goal_type === 'financial' ? 'R$' : g.unit} minZero={g.measure === 'sum'} height={180} />
+          <LineChart title="Evolução" points={series.map((p) => ({ label: short(p.date), value: p.value }))} unit={g.goal_type === 'financial' ? curSymbol : g.unit} minZero={g.measure === 'sum'} height={180} />
         </div>
       )}
 
       {manual && (
         <>
           <form onSubmit={add} className="mb-4 grid grid-cols-[1fr_1fr] gap-2">
-            <Field label={g.measure === 'last' ? `Novo valor${g.unit ? ` (${g.unit})` : ''}` : g.goal_type === 'financial' ? 'Aporte (R$)' : `Somar${g.unit ? ` (${g.unit})` : ''}`}>
+            <Field label={g.measure === 'last' ? `Novo valor${g.unit ? ` (${g.unit})` : ''}` : g.goal_type === 'financial' ? `Aporte (${curSymbol})` : `Somar${g.unit ? ` (${g.unit})` : ''}`}>
               <input className="input" inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} required />
             </Field>
             <Field label="Data do registro"><input className="input" type="date" value={date} max={today} onChange={(e) => setDate(e.target.value)} required /></Field>
@@ -233,7 +245,11 @@ function GoalDetail({ row, entries, linkName, today, onClose, onEdit, onStatus, 
           )}
         </>
       )}
-      {!manual && <p className="mb-5 text-xs text-fg3">O valor vem {g.goal_type === 'habit' ? 'dos registros do hábito' : g.goal_type === 'project' ? 'do progresso do projeto' : 'do saldo da conta'}, sem registro manual.</p>}
+      {!manual && (
+        <p className="mb-5 text-xs text-fg3">
+          O valor vem {g.goal_type === 'habit' ? 'dos registros do hábito' : g.goal_type === 'project' ? 'do progresso do projeto' : linkedCount > 1 ? `da soma das ${linkedCount} contas vinculadas (convertido para ${curSymbol})` : `do saldo da conta (em ${curSymbol})`}, sem registro manual.
+        </p>
+      )}
 
       <div className="flex flex-wrap gap-2">
         {g.status !== 'completed' && <button className="btn-secondary" onClick={() => { onStatus('completed'); onClose(); }}><CheckCircle2 size={16} strokeWidth={1.5} />Concluir</button>}
@@ -252,27 +268,39 @@ function GoalForm({ goal, habits, projects, banks, onClose, onSaved }: {
   const [title, setTitle] = useState(goal.title ?? '');
   const [description, setDescription] = useState(goal.description ?? '');
   const [type, setType] = useState<GoalType>(goal.goal_type ?? 'custom');
+  const [currency, setCurrency] = useState<Currency>(goalCurrency(goal));
   const [unit, setUnit] = useState(goal.unit ?? '');
   const [measure, setMeasure] = useState<'sum' | 'last'>(goal.measure ?? 'sum');
+  const [progressFromZero, setProgressFromZero] = useState<boolean>(
+    goal.progress_from_zero ?? !(goal.goal_type === 'custom' && goal.measure === 'last'),
+  );
   const [start, setStart] = useState(String(goal.start_value ?? 0));
   const [target, setTarget] = useState(goal.target_value != null ? String(goal.target_value) : '');
   const [startDate, setStartDate] = useState(goal.start_date ?? toDay(new Date()));
   const [targetDate, setTargetDate] = useState(goal.target_date ?? '');
   const [habitId, setHabitId] = useState(goal.linked_habit_id ?? '');
   const [projectId, setProjectId] = useState(goal.linked_project_id ?? '');
-  const [bankId, setBankId] = useState(goal.linked_bank_id ?? '');
+  const [bankIds, setBankIds] = useState<string[]>(() => linkedBankIdsOf({ linked_bank_id: goal.linked_bank_id ?? null, linked_bank_ids: goal.linked_bank_ids }));
   const n = (s: string) => Number(s.replace(',', '.'));
+  const curSymbol = symbolOf(currency);
+
+  function toggleBank(id: string) {
+    setBankIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
 
   async function save(e: FormEvent) {
     e.preventDefault();
     const row = {
       title, description: description || null, goal_type: type, start_date: startDate, target_date: targetDate || null,
+      currency: type === 'financial' ? currency : 'BRL',
       unit: type === 'custom' ? unit : '', measure: type === 'custom' ? measure : 'sum',
-      start_value: type === 'custom' || (type === 'financial' && !bankId) ? n(start) || 0 : 0,
+      progress_from_zero: type === 'custom' && measure === 'last' ? progressFromZero : true,
+      start_value: type === 'custom' || (type === 'financial' && bankIds.length === 0) ? n(start) || 0 : 0,
       target_value: type === 'project' ? 100 : target === '' ? null : n(target),
       linked_habit_id: type === 'habit' ? habitId || null : null,
       linked_project_id: type === 'project' ? projectId || null : null,
-      linked_bank_id: type === 'financial' ? bankId || null : null,
+      linked_bank_id: type === 'financial' ? (bankIds[0] ?? null) : null,
+      linked_bank_ids: type === 'financial' ? bankIds : [],
     };
     const ok = goal.id ? await write(supabase.from('goals').update(row).eq('id', goal.id)) : await write(supabase.from('goals').insert(row));
     if (ok) onSaved();
@@ -285,7 +313,7 @@ function GoalForm({ goal, habits, projects, banks, onClose, onSaved }: {
         <Field label="Tipo">
           <select className="input" value={type} onChange={(e) => setType(e.target.value as GoalType)}>
             <option value="custom">Pessoal (você registra o progresso)</option>
-            <option value="financial">Financeira (aportes ou saldo de uma conta)</option>
+            <option value="financial">Financeira (aportes ou saldo de contas)</option>
             <option value="habit">Hábito (vezes feitas no período)</option>
             <option value="project">Projeto (progresso do projeto)</option>
           </select>
@@ -295,22 +323,78 @@ function GoalForm({ goal, habits, projects, banks, onClose, onSaved }: {
             <div className="grid grid-cols-2 gap-2">
               <Field label="Unidade"><input className="input" placeholder="km, kg, livros…" value={unit} onChange={(e) => setUnit(e.target.value)} /></Field>
               <Field label="Como medir">
-                <select className="input" value={measure} onChange={(e) => setMeasure(e.target.value as 'sum' | 'last')}>
+                <select className="input" value={measure} onChange={(e) => {
+                  const next = e.target.value as 'sum' | 'last';
+                  setMeasure(next);
+                  if (!goal.id) setProgressFromZero(next === 'sum');
+                }}>
                   <option value="sum">Somar registros</option>
                   <option value="last">Último valor</option>
                 </select>
               </Field>
             </div>
-            <p className="-mt-2 mb-4 text-xs text-fg3">{measure === 'sum' ? 'Ex.: correr 300 km, ler 12 livros.' : 'Ex.: chegar a 82 kg partindo de 92 kg; a meta pode ser menor que o início.'}</p>
+            {measure === 'last' ? (
+              <label className="-mt-1 mb-4 flex items-start gap-2 rounded-xl border border-line bg-raised/40 p-3 text-xs text-fg2">
+                <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0" checked={progressFromZero} onChange={(e) => setProgressFromZero(e.target.checked)} />
+                <span>
+                  <strong className="font-medium text-fg">Contar progresso a partir do zero</strong>
+                  <span className="mt-0.5 block text-fg3">
+                    {progressFromZero
+                      ? 'Ex.: já tenho 1.194 de 5.000 = 24% concluído.'
+                      : 'Ex.: chegar a 82 kg partindo de 92 kg; a meta pode ser menor que o início.'}
+                  </span>
+                </span>
+              </label>
+            ) : (
+              <p className="-mt-2 mb-4 text-xs text-fg3">Ex.: correr 300 km, ler 12 livros.</p>
+            )}
           </>
         )}
         {type === 'financial' && (
-          <Field label="Conta">
-            <select className="input" value={bankId} onChange={(e) => setBankId(e.target.value)}>
-              <option value="">Nenhuma: registrar aportes</option>
-              {banks.map((b) => <option key={b.id} value={b.id}>Saldo de {b.name}</option>)}
-            </select>
-          </Field>
+          <>
+            <FieldGroup label="Moeda da meta">
+              <div className="segmented">
+                {CURRENCIES.map((c) => (
+                  <button key={c.code} type="button" className={currency === c.code ? 'tab-active' : 'tab'} aria-pressed={currency === c.code} title={c.name} onClick={() => setCurrency(c.code)}>
+                    {c.symbol} {c.code}
+                  </button>
+                ))}
+              </div>
+            </FieldGroup>
+            <FieldGroup label="Contas vinculadas (opcional)">
+              {banks.length === 0 ? (
+                <p className="text-xs text-fg3">Nenhuma conta cadastrada em Finanças — registre aportes manualmente.</p>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-1.5">
+                    {banks.map((b) => {
+                      const on = bankIds.includes(b.id);
+                      return (
+                        <button
+                          key={b.id}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() => toggleBank(b.id)}
+                          className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors ${on ? 'border-primary bg-primary text-primary-ink' : 'border-line-strong bg-surface text-fg2 hover:bg-raised hover:text-fg'}`}
+                        >
+                          {on && <Check size={13} strokeWidth={2.2} aria-hidden="true" />}
+                          <span>{b.name}</span>
+                          {b.currency && b.currency !== 'BRL' && <span className={on ? 'opacity-80' : 'text-fg3'}>({symbolOf(b.currency)})</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-1.5 text-xs text-fg3">
+                    {bankIds.length === 0
+                      ? 'Nenhuma conta marcada: você registra aportes manualmente.'
+                      : bankIds.length === 1
+                        ? `Acompanha automaticamente o saldo desta conta em ${curSymbol}.`
+                        : `Soma o saldo das ${bankIds.length} contas selecionadas, convertido para ${curSymbol}.`}
+                  </p>
+                </>
+              )}
+            </FieldGroup>
+          </>
         )}
         {type === 'habit' && (
           <Field label="Hábito">
@@ -330,10 +414,10 @@ function GoalForm({ goal, habits, projects, banks, onClose, onSaved }: {
         )}
         {type !== 'project' && (
           <div className="grid grid-cols-2 gap-2">
-            {(type === 'custom' || (type === 'financial' && !bankId)) && (
-              <Field label={type === 'financial' ? 'Já guardado (R$)' : 'Valor inicial'}><input className="input" inputMode="decimal" value={start} onChange={(e) => setStart(e.target.value)} /></Field>
+            {(type === 'custom' || (type === 'financial' && bankIds.length === 0)) && (
+              <Field label={type === 'financial' ? `Já guardado (${curSymbol})` : 'Valor inicial'}><input className="input" inputMode="decimal" value={start} onChange={(e) => setStart(e.target.value)} /></Field>
             )}
-            <Field label={type === 'habit' ? 'Meta (vezes)' : type === 'financial' ? 'Meta (R$)' : 'Meta'}>
+            <Field label={type === 'habit' ? 'Meta (vezes)' : type === 'financial' ? `Meta (${curSymbol})` : 'Meta'}>
               <input className="input" inputMode="decimal" value={target} onChange={(e) => setTarget(e.target.value)} required />
             </Field>
           </div>

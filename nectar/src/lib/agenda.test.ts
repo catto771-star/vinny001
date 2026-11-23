@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { monthGrid, moveToDay, weekOf } from './calendar';
 import { sentence } from './dates';
-import { buildAgenda, partitionWeekDay, projectedRecurringTasks, type AgendaItem } from './agenda';
+import { buildAgenda, partitionWeekDay, projectedRecurringTasks, timeboxRange, unscheduledTasks, type AgendaItem } from './agenda';
 import type { Task } from './tasks';
 
 const NOW = new Date(2026, 10, 18, 9, 0); // Wednesday 18 Nov 2026, 09:00
@@ -105,6 +105,52 @@ describe('partitionWeekDay', () => {
     expect(part.primary.map((i) => i.key)).toEqual(['h3', 'r1', 'm1']);
     expect(part.allDayHabits.map((i) => i.key)).toEqual(['h1', 'h2']);
     expect(part.habitsDone).toBe(1);
+  });
+});
+
+describe('timeboxing', () => {
+  const mkTask = (over: Partial<Task>): Task => ({
+    id: 't', title: 'T', description: null, status: 'pending', completed: false, completed_at: null,
+    priority: 'medium', due_date: null, due_all_day: true, tags: [], is_archived: false, created_at: '2026-11-01T10:00:00Z', ...over,
+  });
+
+  it('lists only open, non-archived, untimed tasks without a timebox event, sorted by priority then due date', () => {
+    const tasks: Task[] = [
+      mkTask({ id: 'done', completed: true }),
+      mkTask({ id: 'arch', is_archived: true }),
+      mkTask({ id: 'timed', due_date: new Date(2026, 10, 18, 14).toISOString(), due_all_day: false }),
+      mkTask({ id: 'boxed', title: 'Já agendada' }),
+      mkTask({ id: 'low', priority: 'low', due_date: new Date(2026, 10, 17, 23, 59).toISOString(), due_all_day: true }),
+      mkTask({ id: 'med_late', priority: 'medium', due_date: new Date(2026, 10, 19, 23, 59).toISOString(), due_all_day: true }),
+      mkTask({ id: 'med_soon', priority: 'medium', due_date: new Date(2026, 10, 18, 23, 59).toISOString(), due_all_day: true }),
+      mkTask({ id: 'high_nodate', priority: 'high' }),
+    ];
+    const events = [
+      { id: 'e1', title: 'Já agendada', start_at: new Date(2026, 10, 18, 10).toISOString(), end_at: new Date(2026, 10, 18, 11).toISOString(), all_day: false, location: null, task_id: 'boxed' },
+    ];
+    expect(unscheduledTasks(tasks, events).map((t) => t.id)).toEqual(['high_nodate', 'med_soon', 'med_late', 'low']);
+  });
+
+  it('reflects linked task completion and overdue state on timeboxed events', () => {
+    const tOpen = mkTask({ id: 't1', title: 'Escrever proposta', completed: false });
+    const tDone = mkTask({ id: 't2', title: 'Enviar e-mail', completed: true });
+    const items = buildAgenda('2026-11-18', '2026-11-18', {
+      tasks: [tOpen, tDone],
+      events: [
+        { id: 'e1', title: 'Escrever proposta', start_at: new Date(2026, 10, 18, 7, 0).toISOString(), end_at: new Date(2026, 10, 18, 8, 0).toISOString(), all_day: false, location: null, task_id: 't1' },
+        { id: 'e2', title: 'Enviar e-mail', start_at: new Date(2026, 10, 18, 10, 0).toISOString(), end_at: new Date(2026, 10, 18, 10, 30).toISOString(), all_day: false, location: null, task_id: 't2' },
+      ],
+    }, NOW);
+    expect(items[0]).toMatchObject({ taskId: 't1', done: false, overdue: true, detail: 'Bloco de foco' });
+    expect(items[1]).toMatchObject({ taskId: 't2', done: true, overdue: false, detail: 'Bloco de foco' });
+  });
+
+  it('computes start_at and end_at timestamps accurately from day, start time and duration', () => {
+    const r = timeboxRange('2026-11-18', '09:30', 90);
+    const start = new Date(r.start_at);
+    const end = new Date(r.end_at);
+    expect([start.getFullYear(), start.getMonth() + 1, start.getDate(), start.getHours(), start.getMinutes()]).toEqual([2026, 11, 18, 9, 30]);
+    expect([end.getHours(), end.getMinutes()]).toEqual([11, 0]);
   });
 });
 

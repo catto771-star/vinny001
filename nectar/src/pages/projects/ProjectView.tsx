@@ -1,19 +1,28 @@
 import { useState, type FormEvent } from 'react';
-import { ArrowDown, ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, Flag, Play, CheckCircle2, Plus } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { write } from '../../lib/useTable';
-import { formatDay, sentence, toDay } from '../../lib/dates';
+import { Link } from 'react-router-dom';
 import {
-  COLUMNS, HEALTH_LABEL, STATUS_LABEL, burnup, diffDays, kanban, moveTo, projectHealth, projectProgress, toTemplate, trajectory,
-  type Column, type Project, type ProjectTask, type Step,
+  ArrowDown, ArrowLeft, ArrowUp, ArrowUpRight, BookOpen, CheckCircle2, ChevronLeft, ChevronRight,
+  Flag, Link2, Play, Plus, Unlink, Wallet,
+} from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { useTable, write } from '../../lib/useTable';
+import { formatDay, sentence, toDay } from '../../lib/dates';
+import { newBlock } from '../../lib/blocks';
+import { excerpt, type Note } from '../../lib/knowledge';
+import { EXPENSE_CATEGORIES, type Bank, type Tx } from '../../lib/finance';
+import { CURRENCIES, formatIn, symbolOf, toBRL, type Currency } from '../../lib/money';
+import {
+  COLUMNS, HEALTH_LABEL, STATUS_LABEL, burnup, diffDays, kanban, moveTo, projectBudgetSummary, projectHealth, projectProgress, toTemplate, trajectory,
+  type Column, type Project, type ProjectBudgetSummary, type ProjectTask, type Step,
 } from '../../lib/projects';
 import { PRIORITY_LABEL, type Priority } from '../../lib/tasks';
 import { ColumnChart } from '../../components/Charts';
-import { Empty, Field, Modal, PageHeader, Stat } from '../../components/ui';
+import { Empty, Field, FieldGroup, Modal, PageHeader, Stat } from '../../components/ui';
+import { useRates } from '../finance/useRates';
 import { dueFromDay, type ProjectsData } from './useProjects';
 import { HEALTH_TONE, ProjectForm } from './Projects';
 
-const VIEWS = ['Quadro', 'Marcos', 'Trajetória'] as const;
+const VIEWS = ['Quadro', 'Marcos', 'Notas', 'Custos', 'Trajetória'] as const;
 type View = (typeof VIEWS)[number];
 const DOT: Record<Priority, string> = { high: 'bg-negative', medium: 'bg-brand', low: 'bg-fg3' };
 const short = (day: string) => `${Number(day.slice(8))}/${day.slice(5, 7)}`;
@@ -23,11 +32,22 @@ export default function ProjectView({ project: p, data, today, onBack }: { proje
   const [view, setView] = useState<View>('Quadro');
   const [editing, setEditing] = useState(false);
   const [taskOpen, setTaskOpen] = useState<Partial<ProjectTask> | null>(null);
+  const notes = useTable<Note>(
+    'knowledge_blocks',
+    'id,area_id,project_id,title,content_text,summary,tags,importance,is_pinned,is_favorite,created_at,updated_at',
+    { column: 'updated_at', ascending: false },
+  );
+  const txs = useTable<Tx>('transactions', '*', { column: 'date', ascending: false });
+  const banks = useTable<Bank>('banks', '*', { column: 'created_at' });
+  const fx = useRates(null);
+
   const tasks = data.tasksOf(p.id);
   const steps = data.stepsOf(p.id);
   const prog = projectProgress(tasks, steps);
   const { health, expected } = projectHealth(p, prog.pct, today);
   const left = p.due_date ? diffDays(today, p.due_date) : null;
+  const budgetSummary = projectBudgetSummary(p, txs.rows, fx.rates);
+  const showBudgetStat = budgetSummary.budget != null || budgetSummary.txCount > 0;
 
   async function saveAsTemplate() {
     const tpl = toTemplate(p, steps, tasks);
@@ -60,11 +80,21 @@ export default function ProjectView({ project: p, data, today, onBack }: { proje
           hint={expected != null && health !== 'late' ? `esperado ${expected}% até hoje` : undefined} />
         <Stat label="Prazo" value={p.due_date ? short(p.due_date) : '—'}
           hint={left == null || p.status === 'completed' ? undefined : left < 0 ? `${-left} dias de atraso` : left === 0 ? 'vence hoje' : `faltam ${left} dias`} />
-        <Stat label="Marcos" value={steps.filter((s) => s.completed).length} unit={`/ ${steps.length}`} />
+        {showBudgetStat ? (
+          <Stat
+            label="Custos"
+            value={<span className={budgetSummary.overBudget ? 'text-negative' : ''}>{budgetSummary.spent != null ? formatIn(budgetSummary.spent, budgetSummary.currency) : formatIn(budgetSummary.expenseBrl, 'BRL')}</span>}
+            hint={budgetSummary.budget != null ? `de ${formatIn(budgetSummary.budget, budgetSummary.currency)}${budgetSummary.pct != null ? ` (${budgetSummary.pct}%)` : ''}` : `${budgetSummary.txCount} ${budgetSummary.txCount === 1 ? 'lançamento' : 'lançamentos'}`}
+          />
+        ) : (
+          <Stat label="Marcos" value={steps.filter((s) => s.completed).length} unit={`/ ${steps.length}`} />
+        )}
       </div>
 
       {view === 'Quadro' && <Board project={p} tasks={tasks} steps={steps} data={data} today={today} onOpen={setTaskOpen} />}
       {view === 'Marcos' && <Milestones project={p} tasks={tasks} steps={steps} data={data} today={today} />}
+      {view === 'Notas' && <ProjectNotes project={p} notes={notes.rows} onReload={() => void notes.reload()} />}
+      {view === 'Custos' && <ProjectCosts project={p} summary={budgetSummary} txs={txs.rows} banks={banks.rows} rates={fx.rates} today={today} onReload={() => void txs.reload()} onEditBudget={() => setEditing(true)} />}
       {view === 'Trajetória' && <Trail project={p} tasks={tasks} steps={steps} today={today} />}
 
       <div className="mt-8 flex flex-wrap gap-2 border-t border-line pt-4">
@@ -344,6 +374,311 @@ function Trail({ project, tasks, steps, today }: { project: Project; tasks: Proj
           ))}
         </ol>
       </section>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Notes (Knowledge integration)
+// ---------------------------------------------------------------------------
+
+function ProjectNotes({ project, notes, onReload }: { project: Project; notes: Note[]; onReload: () => void }) {
+  const linked = notes.filter((n) => n.project_id === project.id);
+  const available = notes.filter((n) => n.project_id !== project.id);
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [linkId, setLinkId] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  async function createNote(e: FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) return;
+    setSaving(true);
+    const text = body.trim();
+    const ok = await write(supabase.from('knowledge_blocks').insert({
+      title: title.trim(),
+      project_id: project.id,
+      content: [newBlock('paragraph', text)],
+      content_text: text,
+      tags: [],
+      importance: 2,
+    }));
+    setSaving(false);
+    if (ok) {
+      setTitle('');
+      setBody('');
+      onReload();
+    }
+  }
+
+  async function linkExisting(e: FormEvent) {
+    e.preventDefault();
+    if (!linkId) return;
+    if (await write(supabase.from('knowledge_blocks').update({ project_id: project.id }).eq('id', linkId))) {
+      setLinkId('');
+      onReload();
+    }
+  }
+
+  async function unlink(noteId: string) {
+    if (await write(supabase.from('knowledge_blocks').update({ project_id: null }).eq('id', noteId))) onReload();
+  }
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+      <section className="card" aria-label="Notas do projeto">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="label mr-auto">Notas vinculadas</span>
+          <span className="figure text-xs text-fg3">{linked.length}</span>
+        </div>
+        {linked.length === 0 ? (
+          <Empty icon={<BookOpen size={18} strokeWidth={1.5} />}>
+            Nenhuma nota vinculada ainda. Crie uma nota do projeto ou conecte uma nota existente do Conhecimento.
+          </Empty>
+        ) : (
+          <ul className="divide-y divide-line">
+            {linked.map((n) => (
+              <li key={n.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                <Link to={`/conhecimento?nota=${n.id}`} className="group min-w-0 flex-1 rounded-lg focus-visible:ring-2 focus-visible:ring-brand">
+                  <div className="flex items-center gap-1.5 font-medium group-hover:underline">
+                    <span className="truncate">{n.title}</span>
+                    <ArrowUpRight size={14} strokeWidth={1.6} aria-hidden="true" className="shrink-0 text-fg3" />
+                  </div>
+                  {n.content_text && <p className="mt-0.5 line-clamp-2 text-xs text-fg3">{excerpt(n.content_text, 160)}</p>}
+                  <div className="mt-1 text-[11px] text-fg3">Atualizada em {short(toDay(new Date(n.updated_at)))}</div>
+                </Link>
+                <button type="button" className="icon-btn h-8 w-8 shrink-0" onClick={() => void unlink(n.id)} aria-label={`Desvincular nota ${n.title}`} title="Desvincular do projeto">
+                  <Unlink size={14} strokeWidth={1.5} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <div className="space-y-4">
+        <form className="card" onSubmit={createNote}>
+          <div className="label mb-3">Nova nota do projeto</div>
+          <Field label="Título"><input className="input" placeholder="Ex.: Decisões de arquitetura, Lista de fornecedores…" value={title} onChange={(e) => setTitle(e.target.value)} required /></Field>
+          <Field label="Texto inicial (opcional)"><textarea className="input" rows={3} value={body} onChange={(e) => setBody(e.target.value)} /></Field>
+          <button className="btn-primary w-full" disabled={saving}>{saving ? 'Criando…' : 'Criar e vincular'}</button>
+        </form>
+
+        {available.length > 0 && (
+          <form className="card" onSubmit={linkExisting}>
+            <div className="label mb-3">Vincular nota existente</div>
+            <Field label="Nota do Conhecimento">
+              <select className="input" value={linkId} onChange={(e) => setLinkId(e.target.value)} required>
+                <option value="">Escolha uma nota</option>
+                {available.map((n) => <option key={n.id} value={n.id}>{n.title}</option>)}
+              </select>
+            </Field>
+            <button className="btn-secondary w-full"><Link2 size={15} strokeWidth={1.5} />Vincular nota</button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Costs & Budget (Finance integration)
+// ---------------------------------------------------------------------------
+
+function ProjectCosts({
+  project, summary, txs, banks, rates, today, onReload, onEditBudget,
+}: {
+  project: Project;
+  summary: ProjectBudgetSummary;
+  txs: Tx[];
+  banks: Bank[];
+  rates?: { USD: number; EUR: number };
+  today: string;
+  onReload: () => void;
+  onEditBudget: () => void;
+}) {
+  const linked = txs.filter((t) => t.project_id === project.id);
+  const recentUnlinked = txs.filter((t) => !t.project_id).slice(0, 40);
+  const [description, setDescription] = useState('');
+  const [amount, setAmount] = useState('');
+  const [currency, setCurrency] = useState<Currency>(summary.currency);
+  const [date, setDate] = useState(today);
+  const [category, setCategory] = useState('Compras');
+  const [bankId, setBankId] = useState(banks[0]?.id ?? '');
+  const [linkTxId, setLinkTxId] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  async function addCost(e: FormEvent) {
+    e.preventDefault();
+    const raw = Number(amount.replace(',', '.'));
+    if (!Number.isFinite(raw) || raw <= 0) return;
+    let amountBrl = raw;
+    let fxRate: number | null = null;
+    let originalAmount: number | null = null;
+    if (currency !== 'BRL') {
+      const q = rates?.[currency];
+      if (!q || q <= 0) { alert('Cotação indisponível no momento. Registre em R$ ou pela aba Finanças.'); return; }
+      fxRate = q;
+      originalAmount = raw;
+      amountBrl = toBRL(raw, q);
+    }
+    setSaving(true);
+    const ok = await write(supabase.from('transactions').insert({
+      type: 'expense',
+      description: description.trim(),
+      amount: amountBrl,
+      currency,
+      original_amount: originalAmount,
+      fx_rate: fxRate,
+      date,
+      category: category || null,
+      payment_method: 'pix',
+      bank_id: bankId || null,
+      is_pending: false,
+      project_id: project.id,
+    }));
+    setSaving(false);
+    if (ok) {
+      setDescription('');
+      setAmount('');
+      onReload();
+    }
+  }
+
+  async function linkExistingTx(e: FormEvent) {
+    e.preventDefault();
+    if (!linkTxId) return;
+    if (await write(supabase.from('transactions').update({ project_id: project.id }).eq('id', linkTxId))) {
+      setLinkTxId('');
+      onReload();
+    }
+  }
+
+  async function unlinkTx(id: string) {
+    if (await write(supabase.from('transactions').update({ project_id: null }).eq('id', id))) onReload();
+  }
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+      <div className="space-y-4">
+        <section className="card">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span className="label mr-auto">Resumo financeiro</span>
+            <button type="button" className="btn-ghost h-8 text-xs" onClick={onEditBudget}>
+              {summary.budget != null ? 'Ajustar orçamento' : 'Definir orçamento'}
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <Stat
+              label="Total gasto"
+              value={<span className={summary.overBudget ? 'text-negative' : ''}>{summary.spent != null ? formatIn(summary.spent, summary.currency) : formatIn(summary.expenseBrl, 'BRL')}</span>}
+              hint={summary.currency !== 'BRL' && summary.expenseBrl > 0 ? `≈ ${formatIn(summary.expenseBrl, 'BRL')}` : undefined}
+              accent
+            />
+            <Stat
+              label="Orçamento"
+              value={summary.budget != null ? formatIn(summary.budget, summary.currency) : '—'}
+              hint={summary.pct != null ? (summary.overBudget ? `${summary.pct}% (acima do limite)` : `${summary.pct}% utilizado`) : 'sem teto definido'}
+            />
+            <Stat
+              label="Entradas / reembolsos"
+              value={summary.incomeBrl > 0 ? formatIn(summary.incomeBrl, 'BRL') : '—'}
+              hint={`${summary.txCount} ${summary.txCount === 1 ? 'lançamento' : 'lançamentos'}`}
+            />
+          </div>
+          {summary.budget != null && summary.pct != null && (
+            <div className="mt-4">
+              <div className="h-2 overflow-hidden rounded-full bg-raised" role="progressbar" aria-valuenow={Math.min(100, summary.pct)} aria-valuemin={0} aria-valuemax={100} aria-label="Uso do orçamento">
+                <div className={`h-full rounded-full ${summary.overBudget ? 'bg-negative' : 'bg-brand'}`} style={{ width: `${Math.min(100, summary.pct)}%` }} />
+              </div>
+            </div>
+          )}
+        </section>
+
+        <section className="card" aria-label="Lançamentos do projeto">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="label mr-auto">Lançamentos vinculados</span>
+            <span className="figure text-xs text-fg3">{linked.length}</span>
+          </div>
+          {linked.length === 0 ? (
+            <Empty icon={<Wallet size={18} strokeWidth={1.5} />}>
+              Nenhum custo vinculado. Registre um gasto ao lado ou marque este projeto ao lançar em Finanças.
+            </Empty>
+          ) : (
+            <ul className="divide-y divide-line">
+              {linked.map((t) => (
+                <li key={t.id} className="flex items-center gap-3 py-2.5 text-sm">
+                  <span className="figure w-12 shrink-0 text-xs text-fg3">{short(t.date)}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-medium">{t.description}</div>
+                    {t.category && <div className="text-xs text-fg3">{t.category}</div>}
+                  </div>
+                  <span className={`figure shrink-0 text-sm ${t.type === 'income' ? 'text-positive' : ''}`}>
+                    {t.type === 'income' ? '+' : '−'}
+                    {t.currency && t.currency !== 'BRL' && t.original_amount != null
+                      ? formatIn(Number(t.original_amount), t.currency)
+                      : formatIn(Number(t.amount), 'BRL')}
+                  </span>
+                  <button type="button" className="icon-btn h-7 w-7 shrink-0" onClick={() => void unlinkTx(t.id)} aria-label={`Desvincular ${t.description}`} title="Desvincular do projeto">
+                    <Unlink size={14} strokeWidth={1.5} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+
+      <div className="space-y-4">
+        <form className="card" onSubmit={addCost}>
+          <div className="label mb-3">Registrar custo do projeto</div>
+          <Field label="Descrição"><input className="input" placeholder="Ex.: Domínio, passagem, material…" value={description} onChange={(e) => setDescription(e.target.value)} required /></Field>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label={`Valor (${symbolOf(currency)})`}><input className="input figure" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} required /></Field>
+            <FieldGroup label="Moeda">
+              <div className="segmented w-full">
+                {CURRENCIES.map((c) => (
+                  <button key={c.code} type="button" className={`flex-1 ${currency === c.code ? 'tab-active' : 'tab'}`} aria-pressed={currency === c.code} onClick={() => setCurrency(c.code)}>{c.symbol}</button>
+                ))}
+              </div>
+            </FieldGroup>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Data"><input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></Field>
+            <Field label="Categoria">
+              <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
+                {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </Field>
+          </div>
+          {banks.length > 0 && (
+            <Field label="Conta">
+              <select className="input" value={bankId} onChange={(e) => setBankId(e.target.value)}>
+                <option value="">Nenhuma</option>
+                {banks.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </Field>
+          )}
+          <button className="btn-primary w-full" disabled={saving}>{saving ? 'Salvando…' : 'Registrar custo'}</button>
+        </form>
+
+        {recentUnlinked.length > 0 && (
+          <form className="card" onSubmit={linkExistingTx}>
+            <div className="label mb-3">Vincular lançamento existente</div>
+            <Field label="Lançamentos recentes">
+              <select className="input" value={linkTxId} onChange={(e) => setLinkTxId(e.target.value)} required>
+                <option value="">Escolha um lançamento</option>
+                {recentUnlinked.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {short(t.date)} · {t.description} ({formatIn(Number(t.amount), 'BRL')})
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <button className="btn-secondary w-full"><Link2 size={15} strokeWidth={1.5} />Vincular lançamento</button>
+          </form>
+        )}
+      </div>
     </div>
   );
 }

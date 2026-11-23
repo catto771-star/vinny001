@@ -16,9 +16,14 @@ export interface AgendaItem {
   /** 'HH:MM' local time, or null for all-day items. */
   time: string | null; endTime?: string | null; done: boolean; overdue: boolean;
   amount?: number; detail?: string; ref?: string;
+  /** Present when an event is a timeboxed block for a task. */
+  taskId?: string | null;
 }
 
-export interface Event { id: string; title: string; start_at: string; end_at: string | null; all_day: boolean; location: string | null; source?: string }
+export interface Event {
+  id: string; title: string; start_at: string; end_at: string | null; all_day: boolean;
+  location: string | null; source?: string; task_id?: string | null;
+}
 
 export interface AgendaSources {
   events?: Event[]; tasks?: Task[]; reminders?: Reminder[]; habits?: Habit[]; completions?: HabitCompletion[];
@@ -38,13 +43,22 @@ export function buildAgenda(from: Day, to: Day, s: AgendaSources, now: Date): Ag
   const inRange = (d: Day) => d >= from && d <= to;
   const days: Day[] = [];
   for (let d = from; d <= to; d = addDays(d, 1)) days.push(d);
+  const taskById = new Map((s.tasks ?? []).map((t) => [t.id, t]));
 
   for (const e of s.events ?? []) {
     const day = toDay(new Date(e.start_at));
     if (!inRange(day)) continue;
-    out.push({ key: `e${e.id}`, kind: 'event', day, title: e.title, time: e.all_day ? null : hhmm(e.start_at),
-      endTime: e.all_day || !e.end_at ? null : hhmm(e.end_at), done: false, overdue: false,
-      detail: [e.location, e.source === 'google' ? 'Google Agenda' : null].filter(Boolean).join(' · ') || undefined, ref: e.id });
+    const linked = e.task_id ? taskById.get(e.task_id) : undefined;
+    const endRef = e.end_at ? new Date(e.end_at) : new Date(e.start_at);
+    out.push({
+      key: `e${e.id}`, kind: 'event', day, title: e.title, time: e.all_day ? null : hhmm(e.start_at),
+      endTime: e.all_day || !e.end_at ? null : hhmm(e.end_at),
+      done: linked ? linked.completed : false,
+      overdue: linked ? (!linked.completed && endRef < now) : false,
+      detail: [e.location, linked ? 'Bloco de foco' : null, e.source === 'google' ? 'Google Agenda' : null].filter(Boolean).join(' · ') || undefined,
+      ref: e.id,
+      taskId: linked ? linked.id : e.task_id ?? null,
+    });
   }
   for (const t of s.tasks ?? []) {
     if (!t.due_date || t.is_archived) continue;
@@ -143,5 +157,34 @@ export function partitionWeekDay(items: readonly AgendaItem[]): {
     allDayHabits,
     habitsDone: allDayHabits.filter((h) => h.done).length,
   };
+}
+
+const PRIORITY_RANK = { high: 0, medium: 1, low: 2 } as const;
+
+/**
+ * Open, non-archived tasks that do not yet have a dedicated time slot
+ * (neither a timed due_date nor a timeboxed event linked via task_id),
+ * ordered by priority, earliest due date, then creation date.
+ */
+export function unscheduledTasks(tasks: readonly Task[], events: readonly Event[]): Task[] {
+  const boxed = new Set(events.map((e) => e.task_id).filter((id): id is string => !!id));
+  return tasks
+    .filter((t) => !t.completed && !t.is_archived && !boxed.has(t.id) && (!t.due_date || t.due_all_day))
+    .sort((a, b) => {
+      const pr = PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
+      if (pr !== 0) return pr;
+      const ad = a.due_date ? toDay(new Date(a.due_date)) : '9999-99-99';
+      const bd = b.due_date ? toDay(new Date(b.due_date)) : '9999-99-99';
+      return ad.localeCompare(bd) || a.created_at.localeCompare(b.created_at);
+    });
+}
+
+/** Builds ISO start/end timestamps for a timebox block on a local day. */
+export function timeboxRange(day: Day, startHHMM: string, durationMin: number): { start_at: string; end_at: string } {
+  const [y, m, d] = day.split('-').map(Number);
+  const [hh, mm] = startHHMM.split(':').map(Number);
+  const start = new Date(y, m - 1, d, hh, mm, 0, 0);
+  const end = new Date(start.getTime() + Math.max(15, durationMin) * 60_000);
+  return { start_at: start.toISOString(), end_at: end.toISOString() };
 }
 

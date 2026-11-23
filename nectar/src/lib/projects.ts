@@ -1,5 +1,7 @@
 import { addDays, parseDay, toDay, type Day } from './dates';
 import { weekOf } from './calendar';
+import { cents, reais, type Tx } from './finance';
+import { fromBRL, type Currency } from './money';
 import type { Priority, Task } from './tasks';
 
 export type ProjectStatus = 'planning' | 'active' | 'paused' | 'completed';
@@ -14,6 +16,8 @@ export interface Project {
   due_date: Day | null;
   start_date: Day;
   color: string;
+  budget?: number | null;
+  budget_currency?: Currency | null;
   is_template: boolean;
   template_tasks: TemplateTask[];
   archived_at: string | null;
@@ -157,4 +161,60 @@ export function fromTemplate(template: Pick<Project, 'template_tasks'>, steps: S
       step: t.step != null && t.step < ordered.length ? t.step : null,
     })),
   };
+}
+
+export interface ProjectBudgetSummary {
+  currency: Currency;
+  budget: number | null;
+  expenseBrl: number;
+  incomeBrl: number;
+  /** Total project expenses expressed in `currency` (null if non-BRL rate is unavailable). */
+  spent: number | null;
+  /** Percentage of budget used (0..∞), or null when no budget is set. */
+  pct: number | null;
+  overBudget: boolean;
+  txCount: number;
+  byCategory: { category: string; amountBrl: number }[];
+}
+
+/** Summarizes transactions linked to a project against its optional budget. */
+export function projectBudgetSummary(
+  project: Pick<Project, 'id' | 'budget' | 'budget_currency'>,
+  txs: readonly Tx[],
+  rates?: Partial<Record<'USD' | 'EUR', number>>,
+): ProjectBudgetSummary {
+  const mine = txs.filter((t) => t.project_id === project.id);
+  let expenseCents = 0;
+  let incomeCents = 0;
+  const catCents = new Map<string, number>();
+
+  for (const t of mine) {
+    const c = cents(t.amount);
+    if (t.type === 'expense') {
+      expenseCents += c;
+      const cat = t.category?.trim() || 'Sem categoria';
+      catCents.set(cat, (catCents.get(cat) ?? 0) + c);
+    } else {
+      incomeCents += c;
+    }
+  }
+
+  const currency: Currency = project.budget_currency ?? 'BRL';
+  const expenseBrl = reais(expenseCents);
+  const incomeBrl = reais(incomeCents);
+  const budget = project.budget != null && Number.isFinite(Number(project.budget)) ? Number(project.budget) : null;
+
+  let spent: number | null = expenseBrl;
+  if (currency !== 'BRL') {
+    const rate = rates?.[currency];
+    spent = rate && rate > 0 ? fromBRL(expenseBrl, rate) : null;
+  }
+
+  const pct = budget != null && budget > 0 && spent != null ? Math.round((spent / budget) * 100) : null;
+  const overBudget = budget != null && spent != null && spent > budget;
+  const byCategory = [...catCents.entries()]
+    .map(([category, c]) => ({ category, amountBrl: reais(c) }))
+    .sort((a, b) => b.amountBrl - a.amountBrl);
+
+  return { currency, budget, expenseBrl, incomeBrl, spent, pct, overBudget, txCount: mine.length, byCategory };
 }

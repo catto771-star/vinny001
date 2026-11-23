@@ -73,6 +73,7 @@ export function TxForm({ f, tx, defaults, onClose }: { f: Finance; tx?: Partial<
   const [method, setMethod] = useState<PaymentMethod>((base.payment_method as PaymentMethod) ?? 'pix');
   const [bankId, setBankId] = useState(base.bank_id ?? f.banks.rows[0]?.id ?? '');
   const [cardId, setCardId] = useState(base.card_id ?? '');
+  const [projectId, setProjectId] = useState(base.project_id ?? '');
   const [pending, setPending] = useState(base.is_pending ?? false);
   // In another currency: the amount typed is in that currency and the rate (reais per unit) comes
   // from the transaction's date, unless edited by hand (then it stays as typed).
@@ -98,6 +99,7 @@ export function TxForm({ f, tx, defaults, onClose }: { f: Finance; tx?: Partial<
       type, ...money, description, date, category: category || null, payment_method: method,
       bank_id: credit ? null : bankId || null, card_id: credit ? cardId || null : null, is_pending: credit ? false : pending,
       recurring_template_id: base.recurring_template_id ?? null,
+      project_id: projectId || null,
     };
     const ok = tx?.id ? await write(supabase.from('transactions').update(row).eq('id', tx.id)) : await write(supabase.from('transactions').insert(row));
     if (ok) { await f.reloadMoney(); onClose(); }
@@ -147,6 +149,14 @@ export function TxForm({ f, tx, defaults, onClose }: { f: Finance; tx?: Partial<
         <Field label="Descrição"><input className="input" value={description} onChange={(e) => setDescription(e.target.value)} required placeholder={type === 'expense' ? 'Mercado' : 'Salário'} /></Field>
         <CategoryField type={type} value={category} onChange={setCategory} />
         <PaymentFields f={f} type={type} method={method} setMethod={setMethod} bankId={bankId} setBankId={setBankId} cardId={cardId} setCardId={setCardId} />
+        {f.activeProjects.length > 0 && (
+          <Field label="Projeto (opcional)">
+            <select className="input" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+              <option value="">Nenhum</option>
+              {f.activeProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </Field>
+        )}
         {method !== 'credito' && (
           <label className="mb-4 flex items-center gap-2 text-sm">
             <input type="checkbox" checked={pending} onChange={(e) => setPending(e.target.checked)} />
