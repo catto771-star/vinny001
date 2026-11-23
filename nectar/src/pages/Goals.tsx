@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Check, CheckCircle2, Pause, Play, Plus, Target, Trash2 } from 'lucide-react';
+import { AlertTriangle, Award, Check, CheckCircle2, Pause, Play, Plus, Target, Trash2, TrendingUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTable, write } from '../lib/useTable';
 import { formatDay, sentence, toDay } from '../lib/dates';
@@ -23,12 +23,18 @@ type Tab = (typeof TABS)[number];
 const TAB_STATUS: Record<Tab, GoalStatus> = { Ativas: 'active', Pausadas: 'paused', Concluídas: 'completed' };
 export const PACE_TONE: Record<Pace, string> = { done: 'text-positive', ahead: 'text-positive', on: 'text-fg2', behind: 'text-warning', late: 'text-negative', open: 'text-fg3' };
 const PACE_BADGE: Record<Pace, string> = {
-  done: 'bg-positive/12 text-positive',
-  ahead: 'bg-positive/12 text-positive',
+  done: 'bg-positive/15 text-positive',
+  ahead: 'bg-positive/15 text-positive',
   on: 'bg-raised text-fg2',
-  behind: 'bg-warning/12 text-warning',
-  late: 'bg-negative/12 text-negative',
+  behind: 'bg-warning/15 text-warning',
+  late: 'bg-negative/15 text-negative',
   open: 'bg-raised text-fg3',
+};
+const GOAL_COLOR: Record<GoalType, string> = {
+  financial: '#06b6d4',
+  project: '#6366f1',
+  habit: '#f5b700',
+  custom: '#ec4899',
 };
 const short = (day: string) => `${Number(day.slice(8))}/${day.slice(5, 7)}`;
 
@@ -52,7 +58,7 @@ export default function Goals() {
   const transfers = useTable<Transfer>('transfers');
   const payments = useTable<InvoicePayment>('card_invoice_payments');
   const projects = useProjects();
-  const fx = useRates(null); // today's rates value euro and dollar accounts and multi-currency goals
+  const fx = useRates(null);
   const [editing, setEditing] = useState<Partial<Goal> | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const today = toDay(new Date());
@@ -74,6 +80,10 @@ export default function Goals() {
   });
   const shown = rows.filter((r) => r.g.status === TAB_STATUS[tab]);
   const active = rows.filter((r) => r.g.status === 'active');
+  const onPaceCount = active.filter((r) => r.pace === 'on' || r.pace === 'ahead' || r.pace === 'done').length;
+  const lateCount = active.filter((r) => r.pace === 'behind' || r.pace === 'late').length;
+  const completedCount = rows.filter((r) => r.g.status === 'completed').length;
+
   const linkName = (g: Goal) => {
     if (g.goal_type === 'habit') return habits.rows.find((h) => h.id === g.linked_habit_id)?.name;
     if (g.goal_type === 'project') return projects.projects.rows.find((p) => p.id === g.linked_project_id)?.name;
@@ -100,11 +110,35 @@ export default function Goals() {
       {goals.loading ? <ListSkeleton rows={3} /> : (
         <>
           {tab === 'Ativas' && (
-            <div className="card mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <Stat label="Ativas" value={active.length} accent />
-              <Stat label="No ritmo ou adiantadas" value={active.filter((r) => r.pace === 'on' || r.pace === 'ahead' || r.pace === 'done').length} />
-              <Stat label="Atrasadas" value={active.filter((r) => r.pace === 'behind' || r.pace === 'late').length} />
-              <Stat label="Concluídas" value={rows.filter((r) => r.g.status === 'completed').length} hint="no total" />
+            <div className="mb-6 grid grid-cols-2 gap-3.5 xl:grid-cols-4">
+              <div className="kpi-indigo flex items-center gap-3.5">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/18"><Target size={20} /></span>
+                <div>
+                  <div className="figure text-[26px] leading-7 font-bold">{active.length}</div>
+                  <div className="mt-0.5 text-xs text-white/85">Metas ativas</div>
+                </div>
+              </div>
+              <div className="kpi-teal flex items-center gap-3.5">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/18"><TrendingUp size={20} /></span>
+                <div>
+                  <div className="figure text-[26px] leading-7 font-bold">{onPaceCount}</div>
+                  <div className="mt-0.5 text-xs text-white/85">No ritmo</div>
+                </div>
+              </div>
+              <div className="kpi-pink flex items-center gap-3.5">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/18"><AlertTriangle size={20} /></span>
+                <div>
+                  <div className="figure text-[26px] leading-7 font-bold">{lateCount}</div>
+                  <div className="mt-0.5 text-xs text-white/85">Atrasadas</div>
+                </div>
+              </div>
+              <div className="kpi-gold flex items-center gap-3.5">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-black/12"><Award size={20} /></span>
+                <div>
+                  <div className="figure text-[26px] leading-7 font-bold">{completedCount}</div>
+                  <div className="mt-0.5 text-xs font-medium opacity-80">Concluídas</div>
+                </div>
+              </div>
             </div>
           )}
           {shown.length === 0 && (
@@ -113,39 +147,49 @@ export default function Goals() {
             </Empty></div>
           )}
           <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {shown.map(({ g, current, progress, pace, expected, daysLeft, perWeek, projected }) => (
-              <li key={g.id} className="min-w-0">
-                <button type="button" className="card glow flex h-full w-full min-w-0 flex-col text-left" onClick={() => setOpenId(g.id)}>
-                  <div className="mb-2 flex w-full min-w-0 items-center gap-2 text-xs text-fg3">
-                    <span className="mr-auto min-w-0 truncate">{TYPE_LABEL[g.goal_type]}{linkName(g) ? ` · ${linkName(g)}` : ''}</span>
-                    <span className={`badge ${PACE_BADGE[pace]}`}>{PACE_LABEL[pace]}</span>
-                  </div>
-                  <div className="mb-3 flex items-center gap-3.5">
-                    <ProgressRing
-                      pct={progress * 100}
-                      size={52}
-                      strokeWidth={4.5}
-                      tone={pace === 'done' || pace === 'ahead' ? 'var(--positive)' : pace === 'late' ? 'var(--negative)' : 'var(--brand)'}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-medium">{g.title}</div>
-                      <div className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5">
-                        <span className="figure text-lg font-semibold">{fmt(g, current)}</span>
-                        <span className="figure text-xs text-fg3">de {fmt(g, targetOf(g))}</span>
+            {shown.map(({ g, current, progress, pace, expected, daysLeft, perWeek, projected }) => {
+              const color = GOAL_COLOR[g.goal_type];
+              return (
+                <li key={g.id} className="min-w-0">
+                  <button type="button" className="card glow flex h-full w-full min-w-0 flex-col overflow-hidden p-0 text-left" onClick={() => setOpenId(g.id)}>
+                    <div
+                      className="flex w-full items-center gap-2 px-5 py-3 text-xs"
+                      style={{ background: `linear-gradient(135deg, ${color}42 0%, ${color}14 100%)` }}
+                    >
+                      <span className="mr-auto min-w-0 truncate font-medium text-fg">
+                        {TYPE_LABEL[g.goal_type]}{linkName(g) ? ` · ${linkName(g)}` : ''}
+                      </span>
+                      <span className={`badge ${PACE_BADGE[pace]}`}>{PACE_LABEL[pace]}</span>
+                    </div>
+                    <div className="flex w-full flex-1 flex-col p-5">
+                      <div className="mb-4 flex items-center gap-3.5">
+                        <ProgressRing
+                          pct={progress * 100}
+                          size={56}
+                          strokeWidth={5}
+                          tone={pace === 'done' || pace === 'ahead' ? '#2dd4bf' : pace === 'late' ? '#fb7185' : color}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate font-semibold text-fg">{g.title}</div>
+                          <div className="mt-1 flex flex-wrap items-baseline gap-x-1.5">
+                            <span className="figure text-lg font-bold">{fmt(g, current)}</span>
+                            <span className="figure text-xs text-fg3">de {fmt(g, targetOf(g))}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-auto">
+                        <ProgressBar progress={progress} expected={expected} label={g.title} />
+                        <div className="mt-2.5 text-xs text-fg3">
+                          {pace === 'done' ? (g.status === 'completed' ? 'Concluída' : 'Meta batida: marque como concluída')
+                            : daysLeft == null ? (projected ? `Nesse ritmo, chega lá em ${short(projected)}` : '\u00a0') : daysLeft < 0 ? `Venceu em ${short(g.target_date!)}`
+                              : `${daysLeft === 0 ? 'Vence hoje' : `Faltam ${daysLeft} ${plural(daysLeft, 'dia', 'dias')}`}${perWeek != null && perWeek > 0 ? ` · ${fmt(g, perWeek)} por semana` : ''}`}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="mt-auto">
-                    <ProgressBar progress={progress} expected={expected} label={g.title} />
-                    <div className="mt-2 text-xs text-fg3">
-                      {pace === 'done' ? (g.status === 'completed' ? 'Concluída' : 'Meta batida: marque como concluída')
-                        : daysLeft == null ? (projected ? `Nesse ritmo, chega lá em ${short(projected)}` : '\u00a0') : daysLeft < 0 ? `Venceu em ${short(g.target_date!)}`
-                          : `${daysLeft === 0 ? 'Vence hoje' : `Faltam ${daysLeft} ${plural(daysLeft, 'dia', 'dias')}`}${perWeek != null && perWeek > 0 ? ` · ${fmt(g, perWeek)} por semana` : ''}`}
-                    </div>
-                  </div>
-                </button>
-              </li>
-            ))}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </>
       )}

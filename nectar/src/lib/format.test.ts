@@ -21,14 +21,15 @@ describe('number format', () => {
 });
 
 describe('theme', () => {
-  it('defaults to light and keeps a saved choice', () => {
-    expect(resolveTheme(null)).toBe('light');
+  it('defaults to dark navy and keeps a saved choice', () => {
+    expect(resolveTheme(null)).toBe('dark');
+    expect(resolveTheme('light')).toBe('light');
     expect(resolveTheme('dark')).toBe('dark');
-    expect(resolveTheme('purple')).toBe('light');
+    expect(resolveTheme('purple')).toBe('dark');
   });
   it('paints the system bar with the background of each theme', () => {
     expect(themeColor('light')).toBe('#f3f3f1');
-    expect(themeColor('dark')).toBe('#0f0f10');
+    expect(themeColor('dark')).toBe('#0d1025');
   });
 });
 

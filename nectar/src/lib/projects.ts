@@ -218,3 +218,59 @@ export function projectBudgetSummary(
 
   return { currency, budget, expenseBrl, incomeBrl, spent, pct, overBudget, txCount: mine.length, byCategory };
 }
+
+export interface UpcomingStepItem {
+  step: Step;
+  substeps: ProjectTask[];
+  doneSubsteps: number;
+  totalSubsteps: number;
+}
+
+export interface ProjectUpcomingPlan {
+  nextSteps: UpcomingStepItem[];
+  looseSubsteps: ProjectTask[];
+  remainingSteps: number;
+  remainingTasks: number;
+}
+
+/** Extracts the next open milestones (etapas) with their open tasks (subetapas), plus ungrouped open tasks. */
+export function projectUpcomingPlan(
+  steps: readonly Step[],
+  tasks: readonly ProjectTask[],
+  maxSteps = 2,
+  maxSubstepsPerStep = 2,
+  maxLoose = 3,
+): ProjectUpcomingPlan {
+  const rank = { high: 0, medium: 1, low: 2 };
+  const sortTasks = (list: ProjectTask[]) => [...list].sort(
+    (a, b) => (a.status === 'in_progress' ? -1 : 0) - (b.status === 'in_progress' ? -1 : 0)
+      || rank[a.priority] - rank[b.priority]
+      || a.created_at.localeCompare(b.created_at),
+  );
+  const liveTasks = tasks.filter((t) => !t.is_archived);
+  const openTasks = liveTasks.filter((t) => !t.completed);
+  const orderedOpenSteps = [...steps].sort((a, b) => a.order_index - b.order_index).filter((s) => !s.completed);
+  const stepIds = new Set(steps.map((s) => s.id));
+
+  const nextSteps: UpcomingStepItem[] = orderedOpenSteps.slice(0, maxSteps).map((s) => {
+    const linked = liveTasks.filter((t) => t.project_step_id === s.id);
+    const openLinked = sortTasks(linked.filter((t) => !t.completed));
+    return {
+      step: s,
+      substeps: openLinked.slice(0, maxSubstepsPerStep),
+      doneSubsteps: linked.filter((t) => t.completed).length,
+      totalSubsteps: linked.length,
+    };
+  });
+
+  const looseOpen = sortTasks(openTasks.filter((t) => !t.project_step_id || !stepIds.has(t.project_step_id)));
+  const looseSubsteps = nextSteps.length === 0 ? looseOpen.slice(0, maxLoose) : looseOpen.slice(0, Math.max(0, maxLoose - nextSteps.length));
+
+  return {
+    nextSteps,
+    looseSubsteps,
+    remainingSteps: orderedOpenSteps.length,
+    remainingTasks: openTasks.length,
+  };
+}
+

@@ -2,21 +2,21 @@ export type Theme = 'dark' | 'light';
 
 const KEY = 'painel.theme';
 
-/** Light is the default; a saved choice wins. */
+/** Dark navy is the default; a saved choice wins. */
 export function resolveTheme(saved: string | null): Theme {
-  return saved === 'light' || saved === 'dark' ? saved : 'light';
+  return saved === 'light' || saved === 'dark' ? saved : 'dark';
 }
 
 /** The color the phone paints around the app (status bar, installed app frame). */
 export function themeColor(theme: Theme): string {
-  return theme === 'dark' ? '#0f0f10' : '#f3f3f1';
+  return theme === 'dark' ? '#0d1025' : '#f3f3f1';
 }
 
 export function readTheme(): Theme {
   try {
     return resolveTheme(localStorage.getItem(KEY));
   } catch {
-    return 'light';
+    return 'dark';
   }
 }
 

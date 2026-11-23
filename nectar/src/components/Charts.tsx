@@ -192,15 +192,16 @@ export function AreaChart({ title, subtitle, points, unit, minZero = true, heigh
   const rawMin = values.length ? Math.min(...values) : 0;
   const rawMax = values.length ? Math.max(...values) : 1;
   const flat = values.length > 0 && rawMax === rawMin;
+  const flatPad = Math.max(2, Math.round(Math.abs(rawMax) * 0.1));
   const lo = minZero
     ? Math.min(0, Math.floor(rawMin))
     : flat
-      ? Math.max(0, Math.floor(rawMin * 0.7))
+      ? Math.max(0, Math.floor(rawMin - flatPad))
       : Math.floor(rawMin - Math.max(1, (rawMax - rawMin) * 0.15));
   const hi = !values.length
     ? 1
     : flat
-      ? niceMax(Math.max(1, rawMax * 1.3 - lo)) + lo
+      ? (minZero ? niceMax(Math.max(1, rawMax * 1.25 - lo)) + lo : Math.ceil(rawMax + flatPad))
       : niceMax(Math.max(1, rawMax - lo)) + lo;
   const plotW = W - PAD.left - PAD.right;
   const step = points.length > 1 ? plotW / (points.length - 1) : 0;

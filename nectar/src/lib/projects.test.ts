@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  burnup, columnOf, diffDays, fromTemplate, kanban, moveTo, nextStep, projectBudgetSummary, projectHealth, projectProgress, toTemplate, trajectory,
+  burnup, columnOf, diffDays, fromTemplate, kanban, moveTo, nextStep, projectBudgetSummary, projectHealth, projectProgress, projectUpcomingPlan, toTemplate, trajectory,
   type ProjectTask, type Step,
 } from './projects';
 import type { Tx } from './finance';
@@ -138,3 +138,27 @@ describe('projectBudgetSummary', () => {
     expect(summary).toMatchObject({ currency: 'EUR', spent: 600, pct: 120, overBudget: true });
   });
 });
+
+describe('projectUpcomingPlan', () => {
+  it('groups upcoming open milestones with their prioritized open substeps and loose tasks', () => {
+    const steps = [
+      step({ id: 's1', title: 'Módulo 1', order_index: 0, completed: true }),
+      step({ id: 's2', title: 'Módulo 2', order_index: 1, completed: false }),
+      step({ id: 's3', title: 'Módulo 3', order_index: 2, completed: false }),
+    ];
+    const tasks = [
+      task({ id: 't1', title: 'Aula 1', project_step_id: 's2', completed: true }),
+      task({ id: 't2', title: 'Aula 2', project_step_id: 's2', priority: 'low' }),
+      task({ id: 't3', title: 'Prova', project_step_id: 's2', status: 'in_progress', priority: 'high' }),
+      task({ id: 't4', title: 'Revisão geral', project_step_id: null, priority: 'medium' }),
+    ];
+    const plan = projectUpcomingPlan(steps, tasks, 2, 2, 3);
+    expect(plan.remainingSteps).toBe(2);
+    expect(plan.remainingTasks).toBe(3);
+    expect(plan.nextSteps.map((x) => x.step.title)).toEqual(['Módulo 2', 'Módulo 3']);
+    expect(plan.nextSteps[0].substeps.map((t) => t.title)).toEqual(['Prova', 'Aula 2']);
+    expect(plan.nextSteps[0]).toMatchObject({ doneSubsteps: 1, totalSubsteps: 3 });
+    expect(plan.looseSubsteps.map((t) => t.title)).toEqual(['Revisão geral']);
+  });
+});
+
