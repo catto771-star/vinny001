@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { conv, displayCurrency, money, symbolOf } from '../../lib/money';
 import { monthName, toDay } from '../../lib/dates';
-import { addMonths, averageLeftoverRate, byCategory, cents, monthlyFlow, netWorth, reais } from '../../lib/finance';
+import { addMonths, averageLeftoverRate, byCategory, cents, monthlyFlow, netWorth, netWorthHistory, reais } from '../../lib/finance';
 import { projectCashFlow, type HorizonDays } from '../../lib/cashflow';
-import { ColumnChart, LineChart, RankedBars } from '../../components/Charts';
-import { Empty, Stat } from '../../components/ui';
+import { AreaChart, ColumnChart, DonutChart, RankedBars } from '../../components/Charts';
+import { Stat } from '../../components/ui';
 import type { Finance } from './useFinance';
 
 const HORIZONS: HorizonDays[] = [30, 60, 90];
@@ -16,6 +16,10 @@ export default function Analysis({ f, year, month }: { f: Finance; year: number;
   const [horizon, setHorizon] = useState<HorizonDays>(30);
   const today = toDay(new Date());
   const worth = netWorth(f.banks.rows, f.txs.rows, f.transfers.rows, f.payments.rows, today);
+  const worthCurve = useMemo(
+    () => netWorthHistory(f.banks.rows, f.txs.rows, f.transfers.rows, f.payments.rows, year, month, months, today),
+    [f.banks.rows, f.txs.rows, f.transfers.rows, f.payments.rows, year, month, months, today],
+  );
 
   const projection = useMemo(() => projectCashFlow({
     startDay: today,
@@ -90,13 +94,14 @@ export default function Analysis({ f, year, month }: { f: Finance; year: number;
           />
         </section>
 
-        <LineChart
+        <AreaChart
           title={`Previsão de fluxo de caixa (${horizon} dias)`}
           subtitle="Saldo projetado somando recorrentes, pendentes e faturas em aberto"
           points={chartPoints}
           unit={symbolOf(displayCurrency())}
-          height={240}
+          height={250}
           aside={horizonSelector}
+          tone={projection.endingBalance < projection.startingBalance ? 'var(--warning)' : 'var(--brand)'}
         />
 
         {projection.events.length > 0 && (
@@ -121,6 +126,24 @@ export default function Analysis({ f, year, month }: { f: Finance; year: number;
         )}
       </div>
 
+      {/* Historical Net Worth Evolution */}
+      <div className="mb-6">
+        <AreaChart
+          title="Evolução do patrimônio"
+          subtitle={`Saldo consolidado das contas ao final de cada mês (${months} meses)`}
+          unit={symbolOf(displayCurrency())}
+          minZero={false}
+          height={250}
+          aside={selector}
+          tone="var(--positive)"
+          points={worthCurve.map((p) => ({
+            label: short(p.year, p.month),
+            value: conv(p.value),
+            detail: `em ${shortDay(p.date)}`,
+          }))}
+        />
+      </div>
+
       {/* Historical monthly flow & categories */}
       <section className="card mb-6 grid grid-cols-2 gap-6 lg:grid-cols-4">
         <Stat label="Taxa de sobra média" value={rate === null ? '—' : String(rate).replace('.', ',')} unit={rate === null ? undefined : '%'} accent hint="sobra sobre o que entrou, nos meses com entrada" />
@@ -130,7 +153,7 @@ export default function Analysis({ f, year, month }: { f: Finance; year: number;
       </section>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-6">
-          <ColumnChart title="Sobra mês a mês" subtitle="entradas menos saídas de cada mês" unit={symbolOf(displayCurrency())} height={280} aside={selector}
+          <ColumnChart title="Sobra mês a mês" subtitle="Entradas menos saídas de cada mês" unit={symbolOf(displayCurrency())} height={270}
             points={flow.map((m) => ({ label: short(m.year, m.month), value: conv(Math.max(0, m.leftover)), detail: `entrou ${money(m.income)}, saiu ${money(m.expense)}${m.leftover < 0 ? `, faltou ${money(-m.leftover)}` : ''}` }))} />
           <section className="card overflow-x-auto">
             <div className="mb-3 font-medium">Fluxo mês a mês</div>
@@ -150,12 +173,26 @@ export default function Analysis({ f, year, month }: { f: Finance; year: number;
             </table>
           </section>
         </div>
-        <section className="card h-fit min-w-0">
-          <div className="mb-4 font-medium">Categorias no período</div>
-          {ranking.length ? <RankedBars unit="" format={money} rows={ranking.slice(0, 10).map((r) => ({ ...r, detail: `média de ${money(reais(Math.round(cents(r.value) / months)))} por mês` }))} />
-            : <Empty>Sem saídas no período</Empty>}
+        <section className="card h-fit min-w-0 space-y-5">
+          <DonutChart
+            bare
+            title="Categorias no período"
+            subtitle={`Últimos ${months} meses`}
+            centerLabel="Total"
+            format={money}
+            size={150}
+            emptyText="Sem saídas no período"
+            rows={ranking}
+          />
+          {ranking.length > 0 && (
+            <div className="border-t border-line pt-4">
+              <div className="label mb-3">Média mensal</div>
+              <RankedBars unit="" format={money} rows={ranking.slice(0, 6).map((r) => ({ ...r, detail: `média de ${money(reais(Math.round(cents(r.value) / months)))} por mês` }))} />
+            </div>
+          )}
         </section>
       </div>
     </>
   );
 }
+

@@ -8,9 +8,9 @@ import { weekOf } from '../lib/calendar';
 import { num, plural } from '../lib/format';
 import {
   PARTS, atRisk, bestStreak, completionRate, currentStreak, heatmap, isDone, isPerfectDay, isWeekly, monthConsistency,
-  partOfDay, routineFor, weekdayRates, weeklyProgress, type Habit, type HabitCompletion,
+  overallHeatmap, partOfDay, routineFor, weekdayRates, weeklyProgress, type Habit, type HabitCompletion,
 } from '../lib/habits';
-import { ColumnChart, LineChart, RankedBars } from '../components/Charts';
+import { ActivityHeatmap, ColumnChart, LineChart, ProgressRing, RankedBars } from '../components/Charts';
 import { MonthCalendar, CellChip } from '../components/MonthCalendar';
 import { Empty, Field, FieldGroup, ListSkeleton, Modal, PageHeader, Stat, WeekdayPicker } from '../components/ui';
 
@@ -181,13 +181,23 @@ function TodayView({ habits, completions, today, year, month, setValue, onOpen }
   const risky = day === today ? atRisk(habits, completions, today) : [];
   const best = Math.max(0, ...habits.map((h) => (isWeekly(h) ? 0 : currentStreak(h, completions, today))));
 
+  const todayRoutine = routineFor(habits, today, completions);
+  const todayDone = todayRoutine.filter((h) => isDone(h, find(completions, h, today))).length;
+  const todayPct = todayRoutine.length ? Math.round((todayDone / todayRoutine.length) * 100) : 0;
+
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
       <div className="min-w-0 space-y-6">
         <div className="card grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Stat label="Constância no mês" value={pct(scheduled ? done / scheduled : 0)} accent />
           <Stat label="Dias perfeitos" value={perfect} hint={`de ${Number(today.slice(8))} dias`} />
-          <Stat label="Hoje" value={routineFor(habits, today, completions).filter((h) => isDone(h, find(completions, h, today))).length} unit={`/ ${routineFor(habits, today, completions).length}`} />
+          <div className="flex items-center gap-3">
+            <ProgressRing pct={todayPct} size={50} strokeWidth={4.5} tone={todayPct >= 100 ? 'var(--positive)' : 'var(--brand)'} />
+            <div className="min-w-0">
+              <div className="label">Hoje</div>
+              <div className="figure mt-0.5 text-lg font-medium">{todayDone}<span className="text-xs text-fg3">/{todayRoutine.length}</span></div>
+            </div>
+          </div>
           <Stat label="Maior sequência ativa" value={best} unit={plural(best, 'dia', 'dias')} />
         </div>
         <WeekStrip habits={habits} completions={completions} today={today} selected={day} onSelect={setDay} />
@@ -391,6 +401,7 @@ function CalendarView({ habits, completions, today, setValue, onOpen }: {
 // ---------------------------------------------------------------------------
 
 function AnalysisView({ habits, completions, today }: { habits: Habit[]; completions: HabitCompletion[]; today: Day }) {
+  const heatWeeks = useMemo(() => overallHeatmap(habits, completions, today, 12), [habits, completions, today]);
   const weeks = Array.from({ length: 12 }, (_, i) => weekOf(addDays(today, -7 * (11 - i))));
   const perfect = weeks.map((w) => ({
     label: `${Number(w[0].slice(8))}/${w[0].slice(5, 7)}`,
@@ -404,10 +415,13 @@ function AnalysisView({ habits, completions, today }: { habits: Habit[]; complet
   const worst = rated.length > 1 && rated[0].value !== rated[rated.length - 1].value ? rated[0] : null;
   return (
     <div className="grid gap-6 lg:grid-cols-2">
+      <div className="min-w-0 lg:col-span-2">
+        <ActivityHeatmap weeks={heatWeeks} title="Mapa de constância" />
+      </div>
       <ColumnChart title="Dias perfeitos por semana" subtitle="Últimas 12 semanas, só hábitos de dias fixos" points={perfect} unit="dias" />
       <ColumnChart title="Desempenho por dia da semana" subtitle={worst ? `Últimas 8 semanas · dia mais fraco: ${worst.label}` : 'Últimas 8 semanas'}
         points={days} unit="%" highlightLast={false} highlight={weekday(today)} />
-      <section className="card lg:col-span-2">
+      <section className="card min-w-0 lg:col-span-2">
         <div className="mb-4">
           <div className="font-medium">Constância por hábito</div>
           <div className="text-[13px] leading-5 text-fg3">Últimos 30 dias</div>

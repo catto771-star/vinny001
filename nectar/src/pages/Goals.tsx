@@ -13,7 +13,7 @@ import {
   sumLinkedAccountsInGoalCurrency, targetOf,
   type Goal, type GoalEntry, type GoalStatus, type GoalType, type Pace,
 } from '../lib/goals';
-import { LineChart } from '../components/Charts';
+import { AreaChart, ProgressRing } from '../components/Charts';
 import { Empty, Field, FieldGroup, ListSkeleton, Modal, PageHeader, Stat } from '../components/ui';
 import { useProjects } from './projects/useProjects';
 import { useRates } from './finance/useRates';
@@ -23,11 +23,11 @@ type Tab = (typeof TABS)[number];
 const TAB_STATUS: Record<Tab, GoalStatus> = { Ativas: 'active', Pausadas: 'paused', Concluídas: 'completed' };
 export const PACE_TONE: Record<Pace, string> = { done: 'text-positive', ahead: 'text-positive', on: 'text-fg2', behind: 'text-warning', late: 'text-negative', open: 'text-fg3' };
 const PACE_BADGE: Record<Pace, string> = {
-  done: 'bg-positive/10 text-positive',
-  ahead: 'bg-positive/10 text-positive',
+  done: 'bg-positive/12 text-positive',
+  ahead: 'bg-positive/12 text-positive',
   on: 'bg-raised text-fg2',
-  behind: 'bg-warning/10 text-warning',
-  late: 'bg-negative/10 text-negative',
+  behind: 'bg-warning/12 text-warning',
+  late: 'bg-negative/12 text-negative',
   open: 'bg-raised text-fg3',
 };
 const short = (day: string) => `${Number(day.slice(8))}/${day.slice(5, 7)}`;
@@ -116,17 +116,26 @@ export default function Goals() {
             {shown.map(({ g, current, progress, pace, expected, daysLeft, perWeek, projected }) => (
               <li key={g.id} className="min-w-0">
                 <button type="button" className="card glow flex h-full w-full min-w-0 flex-col text-left" onClick={() => setOpenId(g.id)}>
-                  <div className="mb-1.5 flex w-full min-w-0 items-center gap-2 text-xs text-fg3">
+                  <div className="mb-2 flex w-full min-w-0 items-center gap-2 text-xs text-fg3">
                     <span className="mr-auto min-w-0 truncate">{TYPE_LABEL[g.goal_type]}{linkName(g) ? ` · ${linkName(g)}` : ''}</span>
                     <span className={`badge ${PACE_BADGE[pace]}`}>{PACE_LABEL[pace]}</span>
                   </div>
-                  <div className="mb-3 font-medium">{g.title}</div>
-                  <div className="mt-auto">
-                    <div className="mb-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                      <span className="figure text-xl">{fmt(g, current)}</span>
-                      <span className="figure text-sm text-fg3">de {fmt(g, targetOf(g))}</span>
-                      <span className="figure ml-auto text-sm font-medium">{Math.round(progress * 100)}%</span>
+                  <div className="mb-3 flex items-center gap-3.5">
+                    <ProgressRing
+                      pct={progress * 100}
+                      size={52}
+                      strokeWidth={4.5}
+                      tone={pace === 'done' || pace === 'ahead' ? 'var(--positive)' : pace === 'late' ? 'var(--negative)' : 'var(--brand)'}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium">{g.title}</div>
+                      <div className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5">
+                        <span className="figure text-lg font-semibold">{fmt(g, current)}</span>
+                        <span className="figure text-xs text-fg3">de {fmt(g, targetOf(g))}</span>
+                      </div>
                     </div>
+                  </div>
+                  <div className="mt-auto">
                     <ProgressBar progress={progress} expected={expected} label={g.title} />
                     <div className="mt-2 text-xs text-fg3">
                       {pace === 'done' ? (g.status === 'completed' ? 'Concluída' : 'Meta batida: marque como concluída')
@@ -163,8 +172,8 @@ export default function Goals() {
 /** The bar, with a tick where progress should be by now. */
 function ProgressBar({ progress, expected, label }: { progress: number; expected: number | null; label: string }) {
   return (
-    <div className="relative h-1.5 rounded-sm bg-raised" role="progressbar" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={`Progresso: ${label}`}>
-      <div className="h-1.5 rounded-sm bg-brand" style={{ width: `${progress * 100}%` }} />
+    <div className="relative h-1.5 rounded-full bg-raised" role="progressbar" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={`Progresso: ${label}`}>
+      <div className="h-1.5 rounded-full bg-brand" style={{ width: `${progress * 100}%` }} />
       {expected != null && expected > 0 && expected < 1 && (
         <span className="absolute -top-1 h-3.5 w-0.5 rounded bg-fg2" style={{ left: `calc(${expected * 100}% - 1px)` }} title={`Esperado até hoje: ${Math.round(expected * 100)}%`} />
       )}
@@ -213,7 +222,7 @@ function GoalDetail({ row, entries, linkName, today, onClose, onEdit, onStatus, 
 
       {series.length > 1 && (
         <div className="-mx-5 mb-5 sm:mx-0">
-          <LineChart title="Evolução" points={series.map((p) => ({ label: short(p.date), value: p.value }))} unit={g.goal_type === 'financial' ? curSymbol : g.unit} minZero={g.measure === 'sum'} height={180} />
+          <AreaChart title="Evolução" points={series.map((p) => ({ label: short(p.date), value: p.value }))} unit={g.goal_type === 'financial' ? curSymbol : g.unit} minZero={g.measure === 'sum'} height={180} />
         </div>
       )}
 

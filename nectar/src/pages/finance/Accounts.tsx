@@ -4,8 +4,9 @@ import { ArrowLeftRight, Landmark, Pencil, Plus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { write } from '../../lib/useTable';
 import { formatDay, toDay } from '../../lib/dates';
-import { bankBalance, cardUsed, invoices, type Card, type Invoice } from '../../lib/finance';
-import { Empty, Field, Modal } from '../../components/ui';
+import { bankBalance, cardUsed, invoices, netWorth, type Card, type Invoice } from '../../lib/finance';
+import { DonutChart } from '../../components/Charts';
+import { Empty, Field, Figure, Modal } from '../../components/ui';
 import { BankForm, CardForm, TransferForm } from './forms';
 import type { Finance } from './useFinance';
 
@@ -17,25 +18,58 @@ export default function Accounts({ f }: { f: Finance }) {
   const [transfer, setTransfer] = useState(false);
   const [paying, setPaying] = useState<{ card: Card; inv: Invoice } | null>(null);
   const today = toDay(new Date());
+  const totalWorth = netWorth(f.banks.rows, f.txs.rows, f.transfers.rows, f.payments.rows, today);
+  const accountRows = f.banks.rows.map((b) => ({
+    bank: b,
+    balance: bankBalance(b, f.txs.rows, f.transfers.rows, f.payments.rows, today),
+  }));
+  const positiveSum = accountRows.reduce((s, r) => s + Math.max(0, r.balance), 0);
 
   return (
     <div className="grid gap-6 xl:grid-cols-2">
-      <section>
-        <div className="mb-3 flex items-center gap-2">
+      <section className="space-y-4">
+        <div className="flex items-center gap-2">
           <h2 className="mr-auto font-medium">Contas</h2>
           {f.banks.rows.length > 1 && <button className="btn-ghost" onClick={() => setTransfer(true)}><ArrowLeftRight {...I} />Transferir</button>}
           <button className="btn-secondary" onClick={() => setBank(null)}><Plus {...I} />Conta</button>
         </div>
         {!f.banks.rows.length ? <div className="card"><Empty icon={<Landmark size={18} strokeWidth={1.5} />} action={<button className="btn-secondary" onClick={() => setBank(null)}>Adicionar conta</button>}>Seu patrimônio começa aqui: cadastre suas contas com o saldo de hoje</Empty></div> : (
-          <ul className="card divide-y divide-line p-0">
-            {f.banks.rows.map((b) => (
-              <li key={b.id} className="flex items-center gap-3 px-5 py-3 text-sm">
-                <span className="mr-auto">{b.name}</span>
-                <span className="figure text-base">{money(bankBalance(b, f.txs.rows, f.transfers.rows, f.payments.rows, today))}</span>
-                <button className="icon-btn" onClick={() => setBank(b)} aria-label={`Editar ${b.name}`}><Pencil {...I} /></button>
-              </li>
-            ))}
-          </ul>
+          <>
+            {positiveSum > 0 && (
+              <DonutChart
+                title="Distribuição do patrimônio"
+                subtitle={`Total consolidado: ${money(totalWorth)}`}
+                centerLabel="Patrimônio"
+                format={money}
+                rows={accountRows.map((r) => ({ label: r.bank.name, value: Math.max(0, r.balance), color: r.bank.color || undefined }))}
+              />
+            )}
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {accountRows.map(({ bank: b, balance }) => {
+                const share = positiveSum > 0 && balance > 0 ? Math.round((balance / positiveSum) * 100) : 0;
+                const dot = b.color || 'var(--brand)';
+                return (
+                  <li key={b.id} className="card glow flex min-w-0 flex-col justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: dot }} aria-hidden="true" />
+                      <span className="mr-auto min-w-0 truncate font-medium">{b.name}</span>
+                      <span className="badge bg-raised font-mono text-[11px] text-fg2">{b.currency ?? 'BRL'}</span>
+                      <button className="icon-btn -mr-2" onClick={() => setBank(b)} aria-label={`Editar ${b.name}`}><Pencil size={15} strokeWidth={1.6} /></button>
+                    </div>
+                    <div>
+                      <Figure value={money(balance)} className={`block truncate text-[22px] leading-7 font-semibold ${balance < 0 ? 'text-negative' : ''}`} />
+                      <div className="mt-2.5 flex items-center gap-2">
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-raised">
+                          <div className="h-full rounded-full transition-[width] duration-300" style={{ width: `${share}%`, background: dot }} />
+                        </div>
+                        <span className="figure text-xs text-fg3">{share}%</span>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
         )}
       </section>
 

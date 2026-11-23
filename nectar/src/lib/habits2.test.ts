@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  atRisk, bestStreak, completionRate, currentStreak, heatmap, isPerfectDay, monthConsistency, partOfDay, routineFor,
+  atRisk, bestStreak, completionRate, currentStreak, heatmap, isPerfectDay, monthConsistency, overallHeatmap, partOfDay, routineFor,
   startDay, weekdayRates, weeklyProgress, type Habit, type HabitCompletion,
 } from './habits';
 
@@ -115,4 +115,19 @@ describe('a habit counts only from when it started', () => {
     expect(map[0][1].state).toBe('off'); // Mon 16
     expect(map[0][2].state).toBe('missed'); // Tue 17
   });
+  it('computes 0..4 intensity levels across all active habits in overallHeatmap', () => {
+    const a = habit({ id: 'a' });
+    const b = habit({ id: 'b' });
+    const grid = overallHeatmap([a, b], [
+      done('a', '2026-11-16'),
+      done('a', '2026-11-17'),
+      done('b', '2026-11-17'),
+    ], TODAY, 2);
+    expect(grid).toHaveLength(2);
+    expect(grid[1][0]).toMatchObject({ day: '2026-11-15', done: 0, due: 2, level: 0, future: false });
+    expect(grid[1][1]).toMatchObject({ day: '2026-11-16', done: 1, due: 2, level: 2, future: false });
+    expect(grid[1][2]).toMatchObject({ day: '2026-11-17', done: 2, due: 2, level: 4, future: false });
+    expect(grid[1][4]).toMatchObject({ day: '2026-11-19', future: true, level: 0 });
+  });
 });
+

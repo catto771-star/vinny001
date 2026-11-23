@@ -3,7 +3,7 @@ import { toDay } from '../../lib/dates';
 import { num } from '../../lib/format';
 import { DEFAULT_SETTINGS, lastWorkingSets, suggestNext, workoutSummary } from '../../lib/training';
 import { sumNutrients } from '../../lib/nutrition';
-import { TargetBar } from '../../components/Charts';
+import { ProgressRing, TargetBar } from '../../components/Charts';
 import { Empty, Stat } from '../../components/ui';
 import { energyForDay } from './energyForDay';
 import type { Health } from './useHealth';
@@ -21,6 +21,8 @@ export default function Today({ h, onGo }: { h: Health; onGo: (tab: 'Treino' | '
       id, s: suggestNext(lastWorkingSets(id, h.sets.rows, h.workouts.rows, h.typeById, today), h.settingsById.get(id) ?? DEFAULT_SETTINGS),
     })).filter((x) => x.s)
     : [];
+
+  const pct = (v: number, goal: number) => (goal > 0 ? Math.min(100, (v / goal) * 100) : 0);
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -60,7 +62,7 @@ export default function Today({ h, onGo }: { h: Health; onGo: (tab: 'Treino' | '
         )}
       </section>
       <section className="card flex flex-col">
-        <div className="mb-3 flex items-center gap-2">
+        <div className="mb-4 flex items-center gap-2">
           <h2 className="label mr-auto">Dieta de hoje</h2>
           <button type="button" className="btn-ghost h-8 px-2.5 text-xs" onClick={() => onGo('Dieta')}>
             Abrir dieta <ArrowUpRight size={14} strokeWidth={1.75} aria-hidden="true" />
@@ -68,6 +70,29 @@ export default function Today({ h, onGo }: { h: Health; onGo: (tab: 'Treino' | '
         </div>
         {target ? (
           <>
+            <div className="mb-5 grid grid-cols-4 gap-2 rounded-[14px] bg-raised/50 p-3.5 text-center">
+              <div className="flex flex-col items-center gap-1.5">
+                <ProgressRing
+                  pct={pct(totals.kcal, target.kcal)}
+                  size={60}
+                  strokeWidth={5}
+                  tone={totals.kcal > target.kcal * 1.05 ? 'var(--negative)' : 'var(--brand)'}
+                />
+                <span className="text-[11px] font-medium text-fg2">Calorias</span>
+              </div>
+              <div className="flex flex-col items-center gap-1.5">
+                <ProgressRing pct={pct(totals.protein_g, target.protein_g)} size={60} strokeWidth={5} tone="#38bdf8" />
+                <span className="text-[11px] font-medium text-fg2">Proteína</span>
+              </div>
+              <div className="flex flex-col items-center gap-1.5">
+                <ProgressRing pct={pct(totals.carbs_g, target.carbs_g)} size={60} strokeWidth={5} tone="#34d399" />
+                <span className="text-[11px] font-medium text-fg2">Carbo</span>
+              </div>
+              <div className="flex flex-col items-center gap-1.5">
+                <ProgressRing pct={pct(totals.fat_g, target.fat_g)} size={60} strokeWidth={5} tone="#fbbf24" />
+                <span className="text-[11px] font-medium text-fg2">Gordura</span>
+              </div>
+            </div>
             <TargetBar label="Calorias" consumed={totals.kcal} target={target.kcal} unit="kcal" />
             <TargetBar label="Proteína" consumed={totals.protein_g} target={target.protein_g} unit="g" />
             <TargetBar label="Carboidrato" consumed={totals.carbs_g} target={target.carbs_g} unit="g" />
@@ -86,3 +111,4 @@ export default function Today({ h, onGo }: { h: Health; onGo: (tab: 'Treino' | '
     </div>
   );
 }
+

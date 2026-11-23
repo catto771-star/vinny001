@@ -9,7 +9,7 @@ import {
   type Health, type Project, type ProjectStatus,
 } from '../../lib/projects';
 import type { Priority } from '../../lib/tasks';
-import { ColumnChart, RankedBars } from '../../components/Charts';
+import { ColumnChart, DonutChart, ProgressRing, RankedBars } from '../../components/Charts';
 import { CURRENCIES, formatIn, symbolOf, type Currency } from '../../lib/money';
 import { Empty, Field, FieldGroup, ListSkeleton, Modal, PageHeader, Stat } from '../../components/ui';
 import { useProjects, type ProjectsData } from './useProjects';
@@ -24,9 +24,9 @@ export const HEALTH_TONE: Record<Health, string> = {
   late: 'text-negative', risk: 'text-warning', ok: 'text-positive', done: 'text-fg3', open: 'text-fg3',
 };
 const HEALTH_BADGE: Record<Health, string> = {
-  late: 'bg-negative/10 text-negative',
-  risk: 'bg-warning/10 text-warning',
-  ok: 'bg-positive/10 text-positive',
+  late: 'bg-negative/12 text-negative',
+  risk: 'bg-warning/12 text-warning',
+  ok: 'bg-positive/12 text-positive',
   done: 'bg-raised text-fg2',
   open: 'bg-raised text-fg3',
 };
@@ -135,25 +135,25 @@ function ProjectCard({ project: p, data, today, onOpen }: { project: Project; da
   return (
     <li className="min-w-0">
       <button type="button" className="card glow flex h-full w-full min-w-0 flex-col text-left" onClick={onOpen}>
-        <div className="mb-3 flex w-full min-w-0 items-center gap-2">
-          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: p.color }} aria-hidden="true" />
-          <span className="mr-auto min-w-0 truncate font-medium">{p.name}</span>
-          <span className={`badge ${p.status === 'paused' ? 'bg-raised text-fg2' : HEALTH_BADGE[health]}`}>
-            {p.status === 'paused' ? STATUS_LABEL.paused : HEALTH_LABEL[health]}
-          </span>
-        </div>
-        {p.description && <p className="mb-3 line-clamp-2 text-sm text-fg3">{p.description}</p>}
-        <div className="mt-auto">
-          <div className="mb-1.5 flex items-baseline text-xs text-fg3">
-            <span className="mr-auto">
-              {prog.total === 0 ? 'Sem tarefas — toque para começar' : prog.by === 'steps' ? `${prog.done}/${prog.total} marcos` : `${prog.done}/${prog.total} tarefas`}
-            </span>
-            <span className="figure text-sm font-medium text-fg">{prog.pct}%</span>
+        <div className="mb-3 flex w-full min-w-0 items-start gap-3">
+          <ProgressRing pct={prog.pct} size={50} strokeWidth={4.5} tone={p.color} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="mr-auto min-w-0 truncate font-medium">{p.name}</span>
+              <span className={`badge ${p.status === 'paused' ? 'bg-raised text-fg2' : HEALTH_BADGE[health]}`}>
+                {p.status === 'paused' ? STATUS_LABEL.paused : HEALTH_LABEL[health]}
+              </span>
+            </div>
+            {p.description
+              ? <p className="mt-1 line-clamp-2 text-xs text-fg3">{p.description}</p>
+              : <p className="mt-1 text-xs text-fg3">{prog.total === 0 ? 'Sem tarefas — toque para começar' : prog.by === 'steps' ? `${prog.done}/${prog.total} marcos` : `${prog.done}/${prog.total} tarefas`}</p>}
           </div>
+        </div>
+        <div className="mt-auto">
           <div className="h-1.5 overflow-hidden rounded-full bg-raised" role="progressbar" aria-valuenow={prog.pct} aria-valuemin={0} aria-valuemax={100} aria-label={`Progresso de ${p.name}`}>
             <div className="meter-fill h-full rounded-full" style={{ width: `${prog.pct}%`, background: p.color }} />
           </div>
-          <div className="mt-3 flex gap-3 text-xs text-fg3">
+          <div className="mt-2.5 flex gap-3 text-xs text-fg3">
             <span className="mr-auto truncate">
               {next ? `Próximo: ${next.title}${next.due_date ? ` · ${short(next.due_date)}` : ''}`
                 : steps.length ? 'Todos os marcos feitos'
@@ -189,7 +189,14 @@ function Analysis({ data, today }: { data: ProjectsData; today: string }) {
         {counts.map(({ s, n }) => <Stat key={s} label={STATUS_LABEL[s]} value={n} />)}
       </div>
       <ColumnChart title="Tarefas concluídas por semana" subtitle="Todos os projetos, últimas 12 semanas" points={perWeek} unit="tarefas" />
-      <section className="card">
+      <DonutChart
+        title="Projetos por status"
+        subtitle="Distribuição atual da carteira"
+        centerLabel="Projetos"
+        format={(n) => String(Math.round(n))}
+        rows={counts.map(({ s, n }) => ({ label: STATUS_LABEL[s], value: n }))}
+      />
+      <section className="card lg:col-span-2">
         <div className="mb-4">
           <div className="font-medium">Progresso por projeto</div>
           <div className="text-[13px] leading-5 text-fg3">Comparado ao tempo já passado até o prazo</div>

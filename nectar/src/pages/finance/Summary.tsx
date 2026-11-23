@@ -6,15 +6,15 @@ import { EXPENSE_CATEGORIES, bankBalance, byCategory, cardUsed, dailyExpenses, i
 import { evaluateBudgets, type BudgetStatus, type CategoryBudget } from '../../lib/cashflow';
 import { supabase } from '../../lib/supabase';
 import { write } from '../../lib/useTable';
-import { ColumnChart, RankedBars } from '../../components/Charts';
-import { Empty, Field, FieldGroup, Modal, Stat } from '../../components/ui';
+import { ColumnChart, DonutChart, SegmentedMeter } from '../../components/Charts';
+import { Empty, Field, FieldGroup, Figure, Modal, Skeleton } from '../../components/ui';
 import { useRates } from './useRates';
 import type { Finance } from './useFinance';
 
 const BUDGET_BADGE: Record<BudgetStatus, { label: string; cls: string; bar: string }> = {
-  ok: { label: 'No ritmo', cls: 'bg-positive/10 text-positive', bar: 'bg-brand' },
-  warn: { label: 'Atenção', cls: 'bg-warning/10 text-warning', bar: 'bg-warning' },
-  over: { label: 'Acima do limite', cls: 'bg-negative/10 text-negative', bar: 'bg-negative' },
+  ok: { label: 'No ritmo', cls: 'bg-positive/12 text-positive', bar: 'bg-brand' },
+  warn: { label: 'Atenção', cls: 'bg-warning/12 text-warning', bar: 'bg-warning' },
+  over: { label: 'Acima do limite', cls: 'bg-negative/12 text-negative', bar: 'bg-negative' },
 };
 
 export default function Summary({ f, year, month, onPay }: { f: Finance; year: number; month: number; onPay: (o: { template_id: string; date: string }) => void }) {
@@ -35,24 +35,76 @@ export default function Summary({ f, year, month, onPay }: { f: Finance; year: n
     ...dueInvoices.map(({ card, i }) => ({ key: `i${card.id}${i.month}`, date: i.dueDate, label: `Fatura ${card.name}`, amount: i.total, action: undefined })),
   ].sort((a, b) => a.date.localeCompare(b.date));
 
+  const saveRate = s.income > 0 ? Math.max(0, Math.min(100, Math.round((s.leftover / s.income) * 100))) : 0;
+  const bankSlices = f.banks.rows.map((b) => ({
+    label: b.name,
+    value: Math.max(0, bankBalance(b, f.txs.rows, f.transfers.rows, f.payments.rows, today)),
+    color: b.color || undefined,
+  }));
+
   return (
     <>
-      <section className="card mb-6 grid grid-cols-2 gap-6 lg:grid-cols-4">
-        <Stat label="Sai no mês" value={money(s.expense)} accent loading={f.loading} hint={`${money(s.spent)} pago · ${money(s.toSpend)} previsto`} />
-        <Stat label="Entra no mês" value={money(s.income)} loading={f.loading} hint={`${money(s.received)} recebido · ${money(s.toReceive)} a receber`} />
-        <Stat label="Sobra do mês" value={money(s.leftover)} loading={f.loading} hint="entra menos sai, com o previsto" />
-        <Stat label="Patrimônio" value={money(worth)} loading={f.loading} hint={`${f.banks.rows.length} ${f.banks.rows.length === 1 ? 'conta' : 'contas'}, hoje`} />
+      {/* Fintech bento KPI row */}
+      <section className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 md:gap-4 xl:grid-cols-4" aria-label="Resumo do mês">
+        <div className="card-hero flex min-w-0 flex-col justify-between">
+          <div className="text-xs font-medium opacity-80">Patrimônio total</div>
+          {f.loading ? <Skeleton className="mt-3 h-8 w-32" /> : (
+            <Figure value={money(worth)} className="mt-2 block truncate text-[26px] leading-8 font-semibold" />
+          )}
+          <div className="mt-3 text-xs opacity-80">
+            {f.banks.rows.length} {f.banks.rows.length === 1 ? 'conta ativa' : 'contas ativas'} · hoje
+          </div>
+        </div>
+
+        <div className="card flex min-w-0 flex-col justify-between">
+          <div className="label">Entra no mês</div>
+          {f.loading ? <Skeleton className="mt-3 h-8 w-28" /> : (
+            <Figure value={money(s.income)} className="mt-2 block truncate text-[24px] leading-8 font-semibold text-positive" />
+          )}
+          <div className="mt-3 text-xs text-fg3">{money(s.received)} recebido · {money(s.toReceive)} a receber</div>
+        </div>
+
+        <div className="card flex min-w-0 flex-col justify-between">
+          <div className="label">Sai no mês</div>
+          {f.loading ? <Skeleton className="mt-3 h-8 w-28" /> : (
+            <Figure value={money(s.expense)} className="mt-2 block truncate text-[24px] leading-8 font-semibold" />
+          )}
+          <div className="mt-3 text-xs text-fg3">{money(s.spent)} pago · {money(s.toSpend)} previsto</div>
+        </div>
+
+        <div className="card flex min-w-0 flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
+            <span className="label">Sobra do mês</span>
+            {s.income > 0 && <span className={`figure text-xs font-medium ${s.leftover < 0 ? 'text-negative' : 'text-positive'}`}>{saveRate}%</span>}
+          </div>
+          {f.loading ? <Skeleton className="mt-3 h-8 w-28" /> : (
+            <Figure value={money(s.leftover)} className={`mt-2 block truncate text-[24px] leading-8 font-semibold ${s.leftover < 0 ? 'text-negative' : ''}`} />
+          )}
+          <div className="mt-3">
+            <SegmentedMeter
+              pct={s.leftover < 0 ? 100 : saveRate}
+              segments={14}
+              height={8}
+              tone={s.leftover < 0 ? 'var(--negative)' : saveRate >= 20 ? 'var(--positive)' : 'var(--brand)'}
+              label="Taxa de sobra do mês"
+            />
+          </div>
+        </div>
       </section>
 
-      <div className="mb-6 grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <ColumnChart title="Dia a dia" subtitle="saídas registradas em cada dia do mês; hoje em destaque" unit={symbolOf(displayCurrency())} height={280} highlightLast={false}
+      <div className="mb-6 grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
+        <ColumnChart title="Dia a dia" subtitle="Saídas registradas em cada dia do mês; hoje em destaque" unit={symbolOf(displayCurrency())} height={270} highlightLast={false}
           highlight={today.startsWith(key) ? Number(today.slice(8, 10)) - 1 : -1}
           points={daily.map((d) => ({ label: String(d.day), value: conv(d.amount) }))} />
-        <section className="card h-fit">
-          <div className="mb-4 font-medium">Para onde foi</div>
-          {categories.length ? <RankedBars unit="" format={money} rows={categories.slice(0, 8).map((c) => ({ label: c.category, value: c.amount, detail: s.expense ? `${Math.round((c.amount / s.expense) * 100)}% do que sai no mês` : undefined }))} />
-            : <Empty>As categorias aparecem quando houver saídas no mês</Empty>}
-        </section>
+        <DonutChart
+          title="Para onde foi"
+          subtitle="Distribuição de saídas por categoria no mês"
+          centerLabel="Saídas"
+          format={money}
+          maxSlices={6}
+          emptyText="As categorias aparecem quando houver saídas no mês"
+          rows={categories.map((c) => ({ label: c.category, value: c.amount }))}
+        />
       </div>
 
       {/* Monthly category budgets with pace marker */}
@@ -140,23 +192,29 @@ export default function Summary({ f, year, month, onPay }: { f: Finance; year: n
           )}
         </section>
         <section className="card">
-          <div className="mb-3 font-medium">Contas e cartões</div>
+          <div className="mb-4 font-medium">Alocação e cartões</div>
           {!f.banks.rows.length && !f.cards.rows.length ? <Empty icon={<Receipt size={18} strokeWidth={1.5} />}>Cadastre suas contas e cartões na aba Contas</Empty> : (
-            <ul className="divide-y divide-line text-sm">
-              {f.banks.rows.map((b) => (
-                <li key={b.id} className="flex py-2.5"><span className="mr-auto">{b.name}</span><span className="figure">{money(bankBalance(b, f.txs.rows, f.transfers.rows, f.payments.rows, today))}</span></li>
-              ))}
-              {f.cards.rows.map((c) => {
-                const used = cardUsed(c, f.txs.rows, f.payments.rows);
-                const next = invoices(c, f.txs.rows, f.payments.rows).find((i) => !i.paid);
-                return (
-                  <li key={c.id} className="flex py-2.5">
-                    <span className="mr-auto">{c.name}<span className="ml-2 text-xs text-fg3">{next ? `fatura vence ${formatDay(next.dueDate)}` : 'sem fatura aberta'}</span></span>
-                    <span className="figure">{money(used)}{c.credit_limit ? <span className="text-fg3"> / {money(c.credit_limit)}</span> : null}</span>
-                  </li>
-                );
-              })}
-            </ul>
+            <>
+              {bankSlices.some((x) => x.value > 0) && (
+                <div className="mb-4 pb-4 border-b border-line">
+                  <DonutChart bare rows={bankSlices} format={money} centerLabel="Contas" size={142} />
+                </div>
+              )}
+              {f.cards.rows.length > 0 && (
+                <ul className="divide-y divide-line text-sm">
+                  {f.cards.rows.map((c) => {
+                    const used = cardUsed(c, f.txs.rows, f.payments.rows);
+                    const next = invoices(c, f.txs.rows, f.payments.rows).find((i) => !i.paid);
+                    return (
+                      <li key={c.id} className="flex py-2.5">
+                        <span className="mr-auto">{c.name}<span className="ml-2 text-xs text-fg3">{next ? `fatura vence ${formatDay(next.dueDate)}` : 'sem fatura aberta'}</span></span>
+                        <span className="figure">{money(used)}{c.credit_limit ? <span className="text-fg3"> / {money(c.credit_limit)}</span> : null}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </>
           )}
         </section>
       </div>

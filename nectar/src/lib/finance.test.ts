@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   averageLeftoverRate, bankBalance, byCategory, cardUsed, dailyExpenses, installmentSchedule, invoiceFor, invoices,
-  monthlyFlow, monthSummary, netWorth, recurringInMonth, variableProjection, monthlyEquivalent, setBankRates,
+  monthlyFlow, monthSummary, netWorth, netWorthHistory, recurringInMonth, variableProjection, monthlyEquivalent, setBankRates,
   type Bank, type Card, type RecurringTemplate, type Tx,
 } from './finance';
 
@@ -174,4 +174,19 @@ describe('the month', () => {
     expect(flow.map((f) => [f.key, f.income, f.expense, f.rate])).toEqual([['2026-10', 0, 999, null], ['2026-11', 6000, 700, 88.3]]);
     expect(averageLeftoverRate(flow)).toBe(88.3);
   });
+  it('computes net worth history month by month, clamping current month to today', () => {
+    const bank: Bank = { id: 'nubank', name: 'Nubank', initial_balance: 1000, color: null };
+    const hist = netWorthHistory([bank], [
+      tx({ type: 'income', amount: 500, date: '2026-09-15' }),
+      tx({ type: 'expense', amount: 200, date: '2026-10-10' }),
+      tx({ type: 'income', amount: 1000, date: '2026-11-05' }),
+      tx({ type: 'expense', amount: 300, date: '2026-11-25' }),
+    ], [], [], 2026, 11, 3, '2026-11-18');
+    expect(hist.map((p) => [p.key, p.date, p.value])).toEqual([
+      ['2026-09', '2026-09-30', 1500],
+      ['2026-10', '2026-10-31', 1300],
+      ['2026-11', '2026-11-18', 2300],
+    ]);
+  });
 });
+

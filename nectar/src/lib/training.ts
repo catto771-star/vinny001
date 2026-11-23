@@ -250,6 +250,74 @@ export function weeklyStats(
   }));
 }
 
+export interface ExerciseSessionPoint {
+  date: Day;
+  workoutId: string;
+  workoutTitle: string;
+  maxLoad: number;
+  topReps: number;
+  best1RM: number | null;
+  tonnage: number;
+  sets: number;
+}
+
+/** Chronological load, estimated 1RM, and tonnage progression for a single exercise. */
+export function exerciseProgression(
+  exerciseId: string, sets: WorkoutSet[], workouts: Workout[], types: Map<string, SetType>,
+): ExerciseSessionPoint[] {
+  const workoutById = new Map(workouts.map((w) => [w.id, w]));
+  const grouped = new Map<string, WorkoutSet[]>();
+  for (const s of volumeSets(sets, types)) {
+    if (s.exercise_id !== exerciseId || !workoutById.has(s.workout_id)) continue;
+    const list = grouped.get(s.workout_id) ?? [];
+    list.push(s);
+    grouped.set(s.workout_id, list);
+  }
+  const points: ExerciseSessionPoint[] = [];
+  for (const [workoutId, list] of grouped) {
+    const w = workoutById.get(workoutId)!;
+    let maxLoad = 0;
+    let topReps = 0;
+    let best1RM: number | null = null;
+    let tonnage = 0;
+    for (const s of list) {
+      tonnage += s.load_kg * s.reps;
+      if (s.load_kg > maxLoad || (s.load_kg === maxLoad && s.reps > topReps)) {
+        maxLoad = s.load_kg;
+        topReps = s.reps;
+      }
+      const e1 = estimated1RM(s.load_kg, s.reps);
+      if (e1 !== null && (best1RM === null || e1 > best1RM)) best1RM = e1;
+    }
+    points.push({
+      date: w.date,
+      workoutId,
+      workoutTitle: w.title || 'Treino',
+      maxLoad: round(maxLoad),
+      topReps,
+      best1RM,
+      tonnage: round(tonnage),
+      sets: list.length,
+    });
+  }
+  return points.sort((a, b) => a.date.localeCompare(b.date) || a.workoutId.localeCompare(b.workoutId));
+}
+
+/** Exercise IDs with logged volume sets, ordered by number of sessions descending. */
+export function activeExerciseIds(sets: WorkoutSet[], workouts: Workout[], types: Map<string, SetType>): string[] {
+  const valid = new Set(workouts.map((w) => w.id));
+  const sessionsByEx = new Map<string, Set<string>>();
+  for (const s of volumeSets(sets, types)) {
+    if (!valid.has(s.workout_id)) continue;
+    const set = sessionsByEx.get(s.exercise_id) ?? new Set<string>();
+    set.add(s.workout_id);
+    sessionsByEx.set(s.exercise_id, set);
+  }
+  return [...sessionsByEx.entries()]
+    .sort((a, b) => b[1].size - a[1].size || a[0].localeCompare(b[0]))
+    .map(([id]) => id);
+}
+
 // ---------------------------------------------------------------------------
 // Cardio
 // ---------------------------------------------------------------------------

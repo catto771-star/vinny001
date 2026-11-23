@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  cardioKcal, estimated1RM, formatPace, kcalPerMinute, lastWorkingSets, paceMinPerKm, personalRecords,
+  activeExerciseIds, cardioKcal, estimated1RM, exerciseProgression, formatPace, kcalPerMinute, lastWorkingSets, paceMinPerKm, personalRecords,
   strengthKcal, suggestNext, weekStart, weeklyStats, weeklyVolumeByMuscle, workoutSummary,
   type Exercise, type SetType, type Workout, type WorkoutSet,
 } from './training';
@@ -129,3 +129,22 @@ describe('cardio and energy', () => {
     expect(strengthKcal(null, 100)).toBe(0);
   });
 });
+
+describe('exercise progression', () => {
+  it('builds chronological max load, estimated 1RM and tonnage series, ignoring warm-up sets', () => {
+    const ws = [workout('w2', '2026-11-18'), workout('w1', '2026-11-10')];
+    const sets = [
+      set('w1', 'bench', 60, 10, 'feed'),
+      set('w1', 'bench', 80, 10, 'work'),
+      set('w1', 'bench', 80, 8, 'work'),
+      set('w2', 'bench', 85, 8, 'work'),
+      set('w2', 'squat', 100, 6, 'work'),
+    ];
+    const prog = exerciseProgression('bench', sets, ws, TYPES);
+    expect(prog).toHaveLength(2);
+    expect(prog[0]).toMatchObject({ date: '2026-11-10', maxLoad: 80, topReps: 10, best1RM: 106.7, tonnage: 1440, sets: 2 });
+    expect(prog[1]).toMatchObject({ date: '2026-11-18', maxLoad: 85, topReps: 8, best1RM: 107.7, tonnage: 680, sets: 1 });
+    expect(activeExerciseIds(sets, ws, TYPES)).toEqual(['bench', 'squat']);
+  });
+});
+

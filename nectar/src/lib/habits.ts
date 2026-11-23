@@ -247,3 +247,32 @@ export function heatmap(habit: Habit, completions: HabitCompletion[], today: Day
     return { day, state };
   }));
 }
+
+export interface OverallHeatCell {
+  day: Day;
+  done: number;
+  due: number;
+  level: 0 | 1 | 2 | 3 | 4;
+  future: boolean;
+}
+
+/** 12-week overall habit consistency grid (Sunday-first weeks), intensity 0..4 per day. */
+export function overallHeatmap(
+  habits: Habit[], completions: HabitCompletion[], today: Day, weeks = 12,
+): OverallHeatCell[][] {
+  const active = habits.filter((h) => !h.is_archived);
+  const start = addDays(weekOf(today)[0], -7 * (weeks - 1));
+  const compByKey = new Map<string, HabitCompletion>();
+  for (const c of completions) compByKey.set(`${c.habit_id}|${c.completed_date}`, c);
+  return Array.from({ length: weeks }, (_, w) => Array.from({ length: 7 }, (_, i) => {
+    const day = addDays(start, w * 7 + i);
+    if (day > today) return { day, done: 0, due: 0, level: 0, future: true };
+    const dueList = routineFor(active, day, completions);
+    const due = dueList.length;
+    const doneCount = dueList.filter((h) => isDone(h, compByKey.get(`${h.id}|${day}`))).length;
+    const ratio = due > 0 ? doneCount / due : 0;
+    const level: 0 | 1 | 2 | 3 | 4 = doneCount === 0 ? 0 : ratio >= 1 ? 4 : ratio >= 0.7 ? 3 : ratio >= 0.35 ? 2 : 1;
+    return { day, done: doneCount, due, level, future: false };
+  }));
+}
+
