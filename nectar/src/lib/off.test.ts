@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { offToFood } from './off';
+import { lookupBarcodeUrl, offToFood, sanitizeBarcode } from './off';
 
 describe('Open Food Facts mapping', () => {
   it('maps per-100 g nutriments and keeps the first brand', () => {
+    expect(offToFood({ code: '123', product_name: 'Porridge Oats', brands: "Flahavan's, Other", serving_quantity: '40',
+      nutriments: { 'energy-kcal_100g': 375, proteins_100g: 11, carbohydrates_100g: 60, fat_g: 8, fiber_g: 9 } as never }, 'IE'))
+      .toBeTruthy();
     expect(offToFood({ code: '123', product_name: 'Porridge Oats', brands: "Flahavan's, Other", serving_quantity: '40',
       nutriments: { 'energy-kcal_100g': 375, proteins_100g: 11, carbohydrates_100g: 60, fat_100g: 8, fiber_100g: 9 } }, 'IE'))
       .toEqual({ source: 'OFF', country: 'IE', external_id: '123', name: 'Porridge Oats', brand: "Flahavan's",
@@ -15,5 +18,11 @@ describe('Open Food Facts mapping', () => {
   it('skips products without a name or energy', () => {
     expect(offToFood({ code: '1', nutriments: { 'energy-kcal_100g': 100 } }, 'UK')).toBeNull();
     expect(offToFood({ code: '1', product_name: 'X', nutriments: {} }, 'UK')).toBeNull();
+  });
+  it('validates EAN/UPC barcodes and builds the v2 product lookup URL', () => {
+    expect(sanitizeBarcode(' 789-1000-100103 ')).toBe('7891000100103');
+    expect(sanitizeBarcode('1234567')).toBeNull();
+    expect(sanitizeBarcode('123456789012345')).toBeNull();
+    expect(lookupBarcodeUrl('7891000100103')).toContain('/api/v2/product/7891000100103.json');
   });
 });

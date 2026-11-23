@@ -1,8 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, Bell, Check, CheckSquare, FolderKanban, Plus, Search, Sparkles, Target, Wallet } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { useTable, write } from '../lib/useTable';
+import { useTable, queuedWrite } from '../lib/useTable';
 import { latestPerKey } from '../lib/serial';
 import { formatDay, formatTime, toDay } from '../lib/dates';
 import { num, plural } from '../lib/format';
@@ -97,8 +96,14 @@ export default function Home() {
     const completed = !task.completed;
     const completed_at = completed ? new Date().toISOString() : null;
     tasks.setRows((rows) => rows.map((t) => (t.id === task.id ? { ...t, completed, completed_at } : t)));
-    await write(supabase.from('tasks').update({ completed, status: completed ? 'completed' : 'pending', completed_at }).eq('id', task.id));
-    void tasks.reload();
+    const res = await queuedWrite({
+      table: 'tasks',
+      op: 'update',
+      payload: { completed, status: completed ? 'completed' : 'pending', completed_at },
+      match: { id: task.id },
+      label: task.title,
+    });
+    if (res === 'saved') void tasks.reload();
   }
 
   function quickHabit(habit: Habit) {
@@ -111,15 +116,23 @@ export default function Home() {
         : others;
     });
     void habitQueue(`${habit.id}|${today}`, async () => {
-      if (nextVal <= 0) await write(supabase.from('habit_completions').delete().eq('habit_id', habit.id).eq('completed_date', today));
-      else await write(supabase.from('habit_completions').upsert({ habit_id: habit.id, completed_date: today, value: nextVal }, { onConflict: 'habit_id,completed_date' }));
-    }).then(() => { if (!habitQueue.busy()) void completions.reload(); });
+      const res = nextVal <= 0
+        ? await queuedWrite({ table: 'habit_completions', op: 'delete', match: { habit_id: habit.id, completed_date: today }, label: habit.name })
+        : await queuedWrite({ table: 'habit_completions', op: 'upsert', payload: { habit_id: habit.id, completed_date: today, value: nextVal }, onConflict: 'habit_id,completed_date', label: habit.name });
+      if (res === 'saved' && !habitQueue.busy()) void completions.reload();
+    });
   }
 
   async function toggleReminder(r: Reminder) {
     reminders.setRows((rows) => rows.map((x) => (x.id === r.id ? { ...x, completed: !r.completed } : x)));
-    await write(supabase.from('reminders').update({ completed: !r.completed }).eq('id', r.id));
-    void reminders.reload();
+    const res = await queuedWrite({
+      table: 'reminders',
+      op: 'update',
+      payload: { completed: !r.completed },
+      match: { id: r.id },
+      label: r.title,
+    });
+    if (res === 'saved') void reminders.reload();
   }
 
   const b = bucketTasks(tasks.rows, now);

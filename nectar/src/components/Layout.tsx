@@ -1,10 +1,12 @@
 import { Fragment, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
-  Bell, CalendarDays, CheckSquare, Dumbbell, FolderKanban, Gauge, LogOut, Menu, Moon, Notebook, Repeat,
-  Bot, Search, Settings, Sun, Target, Wallet, Workflow, type LucideIcon,
+  Bell, CalendarDays, CheckSquare, Dumbbell, FolderKanban, Gauge, LogOut, Menu, Moon, Notebook, RefreshCw, Repeat,
+  Bot, Search, Settings, Sun, Target, Wallet, WifiOff, Workflow, type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { flushPendingOfflineWrites } from '../lib/useTable';
+import { loadOfflineQueue, subscribeOfflineQueue } from '../lib/offlineQueue';
 import { applyTheme, readTheme, type Theme } from '../lib/theme';
 import { Modal } from './ui';
 import { Motion } from './Motion';
@@ -40,6 +42,55 @@ export function Mark({ size = 20 }: { size?: number }) {
       <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2.5" />
       <circle cx="12" cy="12" r="3" fill="currentColor" />
     </svg>
+  );
+}
+
+function OfflineStatusBar() {
+  const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
+  const [pending, setPending] = useState(() => loadOfflineQueue().length);
+  const [syncing, setSyncing] = useState(false);
+
+  async function syncNow() {
+    setSyncing(true);
+    await flushPendingOfflineWrites();
+    setPending(loadOfflineQueue().length);
+    setSyncing(false);
+  }
+
+  useEffect(() => {
+    const unsub = subscribeOfflineQueue((q) => setPending(q.length));
+    const onOnline = () => { setOnline(true); void syncNow(); };
+    const onOffline = () => setOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    if (navigator.onLine && loadOfflineQueue().length > 0) void syncNow();
+    return () => {
+      unsub();
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, []);
+
+  if (online && pending === 0) return null;
+
+  return (
+    <div
+      role="status"
+      className="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-warning/30 bg-warning/10 px-3.5 py-2 text-xs text-fg"
+    >
+      <WifiOff size={15} strokeWidth={1.6} aria-hidden="true" className="shrink-0 text-warning" />
+      <span className="mr-auto">
+        {!online
+          ? `Modo offline${pending > 0 ? ` · ${pending} ${pending === 1 ? 'alteração na fila' : 'alterações na fila'}` : ' · alterações ficam salvas na fila para sincronizar'}`
+          : `${pending} ${pending === 1 ? 'alteração pendente' : 'alterações pendentes'} para sincronizar`}
+      </span>
+      {online && pending > 0 && (
+        <button type="button" className="btn-secondary h-7 px-2.5 text-xs" disabled={syncing} onClick={() => void syncNow()}>
+          <RefreshCw size={13} strokeWidth={1.6} aria-hidden="true" className={syncing ? 'animate-spin' : ''} />
+          {syncing ? 'Sincronizando…' : 'Sincronizar agora'}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -124,6 +175,7 @@ export default function Layout({ email }: { email: string }) {
       </aside>
 
       <main id="main-content" tabIndex={-1} key={pathname} className="enter mx-auto w-full min-w-0 max-w-[1440px] px-4 pt-7 pb-36 outline-none sm:px-6 md:px-10 md:pt-10 md:pb-16">
+        <OfflineStatusBar />
         <Outlet />
       </main>
 

@@ -1,20 +1,20 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { num } from '../../lib/format';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Camera, ScanBarcode, StopCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { nutrientsFor, type Food } from '../../lib/nutrition';
-import { offToFood, type FoodCountry, type OffProduct } from '../../lib/off';
+import { lookupBarcodeUrl, offToFood, sanitizeBarcode, type FoodCountry, type OffProduct } from '../../lib/off';
 import { searchKey, searchWords } from '../../lib/text';
 import type { QuickFood } from '../../lib/diary';
 import { Field, Modal } from '../../components/ui';
 
-const SOURCES = ['Recentes', 'Frequentes', 'Tabelas', 'Produtos de marca', 'Novo alimento'] as const;
+const SOURCES = ['Recentes', 'Frequentes', 'Tabelas', 'Produtos de marca', 'Código de barras', 'Novo alimento'] as const;
 const REGIONS: { id: FoodCountry | 'ALL'; label: string }[] = [
   { id: 'ALL', label: 'Todos' }, { id: 'BR', label: 'Brasil (TACO)' }, { id: 'UK', label: 'Reino Unido e Irlanda (CoFID)' },
 ];
 const COLUMNS = 'id,name,brand,source,country,kcal,protein_g,carbs_g,fat_g,fiber_g,default_serving_g';
 
-/** Finds a food in the built-in tables, Open Food Facts or a new custom one, then asks for the quantity. */
+/** Finds a food in the built-in tables, Open Food Facts, barcode scanner or a new custom one, then asks for the quantity. */
 export default function FoodSearch({ title, onPick, onClose, recent = [], frequent = [] }: {
   title: string; onPick: (food: Food, grams: number) => void | Promise<void>; onClose: () => void; recent?: QuickFood[]; frequent?: QuickFood[];
 }) {
@@ -82,8 +82,8 @@ export default function FoodSearch({ title, onPick, onClose, recent = [], freque
 
   return (
     <Modal title={title} onClose={onClose}>
-      <div className="segmented mb-4">
-        {SOURCES.map((s) => <button key={s} className={s === source ? 'tab-active' : 'tab'} onClick={() => { setSource(s); setResults([]); setMessage(null); }}>{s}</button>)}
+      <div className="segmented mb-4 max-w-full overflow-x-auto">
+        {SOURCES.map((s) => <button key={s} type="button" className={s === source ? 'tab-active' : 'tab'} onClick={() => { setSource(s); setResults([]); setMessage(null); }}>{s}</button>)}
       </div>
       {(source === 'Recentes' || source === 'Frequentes') ? (
         <ul className="max-h-80 overflow-y-auto">
@@ -98,6 +98,8 @@ export default function FoodSearch({ title, onPick, onClose, recent = [], freque
           {!(source === 'Recentes' ? recent : frequent).length && <li className="py-6 text-center text-sm text-fg3">Os alimentos que você registrar aparecem aqui</li>}
           {message && <li className="py-2 text-sm text-fg3">{message}</li>}
         </ul>
+      ) : source === 'Código de barras' ? (
+        <BarcodeLookup country={offCountry} onFound={setChosen} />
       ) : source === 'Novo alimento' ? <CustomFood onCreated={setChosen} /> : (
         <>
           <form onSubmit={search} className="mb-2 flex gap-2">
@@ -123,6 +125,147 @@ export default function FoodSearch({ title, onPick, onClose, recent = [], freque
         </>
       )}
     </Modal>
+  );
+}
+
+interface BarcodeDetectorLike {
+  detect: (source: HTMLVideoElement) => Promise<{ rawValue?: string }[]>;
+}
+
+function BarcodeLookup({ country, onFound }: { country: FoodCountry; onFound: (food: Food) => void }) {
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  const supportsCameraScanner = typeof window !== 'undefined'
+    && 'BarcodeDetector' in window
+    && typeof navigator !== 'undefined'
+    && !!navigator.mediaDevices?.getUserMedia;
+
+  function stopCamera() {
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    setScanning(false);
+  }
+
+  useEffect(() => () => stopCamera(), []);
+
+  async function lookup(raw: string) {
+    const clean = sanitizeBarcode(raw);
+    if (!clean) {
+      setStatus('Informe um código de barras válido (8 a 14 dígitos).');
+      return;
+    }
+    setCode(clean);
+    setBusy(true);
+    setStatus(null);
+    try {
+      let product: OffProduct | null = null;
+      const { data, error } = await supabase.functions.invoke('food-search', { body: { barcode: clean, country } });
+      if (!error && Array.isArray(data?.hits) && data.hits[0]) {
+        product = data.hits[0] as OffProduct;
+      } else {
+        const res = await fetch(lookupBarcodeUrl(clean));
+        if (res.ok) {
+          const body = await res.json() as { status?: number; product?: OffProduct };
+          if (body.status === 1 && body.product) product = { ...body.product, code: body.product.code ?? clean };
+        }
+      }
+      const mapped = product ? offToFood(product, country) : null;
+      if (!mapped) {
+        setStatus(`Produto ${clean} não encontrado ou sem tabela nutricional no Open Food Facts.`);
+      } else {
+        stopCamera();
+        onFound({ ...mapped, id: `off:${mapped.external_id}` });
+      }
+    } catch (err) {
+      setStatus(`Erro ao consultar código: ${(err as Error).message}`);
+    }
+    setBusy(false);
+  }
+
+  async function startCamera() {
+    setStatus(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+      streamRef.current = stream;
+      setScanning(true);
+      window.setTimeout(async () => {
+        const video = videoRef.current;
+        if (!video) return;
+        video.srcObject = stream;
+        await video.play();
+        const DetectorCtor = (window as unknown as { BarcodeDetector: new (opts: { formats: string[] }) => BarcodeDetectorLike }).BarcodeDetector;
+        const detector = new DetectorCtor({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'] });
+        const tick = async () => {
+          if (!streamRef.current || !videoRef.current) return;
+          try {
+            const found = await detector.detect(videoRef.current);
+            const raw = found.find((f) => f.rawValue)?.rawValue;
+            if (raw) {
+              stopCamera();
+              void lookup(raw);
+              return;
+            }
+          } catch { /* keep scanning */ }
+          rafRef.current = requestAnimationFrame(() => { void tick(); });
+        };
+        rafRef.current = requestAnimationFrame(() => { void tick(); });
+      }, 60);
+    } catch {
+      stopCamera();
+      setStatus('Não foi possível abrir a câmera. Digite o código de barras manualmente abaixo.');
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      {scanning ? (
+        <div className="relative overflow-hidden rounded-xl border border-line bg-black">
+          <video ref={videoRef} playsInline muted className="aspect-video w-full object-cover" />
+          <div className="pointer-events-none absolute inset-x-8 top-1/2 h-0.5 -translate-y-1/2 bg-brand/80" />
+          <button type="button" className="btn-secondary absolute right-2 bottom-2 h-8 text-xs" onClick={stopCamera}>
+            <StopCircle size={14} strokeWidth={1.6} aria-hidden="true" />Parar câmera
+          </button>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-line bg-raised/40 p-3 text-center">
+          <ScanBarcode size={24} strokeWidth={1.5} className="mx-auto mb-1.5 text-fg3" aria-hidden="true" />
+          <p className="mb-2 text-xs text-fg2">Leia o código de barras de qualquer embalagem via Open Food Facts.</p>
+          {supportsCameraScanner ? (
+            <button type="button" className="btn-secondary" onClick={() => void startCamera()}>
+              <Camera size={15} strokeWidth={1.6} aria-hidden="true" />Abrir leitor da câmera
+            </button>
+          ) : (
+            <p className="text-[11px] text-fg3">Leitura por câmera disponível em navegadores móveis compatíveis (Chrome/Android). Digite o código abaixo:</p>
+          )}
+        </div>
+      )}
+
+      <form onSubmit={(e) => { e.preventDefault(); void lookup(code); }} className="flex gap-2">
+        <input
+          className="input figure"
+          inputMode="numeric"
+          placeholder="Ex.: 7891000100103"
+          aria-label="Código de barras do produto"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          required
+        />
+        <button className="btn-primary shrink-0" disabled={busy}>{busy ? 'Buscando…' : 'Buscar'}</button>
+      </form>
+      {status && <p className="text-xs text-fg2">{status}</p>}
+    </div>
   );
 }
 

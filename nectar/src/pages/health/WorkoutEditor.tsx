@@ -1,10 +1,12 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { num } from '../../lib/format';
-import { ArrowLeft, Plus, X } from 'lucide-react';
+import { ArrowLeft, Pause, Play, Plus, RotateCcw, Timer, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { write } from '../../lib/useTable';
+import { feedback } from '../../lib/feedback';
 import { toDay } from '../../lib/dates';
 import { DEFAULT_SETTINGS, lastWorkingSets, MUSCLE_LABEL, suggestNext, type Suggestion, type WorkoutSet } from '../../lib/training';
+import { clampRestSeconds, formatRestClock, playRestDoneChime, remainingSeconds, REST_PRESETS } from '../../lib/restTimer';
 import { searchKey } from '../../lib/text';
 import { Field, Modal } from '../../components/ui';
 import type { Health } from './useHealth';
@@ -29,6 +31,60 @@ export default function WorkoutEditor({ h, workoutId, start, onClose }: { h: Hea
   const [picking, setPicking] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Rest timer state
+  const [restTotal, setRestTotal] = useState(90);
+  const [restLeft, setRestLeft] = useState(0);
+  const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
+  const [autoRest, setAutoRest] = useState(true);
+
+  function startRest(seconds: number) {
+    const clean = clampRestSeconds(seconds || 90);
+    if (clean <= 0) return;
+    setRestTotal(clean);
+    setRestLeft(clean);
+    setRestEndsAt(Date.now() + clean * 1000);
+  }
+
+  function adjustRest(delta: number) {
+    const base = restEndsAt != null ? remainingSeconds(restEndsAt, Date.now()) : restLeft;
+    const next = clampRestSeconds(base + delta);
+    setRestLeft(next);
+    if (next > restTotal) setRestTotal(next);
+    if (restEndsAt != null) {
+      setRestEndsAt(next > 0 ? Date.now() + next * 1000 : null);
+    }
+  }
+
+  function togglePauseRest() {
+    if (restEndsAt != null) {
+      setRestLeft(remainingSeconds(restEndsAt, Date.now()));
+      setRestEndsAt(null);
+    } else if (restLeft > 0) {
+      setRestEndsAt(Date.now() + restLeft * 1000);
+    }
+  }
+
+  function resetRest() {
+    setRestEndsAt(null);
+    setRestLeft(0);
+  }
+
+  useEffect(() => {
+    if (restEndsAt == null) return;
+    const tick = () => {
+      const left = remainingSeconds(restEndsAt, Date.now());
+      setRestLeft(left);
+      if (left <= 0) {
+        setRestEndsAt(null);
+        playRestDoneChime();
+        feedback({ kind: 'ok', text: 'Descanso concluído!' });
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 250);
+    return () => window.clearInterval(id);
+  }, [restEndsAt]);
+
   const working = h.setTypes.rows.find((t) => t.drives_progression && t.user_id === null) ?? h.setTypes.rows[0];
   const order = [...new Set(sets.map((s) => s.exercise_id))];
 
@@ -47,11 +103,13 @@ export default function WorkoutEditor({ h, workoutId, start, onClose }: { h: Hea
 
   function addSet(exerciseId: string) {
     const last = [...sets].reverse().find((s) => s.exercise_id === exerciseId);
+    const restSec = last?.rest_s ?? 90;
     setSets((xs) => {
       const idx = xs.map((s) => s.exercise_id).lastIndexOf(exerciseId);
       const copy = { ...(last ?? { exercise_id: exerciseId, set_type_id: working.id, load_kg: 0, reps: 10, rest_s: 120, effort: null }), key: newKey() };
       return [...xs.slice(0, idx + 1), copy, ...xs.slice(idx + 1)];
     });
+    if (autoRest && restSec > 0) startRest(restSec);
   }
 
   const update = (key: string, patch: Partial<DraftSet>) => setSets((xs) => xs.map((s) => (s.key === key ? { ...s, ...patch } : s)));
@@ -91,14 +149,60 @@ export default function WorkoutEditor({ h, workoutId, start, onClose }: { h: Hea
     }
   }
 
+  const restPct = restTotal > 0 ? Math.min(100, Math.max(0, (restLeft / restTotal) * 100)) : 0;
+
   return (
     <div>
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <button className="btn-ghost" onClick={onClose}><ArrowLeft size={16} strokeWidth={1.5} />Voltar</button>
         <h2 className="mr-auto text-lg font-medium">{workoutId ? 'Editar treino' : start ? `${start.label}: registrar` : 'Novo treino'}</h2>
         {workoutId && <button className="btn-ghost text-negative" onClick={remove}>Excluir</button>}
         <button className="btn-primary" onClick={save} disabled={saving}>{saving ? 'Salvando…' : 'Salvar treino'}</button>
       </div>
+
+      {/* Rest Timer Bar */}
+      <section className="card sticky top-3 z-10 mb-4 p-3.5" aria-label="Cronômetro de descanso">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2">
+            <Timer size={17} strokeWidth={1.6} aria-hidden="true" className={restEndsAt ? 'text-brand' : 'text-fg3'} />
+            <span className="figure text-xl font-semibold tracking-tight">{formatRestClock(restLeft)}</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1">
+            {REST_PRESETS.map((sec) => (
+              <button
+                key={sec}
+                type="button"
+                onClick={() => startRest(sec)}
+                className={`h-8 rounded-full border px-2.5 text-xs font-medium transition-colors ${restTotal === sec && restLeft > 0 ? 'border-brand bg-brand/10 text-brand-ink' : 'border-line-strong bg-surface text-fg2 hover:bg-raised'}`}
+              >
+                {sec}s
+              </button>
+            ))}
+          </div>
+          {restLeft > 0 && (
+            <div className="flex items-center gap-1">
+              <button type="button" className="btn-ghost h-8 px-2 text-xs" onClick={() => adjustRest(-15)}>−15s</button>
+              <button type="button" className="btn-ghost h-8 px-2 text-xs" onClick={() => adjustRest(15)}>+15s</button>
+              <button type="button" className="icon-btn h-8 w-8" onClick={togglePauseRest} aria-label={restEndsAt ? 'Pausar descanso' : 'Retomar descanso'}>
+                {restEndsAt ? <Pause size={15} strokeWidth={1.6} /> : <Play size={15} strokeWidth={1.6} />}
+              </button>
+              <button type="button" className="icon-btn h-8 w-8" onClick={resetRest} aria-label="Zerar cronômetro">
+                <RotateCcw size={15} strokeWidth={1.6} />
+              </button>
+            </div>
+          )}
+          <label className="ml-auto flex cursor-pointer items-center gap-1.5 text-xs text-fg2">
+            <input type="checkbox" checked={autoRest} onChange={(e) => setAutoRest(e.target.checked)} />
+            Auto ao +Série
+          </label>
+        </div>
+        {restLeft > 0 && (
+          <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-raised" role="progressbar" aria-valuenow={Math.round(restPct)} aria-valuemin={0} aria-valuemax={100} aria-label="Tempo restante de descanso">
+            <div className="h-full rounded-full bg-brand transition-[width] duration-200" style={{ width: `${restPct}%` }} />
+          </div>
+        )}
+      </section>
+
       <div className="card mb-4 grid gap-3 sm:grid-cols-4">
         <Field label="Data"><input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
         <Field label="Nome (opcional)"><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Peito e tríceps" /></Field>
@@ -123,7 +227,7 @@ export default function WorkoutEditor({ h, workoutId, start, onClose }: { h: Hea
               </p>
             )}
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] text-sm">
+              <table className="w-full min-w-[580px] text-sm">
                 <thead>
                   <tr className="text-left text-xs text-fg3">
                     <th className="pb-1 font-normal">#</th><th className="pb-1 font-normal">Tipo</th><th className="pb-1 font-normal">Carga (kg)</th>
@@ -143,7 +247,12 @@ export default function WorkoutEditor({ h, workoutId, start, onClose }: { h: Hea
                       <td className="py-1 pr-2"><input className="input py-1" aria-label={`Repetições da série ${i + 1}, ${ex?.name ?? 'exercício'}`} type="number" min={0} value={s.reps} onChange={(e) => update(s.key, { reps: Number(e.target.value) })} /></td>
                       <td className="py-1 pr-2"><input className="input py-1" aria-label={`Descanso da série ${i + 1}, ${ex?.name ?? 'exercício'}`} type="number" min={0} step={15} value={s.rest_s ?? ''} onChange={(e) => update(s.key, { rest_s: e.target.value === '' ? null : Number(e.target.value) })} /></td>
                       <td className="py-1 pr-2"><input className="input py-1" aria-label={`Esforço da série ${i + 1}, ${ex?.name ?? 'exercício'}`} type="number" min={1} max={10} step={0.5} value={s.effort ?? ''} onChange={(e) => update(s.key, { effort: e.target.value === '' ? null : Number(e.target.value) })} /></td>
-                      <td><button className="icon-btn hover:text-negative" aria-label={`Apagar série ${i + 1}, ${ex?.name ?? 'exercício'}`} onClick={() => setSets((xs) => xs.filter((x) => x.key !== s.key))}><X size={16} strokeWidth={1.5} /></button></td>
+                      <td className="whitespace-nowrap">
+                        <button type="button" className="icon-btn" title={`Iniciar descanso de ${s.rest_s ?? 90}s`} aria-label={`Iniciar descanso da série ${i + 1}`} onClick={() => startRest(s.rest_s ?? 90)}>
+                          <Timer size={15} strokeWidth={1.5} />
+                        </button>
+                        <button type="button" className="icon-btn hover:text-negative" aria-label={`Apagar série ${i + 1}, ${ex?.name ?? 'exercício'}`} onClick={() => setSets((xs) => xs.filter((x) => x.key !== s.key))}><X size={16} strokeWidth={1.5} /></button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -14,7 +14,20 @@ Deno.serve(async (req) => {
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
-  const { q, country } = req.method === 'POST' ? await req.json().catch(() => ({})) : Object.fromEntries(new URL(req.url).searchParams);
+  const { q, barcode, country } = req.method === 'POST' ? await req.json().catch(() => ({})) : Object.fromEntries(new URL(req.url).searchParams);
+  const code = String(barcode ?? '').replace(/\D+/g, '');
+  if (code) {
+    if (code.length < 8 || code.length > 14) return json({ error: 'barcode must have 8 to 14 digits' }, 400);
+    const url = new URL(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json`);
+    url.searchParams.set('fields', FIELDS);
+    const res = await fetch(url, { headers: { 'User-Agent': 'Painel/0.1 (personal nutrition diary)' } });
+    if (res.status === 404) return json({ hits: [] });
+    if (!res.ok) return json({ error: `Open Food Facts responded ${res.status}` }, 502);
+    const data = await res.json();
+    const product = data?.status === 1 && data?.product ? { ...data.product, code: data.product.code ?? code } : null;
+    return json({ hits: product ? [product] : [] });
+  }
+
   const term = String(q ?? '').trim();
   if (!term || term.length > 100) return json({ error: 'q must have 1 to 100 characters' }, 400);
   const tag = COUNTRIES[String(country)];

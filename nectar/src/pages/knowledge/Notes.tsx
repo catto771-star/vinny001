@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowLeft, Link2, Notebook, Pin, Plus, Search, Star, Trash2, X } from 'lucide-react';
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { ArrowLeft, CornerDownRight, Download, FileText, Link2, Notebook, Pin, Plus, Search, Sparkles, Star, Trash2, Upload, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { write } from '../../lib/useTable';
-import { blocksToText, type Block } from '../../lib/blocks';
-import { excerpt, linkedNotes, searchNotes, type Area, type Note } from '../../lib/knowledge';
+import { feedback } from '../../lib/feedback';
+import { blocksToText, wikiLinks, type Block } from '../../lib/blocks';
+import { excerpt, linkedNotes, searchNotes, syncWikiLinks, type Area, type Connection, type Note } from '../../lib/knowledge';
+import { backlinksOf, markdownFileName, markdownToNote, NOTE_TEMPLATES, noteToMarkdown, type NoteTemplate } from '../../lib/markdown';
 import { Empty, Field, Modal } from '../../components/ui';
 import { BlockEditor } from './BlockEditor';
 import type { KnowledgeData } from './useKnowledge';
@@ -11,19 +13,90 @@ import type { KnowledgeData } from './useKnowledge';
 type Filter = 'all' | 'fav' | 'none' | string;
 const AREA_COLORS = ['#ea580c', '#0ea5e9', '#22c55e', '#a855f7', '#eab308', '#ec4899', '#64748b'];
 
+function downloadMarkdown(filename: string, content: string) {
+  const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function Notes({ data, selected, onSelect }: { data: KnowledgeData; selected: string | null; onSelect: (id: string | null) => void }) {
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
   const [areaForm, setAreaForm] = useState<Partial<Area> | null>(null);
+  const [pickingTemplate, setPickingTemplate] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const mdInputRef = useRef<HTMLInputElement>(null);
   const notes = data.notes.rows;
   const inFilter = notes.filter((n) => filter === 'all' || (filter === 'fav' ? n.is_favorite : filter === 'none' ? !n.area_id : n.area_id === filter));
   const list = searchNotes(inFilter, query);
   const note = notes.find((n) => n.id === selected) ?? null;
   const areaOf = (n: Note) => data.areas.rows.find((a) => a.id === n.area_id);
+  const currentAreaId = filter !== 'all' && filter !== 'fav' && filter !== 'none' ? filter : null;
 
-  async function create() {
-    const id = data.createNote({ area_id: filter !== 'all' && filter !== 'fav' && filter !== 'none' ? filter : null });
+  function create() {
+    const id = data.createNote({ area_id: currentAreaId });
     if (id) onSelect(id);
+  }
+
+  function createFromTemplate(tpl: NoteTemplate) {
+    const blocks = tpl.buildBlocks();
+    const id = data.createNote({
+      area_id: currentAreaId,
+      title: tpl.defaultTitle,
+      tags: [...tpl.tags],
+      content: blocks,
+      content_text: blocksToText(blocks),
+    });
+    setPickingTemplate(false);
+    if (id) onSelect(id);
+  }
+
+  async function importMarkdownFiles(e: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (!files.length) return;
+    setImporting(true);
+    try {
+      const created: Note[] = [];
+      const now = new Date().toISOString();
+      const rows = await Promise.all(files.map(async (file) => {
+        const parsed = markdownToNote(await file.text(), file.name);
+        const id = crypto.randomUUID();
+        const row = {
+          id,
+          area_id: currentAreaId,
+          title: parsed.title,
+          content: parsed.blocks,
+          content_text: parsed.content_text,
+          tags: parsed.tags,
+          importance: 3,
+          is_pinned: false,
+          is_favorite: false,
+        };
+        created.push({ ...row, summary: null, created_at: now, updated_at: now });
+        return row;
+      }));
+      const ok = await write(supabase.from('knowledge_blocks').insert(rows));
+      if (ok) {
+        const allNotes = [...created, ...data.notes.rows];
+        const existingConns: Connection[] = [...data.connections.rows];
+        const toAdd: { source_block_id: string; target_block_id: string; auto_generated: boolean }[] = [];
+        for (const n of created) {
+          const { add } = syncWikiLinks(n, wikiLinks(n.content_text ?? ''), allNotes, existingConns);
+          for (const target of add) toAdd.push({ source_block_id: n.id, target_block_id: target, auto_generated: true });
+        }
+        if (toAdd.length) await supabase.from('knowledge_connections').insert(toAdd);
+        await Promise.all([data.notes.reload(), data.connections.reload()]);
+        feedback({ kind: 'ok', text: `${created.length} ${created.length === 1 ? 'nota importada' : 'notas importadas'}` });
+        if (created[0]) onSelect(created[0].id);
+      }
+    } finally {
+      setImporting(false);
+    }
   }
 
   const chip = (key: Filter, label: string, count: number, color?: string | null, emoji?: string | null, area?: Area) => (
@@ -49,15 +122,24 @@ export function Notes({ data, selected, onSelect }: { data: KnowledgeData; selec
           {data.areas.rows.map((a) => chip(a.id, a.name, notes.filter((n) => n.area_id === a.id).length, a.color, a.emoji, a))}
           {notes.some((n) => !n.area_id) && chip('none', 'Sem área', notes.filter((n) => !n.area_id).length)}
         </ul>
-        <button className="btn-ghost mt-2 w-full justify-start" onClick={() => setAreaForm({})}><Plus size={16} strokeWidth={1.5} />Nova área</button>
+        <div className="mt-2 space-y-1">
+          <button className="btn-ghost w-full justify-start" onClick={() => setAreaForm({})}><Plus size={16} strokeWidth={1.5} />Nova área</button>
+          <button type="button" className="btn-ghost w-full justify-start" disabled={importing} onClick={() => mdInputRef.current?.click()}>
+            <Upload size={15} strokeWidth={1.5} aria-hidden="true" />{importing ? 'Importando…' : 'Importar .md'}
+          </button>
+          <input ref={mdInputRef} type="file" accept=".md,text/markdown,text/plain" multiple className="sr-only" onChange={(e) => void importMarkdownFiles(e)} />
+        </div>
       </aside>
 
       <section className={note ? 'hidden min-w-0 lg:block' : 'min-w-0'} aria-label="Lista de notas">
-        <div className="mb-3 flex gap-2">
+        <div className="mb-3 flex gap-1.5">
           <label className="relative flex-1">
             <Search size={16} strokeWidth={1.5} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-fg3" />
             <input className="input pl-9" placeholder="Buscar notas" aria-label="Buscar notas" value={query} onChange={(e) => setQuery(e.target.value)} />
           </label>
+          <button type="button" className="btn-secondary px-2.5" onClick={() => setPickingTemplate(true)} title="Criar a partir de um modelo" aria-label="Modelos de nota">
+            <Sparkles size={15} strokeWidth={1.6} aria-hidden="true" />
+          </button>
           <button className="btn-primary px-3" onClick={create} aria-label="Nova nota"><Plus size={16} strokeWidth={1.5} /></button>
         </div>
         {list.length === 0 && (
@@ -88,12 +170,46 @@ export function Notes({ data, selected, onSelect }: { data: KnowledgeData; selec
         </ul>
       </section>
 
-      <section className={note ? '' : 'hidden lg:block'} aria-label="Nota">
+      <section className={note ? 'min-w-0' : 'hidden min-w-0 lg:block'} aria-label="Nota">
         {note ? <NoteEditor key={note.id} note={note} data={data} onOpen={onSelect} onClose={() => onSelect(null)} />
-          : <div className="card"><Empty icon={<Notebook size={18} strokeWidth={1.5} />}>Escolha uma nota ou crie uma nova</Empty></div>}
+          : <div className="card"><Empty icon={<Notebook size={18} strokeWidth={1.5} />}>Escolha uma nota, use um modelo ou importe arquivos .md</Empty></div>}
       </section>
 
       {areaForm && <AreaForm area={areaForm} data={data} onClose={() => setAreaForm(null)} onDeleted={() => setFilter('all')} />}
+      {pickingTemplate && (
+        <Modal title="Criar nota com modelo" onClose={() => setPickingTemplate(false)}>
+          <ul className="space-y-2">
+            <li>
+              <button
+                type="button"
+                onClick={() => { setPickingTemplate(false); create(); }}
+                className="flex w-full items-start gap-3 rounded-xl border border-line bg-raised/40 p-3 text-left transition-colors hover:bg-raised"
+              >
+                <FileText size={17} strokeWidth={1.5} className="mt-0.5 shrink-0 text-fg3" aria-hidden="true" />
+                <div>
+                  <div className="text-sm font-medium">Nota em branco</div>
+                  <div className="text-xs text-fg3">Comece livremente com texto, listas e [[links]]</div>
+                </div>
+              </button>
+            </li>
+            {NOTE_TEMPLATES.map((tpl) => (
+              <li key={tpl.id}>
+                <button
+                  type="button"
+                  onClick={() => createFromTemplate(tpl)}
+                  className="flex w-full items-start gap-3 rounded-xl border border-line bg-raised/40 p-3 text-left transition-colors hover:bg-raised"
+                >
+                  <Sparkles size={17} strokeWidth={1.5} className="mt-0.5 shrink-0 text-brand" aria-hidden="true" />
+                  <div>
+                    <div className="text-sm font-medium">{tpl.name}</div>
+                    <div className="text-xs text-fg3">{tpl.description}</div>
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -125,7 +241,15 @@ function NoteEditor({ note, data, onOpen, onClose }: { note: Note; data: Knowled
   }
 
   const links = linkedNotes(note.id, data.connections.rows, data.notes.rows);
+  const outgoing = links.filter((l) => l.direction === 'out');
+  const backlinks = backlinksOf(note, data.connections.rows, data.notes.rows);
   const others = data.notes.rows.filter((n) => n.id !== note.id && !links.some((l) => l.note.id === n.id));
+  const area = data.areas.rows.find((a) => a.id === note.area_id);
+
+  function exportMd() {
+    const md = noteToMarkdown({ ...note, title }, area?.name);
+    downloadMarkdown(markdownFileName(title || note.title), md);
+  }
 
   async function remove() {
     if (!confirm('Excluir esta nota?')) return;
@@ -147,6 +271,9 @@ function NoteEditor({ note, data, onOpen, onClose }: { note: Note; data: Knowled
         <div className="mb-3 flex items-center gap-1">
           <button className="btn-ghost -ml-2 lg:hidden" onClick={onClose}><ArrowLeft size={16} strokeWidth={1.5} />Notas</button>
           <span className="mr-auto text-xs text-fg3" aria-live="polite">{status === 'saving' ? 'Salvando…' : 'Salvo'}</span>
+          <button type="button" className="icon-btn" title="Exportar nota em Markdown (.md)" aria-label="Exportar nota em Markdown" onClick={exportMd}>
+            <Download size={16} strokeWidth={1.5} />
+          </button>
           <button className={`icon-btn ${note.is_pinned ? 'text-brand-ink' : ''}`} aria-pressed={note.is_pinned} aria-label="Fixar nota" onClick={() => change({ is_pinned: !note.is_pinned }, 0)}><Pin size={16} strokeWidth={1.5} /></button>
           <button className={`icon-btn ${note.is_favorite ? 'text-[#eab308]' : ''}`} aria-pressed={note.is_favorite} aria-label="Favoritar nota" onClick={() => change({ is_favorite: !note.is_favorite }, 0)}><Star size={16} strokeWidth={1.5} className={note.is_favorite ? 'fill-current' : ''} /></button>
           <button className="icon-btn text-negative" aria-label="Excluir nota" onClick={remove}><Trash2 size={16} strokeWidth={1.5} /></button>
@@ -169,23 +296,49 @@ function NoteEditor({ note, data, onOpen, onClose }: { note: Note; data: Knowled
         <BlockEditor initial={note.content} onChange={(blocks: Block[]) => change({ content: blocks, content_text: blocksToText(blocks) })} />
       </div>
 
+      {/* Backlinks footer: notes referencing this note */}
+      <div className="card" aria-label="Backlinks">
+        <div className="label mb-2 flex items-center gap-2">
+          <CornerDownRight size={14} strokeWidth={1.5} aria-hidden="true" />
+          Referenciada por (Backlinks)
+          <span className="figure ml-auto text-xs text-fg3">{backlinks.length}</span>
+        </div>
+        {backlinks.length === 0 ? (
+          <p className="text-sm text-fg3">Nenhuma outra nota cita <span className="font-mono text-xs">[[{title || 'esta nota'}]]</span> ainda.</p>
+        ) : (
+          <ul className="divide-y divide-line">
+            {backlinks.map(({ note: src, snippet }) => (
+              <li key={src.id} className="py-2 first:pt-0 last:pb-0">
+                <button type="button" className="block w-full rounded-lg text-left hover:underline" onClick={() => onOpen(src.id)}>
+                  <div className="text-sm font-medium">{src.title || 'Sem título'}</div>
+                  {snippet && <p className="mt-0.5 line-clamp-2 text-xs text-fg3">{snippet}</p>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Outgoing & manual connections */}
       <div className="card">
-        <div className="label mb-2 flex items-center gap-2"><Link2 size={14} strokeWidth={1.5} />Conexões</div>
-        {links.length === 0 && <p className="mb-3 text-sm text-fg3">Escreva [[Título de outra nota]] no texto para conectar, ou escolha abaixo.</p>}
-        <ul className="mb-3 flex flex-wrap gap-2">
-          {links.map(({ note: n, connection: c, direction }) => (
-            <li key={n.id} className="flex items-center rounded-lg bg-raised text-sm">
-              <button className="px-2.5 py-1 hover:underline" onClick={() => onOpen(n.id)} title={direction === 'in' ? 'Esta nota é citada lá' : c.auto_generated ? 'Via [[link]]' : 'Conexão manual'}>
-                {direction === 'in' ? '← ' : ''}{n.title || 'Sem título'}
-              </button>
-              {!c.auto_generated && (
-                <button className="icon-btn h-6 w-6" aria-label={`Desconectar ${n.title}`} onClick={async () => {
-                  if (await write(supabase.from('knowledge_connections').delete().eq('id', c.id))) void data.connections.reload();
-                }}><X size={12} strokeWidth={1.5} /></button>
-              )}
-            </li>
-          ))}
-        </ul>
+        <div className="label mb-2 flex items-center gap-2"><Link2 size={14} strokeWidth={1.5} />Conexões desta nota</div>
+        {outgoing.length === 0 && <p className="mb-3 text-sm text-fg3">Escreva [[Título de outra nota]] no texto para conectar, ou escolha abaixo.</p>}
+        {outgoing.length > 0 && (
+          <ul className="mb-3 flex flex-wrap gap-2">
+            {outgoing.map(({ note: n, connection: c }) => (
+              <li key={n.id} className="flex items-center rounded-lg bg-raised text-sm">
+                <button className="px-2.5 py-1 hover:underline" onClick={() => onOpen(n.id)} title={c.auto_generated ? 'Via [[link]]' : 'Conexão manual'}>
+                  {n.title || 'Sem título'}
+                </button>
+                {!c.auto_generated && (
+                  <button className="icon-btn h-6 w-6" aria-label={`Desconectar ${n.title}`} onClick={async () => {
+                    if (await write(supabase.from('knowledge_connections').delete().eq('id', c.id))) void data.connections.reload();
+                  }}><X size={12} strokeWidth={1.5} /></button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
         {others.length > 0 && (
           <select className="input py-1.5 text-sm" aria-label="Conectar a outra nota" value="" onChange={(e) => void connect(e.target.value)}>
             <option value="">Conectar a…</option>

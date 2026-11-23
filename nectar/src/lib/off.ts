@@ -45,3 +45,16 @@ export function offToFood(p: OffProduct, country: FoodCountry): OffFood | null {
     fat_g: num(n.fat_100g) ?? 0, fiber_g: num(n.fiber_100g), default_serving_g: serving && serving > 0 ? serving : 100,
   };
 }
+
+/** Strips non-digits and validates an EAN/UPC/GTIN barcode (8–14 digits). */
+export function sanitizeBarcode(raw: string): string | null {
+  const digits = raw.replace(/\D+/g, '');
+  if (digits.length < 8 || digits.length > 14) return null;
+  return digits;
+}
+
+/** Direct Open Food Facts v2 lookup URL for a sanitized barcode. */
+export function lookupBarcodeUrl(barcode: string): string {
+  const fields = 'code,product_name,product_name_pt,brands,serving_quantity,nutriments';
+  return `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json?fields=${fields}`;
+}
