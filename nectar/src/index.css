@@ -11,64 +11,68 @@
 
 :root,
 .light {
-  --bg: #f3f3f1;
-  --sunken: #e8e8e4;
-  --surface: #ffffff;
-  --raised: #f1f1ee;
-  --line: rgb(12 13 16 / 0.08);
-  --line-strong: rgb(12 13 16 / 0.16);
-  --card-ring: rgb(12 13 16 / 0.06);
-  --fg: #0c0d10;
-  --fg2: #464952;
-  --fg3: #686d78;
+  --bg: #f7f4ee;
+  --sunken: #efe9df;
+  --surface: #fdfbf7;
+  --raised: #f2ede4;
+  --line: rgb(31 27 22 / 0.08);
+  --line-strong: rgb(31 27 22 / 0.16);
+  --card-ring: rgb(31 27 22 / 0.08);
+  --fg: #1f1b16;
+  --fg2: #5e554a;
+  --fg3: #756c60;
   --brand: #f25000;
-  --brand-ink: #c2410c;
+  --brand-ink: #b83b00;
   --on-brand: #0c0c0d;
-  --warning: #b45309;
-  --primary: #0c0d10;
-  --primary-ink: #ffffff;
-  --positive: #15803d;
+  --warning: #9a4708;
+  --primary: #1f1b16;
+  --primary-ink: #fdfbf7;
+  --positive: #16a34a;
   --negative: #dc2626;
-  --chart-neutral: #dcdce0;
-  --skeleton: #ececea;
-  --skeleton-hi: #f7f7f6;
+  --chart-neutral: #dcd6cb;
+  --skeleton: #ebe5da;
+  --skeleton-hi: #f5f1e8;
   --indicator: #ffffff;
-  --indicator-shadow: 0 1px 2px rgb(12 13 16 / 0.08), 0 0 0 0.5px rgb(12 13 16 / 0.06);
-  --glass: rgb(255 255 255 / 0.78);
-  --glass-ring: rgb(12 13 16 / 0.07);
-  --float-shadow: 0 18px 40px -18px rgb(12 13 16 / 0.28);
-  --glow: color-mix(in srgb, var(--brand) 9%, transparent);
+  --indicator-shadow: 0 1px 2px rgb(31 27 22 / 0.06), 0 0 0 1px rgb(31 27 22 / 0.08);
+  --nav-active-bg: #ffffff;
+  --nav-active-shadow: 0 1px 2px rgb(31 27 22 / 0.05), 0 0 0 1px rgb(31 27 22 / 0.08);
+  --glass: rgb(253 251 247 / 0.86);
+  --glass-ring: rgb(31 27 22 / 0.08);
+  --float-shadow: 0 8px 24px rgb(31 27 22 / 0.08);
+  --glow: color-mix(in srgb, var(--brand) 8%, transparent);
   color-scheme: light;
 }
 
 .dark {
-  --bg: #0d1025;
-  --sunken: #090b1b;
-  --surface: #151936;
-  --raised: #1e2449;
-  --line: rgb(148 163 255 / 0.1);
-  --line-strong: rgb(148 163 255 / 0.22);
-  --card-ring: rgb(148 163 255 / 0.1);
-  --fg: #f4f6ff;
-  --fg2: #aeb8dc;
-  --fg3: #8390bc;
+  --bg: #141415;
+  --sunken: #0f0f10;
+  --surface: #19191b;
+  --raised: #232325;
+  --line: rgb(237 237 237 / 0.08);
+  --line-strong: rgb(237 237 237 / 0.16);
+  --card-ring: rgb(237 237 237 / 0.08);
+  --fg: #ededed;
+  --fg2: #a1a1a6;
+  --fg3: #85858b;
   --brand: #ff6a1a;
   --brand-ink: #ff853d;
   --on-brand: #0c0c0d;
-  --warning: #fbbf24;
-  --primary: #f4f6ff;
-  --primary-ink: #0d1025;
-  --positive: #2dd4bf;
-  --negative: #fb7185;
-  --chart-neutral: #2b3363;
-  --skeleton: #1b2042;
-  --skeleton-hi: #252c57;
-  --indicator: #252c57;
-  --indicator-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08);
-  --glass: rgb(13 16 37 / 0.86);
-  --glass-ring: rgb(148 163 255 / 0.14);
-  --float-shadow: 0 22px 48px -18px rgb(4 6 20 / 0.9);
-  --glow: color-mix(in srgb, var(--brand) 12%, transparent);
+  --warning: #eab308;
+  --primary: #ededed;
+  --primary-ink: #141415;
+  --positive: #4cc38a;
+  --negative: #e5484d;
+  --chart-neutral: #2c2c30;
+  --skeleton: #1f1f22;
+  --skeleton-hi: #29292d;
+  --indicator: #252528;
+  --indicator-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1), 0 0 0 1px rgb(237 237 237 / 0.08);
+  --nav-active-bg: linear-gradient(180deg, #27272a 0%, #1f1f22 100%);
+  --nav-active-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1), 0 0 0 1px rgb(237 237 237 / 0.08);
+  --glass: rgb(15 15 16 / 0.88);
+  --glass-ring: rgb(237 237 237 / 0.1);
+  --float-shadow: 0 16px 32px -12px rgb(0 0 0 / 0.6);
+  --glow: color-mix(in srgb, var(--brand) 8%, transparent);
   color-scheme: dark;
 }
 
@@ -110,7 +114,7 @@ html.dark[data-accent="red"] { --brand: #ff3030; --brand-ink: #ff6666; --on-bran
   --color-negative: var(--negative);
   --color-chart-neutral: var(--chart-neutral);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-glide: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-glide: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 html {
@@ -119,70 +123,44 @@ html {
 }
 
 body {
-  @apply bg-bg font-sans text-[15px] leading-[22px] text-fg antialiased;
+  @apply bg-bg font-sans text-sm leading-5 text-fg antialiased;
   font-feature-settings: "ss01", "cv11";
 }
 
-/* Every figure lines up like a scoreboard. */
+/* Tabular mono figures with zero negative tracking on small text. */
 .figure {
   @apply font-mono tabular-nums;
-  letter-spacing: -0.02em;
 }
 
-/* Crisp studio typography: tight display titles, calm sentence-case labels. */
 @utility display {
-  @apply text-[clamp(24px,4.5vw,30px)] leading-[1.14] font-semibold tracking-[-0.03em] text-balance;
+  @apply text-[28px] leading-[1.15] font-medium tracking-[-0.02em] text-balance md:text-[32px];
 }
 
 @utility card {
-  @apply rounded-[20px] bg-surface p-5 transition-[box-shadow,transform,border-color] duration-200 ease-out;
-  box-shadow: 0 0 0 1px var(--card-ring), 0 12px 30px -24px rgb(4 6 20 / 0.55);
+  @apply rounded-[14px] bg-surface p-5 transition-[border-color,box-shadow,background-color] duration-150 ease-out;
+  box-shadow: 0 0 0 1px var(--card-ring);
 }
 
 @utility card-hero {
-  @apply rounded-[20px] bg-brand p-5 text-on-brand transition-[box-shadow,transform] duration-200 ease-out;
-}
-
-/* Vivid LMS jewel KPI tiles (Gold, Indigo, Teal, Pink) inspired by modern LMS & Fintech dashboards. */
-@utility kpi-gold {
-  @apply rounded-[20px] p-5 text-[#111322] transition-[transform,box-shadow] duration-200 ease-out;
-  background: linear-gradient(135deg, #ffd026 0%, #f59e0b 100%);
-  box-shadow: 0 14px 28px -18px rgb(245 158 11 / 0.65);
-}
-
-@utility kpi-indigo {
-  @apply rounded-[20px] p-5 text-white transition-[transform,box-shadow] duration-200 ease-out;
-  background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
-  box-shadow: 0 14px 28px -18px rgb(99 102 241 / 0.7);
-}
-
-@utility kpi-teal {
-  @apply rounded-[20px] p-5 text-white transition-[transform,box-shadow] duration-200 ease-out;
-  background: linear-gradient(135deg, #06b6d4 0%, #0d9488 100%);
-  box-shadow: 0 14px 28px -18px rgb(6 182 212 / 0.65);
-}
-
-@utility kpi-pink {
-  @apply rounded-[20px] p-5 text-white transition-[transform,box-shadow] duration-200 ease-out;
-  background: linear-gradient(135deg, #ec4899 0%, #c026d3 100%);
-  box-shadow: 0 14px 28px -18px rgb(236 72 153 / 0.65);
+  @apply rounded-[14px] bg-surface p-5 text-fg transition-[border-color,box-shadow] duration-150 ease-out;
+  box-shadow: 0 0 0 1px var(--line-strong);
 }
 
 @utility label {
-  @apply text-[12px] leading-5 font-medium text-fg3;
+  @apply text-xs leading-4 font-normal text-fg3;
 }
 
 @utility btn {
-  @apply inline-flex h-11 items-center justify-center gap-2 rounded-[12px] px-4 text-sm font-medium transition-[background-color,color,opacity,transform,box-shadow] duration-200 ease-out select-none active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 md:h-9;
+  @apply inline-flex h-10 items-center justify-center gap-2 rounded-[8px] px-4 text-sm font-medium transition-[background-color,color,opacity,transform,border-color] duration-150 ease-out select-none active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 md:h-9;
 }
 
 @utility btn-primary {
   @apply btn bg-primary text-primary-ink hover:opacity-90;
-  box-shadow: 0 1px 0 rgb(255 255 255 / 0.1) inset, 0 6px 16px -10px rgb(12 12 13 / 0.5);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12);
 }
 
 @utility btn-secondary {
-  @apply btn bg-raised text-fg hover:bg-sunken;
+  @apply btn border border-line bg-raised text-fg hover:border-line-strong hover:bg-indicator;
 }
 
 @utility btn-ghost {
@@ -190,23 +168,23 @@ body {
 }
 
 @utility icon-btn {
-  @apply inline-flex h-11 w-11 items-center justify-center rounded-[10px] text-fg3 transition-[background-color,color,transform] duration-200 ease-out hover:bg-raised hover:text-fg active:scale-[0.92] md:h-8 md:w-8;
+  @apply inline-flex h-9 w-9 items-center justify-center rounded-[8px] text-fg3 transition-[background-color,color,transform] duration-150 ease-out hover:bg-raised hover:text-fg active:scale-[0.97] md:h-8 md:w-8;
 }
 
 @utility badge {
-  @apply inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium leading-5;
+  @apply inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-[6px] px-2 py-0.5 text-xs font-normal leading-4;
 }
 
 @utility skip-link {
-  @apply fixed top-3 left-3 z-50 -translate-y-20 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-ink shadow-[var(--float-shadow)] transition-transform duration-150 focus:translate-y-0;
+  @apply fixed top-3 left-3 z-50 -translate-y-20 rounded-[8px] bg-primary px-4 py-2 text-sm font-medium text-primary-ink shadow-[var(--float-shadow)] transition-transform duration-150 focus:translate-y-0;
 }
 
 @utility input {
-  @apply h-11 w-full rounded-[12px] border border-transparent bg-raised px-3 text-[15px] text-fg outline-none transition-[background-color,border-color,box-shadow] duration-200 ease-out placeholder:text-fg3 focus:border-brand/50 focus:bg-surface focus:ring-4 focus:ring-brand/12 md:h-10 md:text-sm;
+  @apply h-10 w-full rounded-[8px] border border-line bg-raised px-3 text-sm text-fg outline-none transition-[background-color,border-color] duration-150 ease-out placeholder:text-fg3 focus:border-line-strong focus:bg-surface;
 }
 
 @utility tab {
-  @apply relative z-[1] inline-flex h-10 shrink-0 items-center rounded-[9px] px-3.5 text-sm whitespace-nowrap text-fg2 transition-colors duration-300 ease-out hover:text-fg md:h-8 md:px-3;
+  @apply relative z-[1] inline-flex h-8 shrink-0 items-center rounded-[6px] px-3 text-sm whitespace-nowrap text-fg2 transition-colors duration-150 ease-out hover:text-fg;
 }
 
 @utility tab-active {
@@ -219,15 +197,14 @@ body {
 }
 
 @utility segmented {
-  @apply relative inline-flex flex-wrap gap-0.5 rounded-[12px] bg-sunken p-1;
+  @apply relative inline-flex flex-wrap gap-1 rounded-[10px] border border-line bg-sunken p-1;
 }
 
 /*
  * Sliding indicator: once Motion has measured the active tab it sets
- * --ind-* on the group and data-ind; the group then draws one pill that glides
- * between tabs, and the active tab drops its own background.
+ * --ind-* on the group and data-ind; the group then draws one surface step
+ * that glides between tabs, and the active tab drops its own background.
  */
-/* Groups set their own positioning (relative, or fixed for the phone bar). */
 .segmented[data-ind]::before,
 .slide-group[data-ind]::before {
   content: "";
@@ -237,14 +214,14 @@ body {
   width: var(--ind-w);
   height: var(--ind-h);
   transform: translate3d(var(--ind-x), var(--ind-y), 0);
-  border-radius: 9px;
+  border-radius: 6px;
   background: var(--indicator);
   box-shadow: var(--indicator-shadow);
   pointer-events: none;
 }
 .segmented[data-ind="glide"]::before,
 .slide-group[data-ind="glide"]::before {
-  transition: transform 420ms var(--ease-glide), width 420ms var(--ease-glide), height 420ms var(--ease-glide);
+  transition: transform 220ms var(--ease-out), width 220ms var(--ease-out), height 220ms var(--ease-out);
 }
 .segmented[data-ind] > .tab-active,
 .slide-group[data-ind] > [aria-current="page"] {
@@ -263,37 +240,36 @@ body {
   display: none;
 }
 
-/* Sidebar: active section glides as a crisp solid-accent pill. */
+/* Sidebar: active row uses a crisp neutral surface step with a top hairline highlight. */
 .side-nav[data-ind]::before {
-  border-radius: 10px;
-  background: var(--brand);
-  box-shadow: none;
+  border-radius: 8px;
+  background: var(--nav-active-bg);
+  box-shadow: var(--nav-active-shadow);
 }
 .side-nav[data-ind] > [aria-current="page"] {
-  color: var(--on-brand);
+  color: var(--fg);
 }
 
-/* Frosted floating bar on phones: the one place the page gets glassy. */
+/* Floating bar on phones. */
 .glass-nav {
   background: var(--glass);
-  -webkit-backdrop-filter: blur(20px) saturate(1.6);
-  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
   box-shadow: 0 0 0 1px var(--glass-ring), var(--float-shadow);
 }
 .glass-nav[data-ind]::before {
-  background: var(--primary);
-  box-shadow: none;
-  border-radius: 16px;
+  background: var(--indicator);
+  box-shadow: var(--indicator-shadow);
+  border-radius: 10px;
 }
 .glass-nav[data-ind] > [aria-current="page"] {
-  color: var(--primary-ink);
+  color: var(--fg);
 }
 
-/* Interactive cards strengthen their hairline border gently on hover without color wash. */
+/* Interactive cards strengthen only their hairline border on hover; no lift or glow. */
 @media (hover: hover) {
   .glow:hover {
-    box-shadow: 0 0 0 1px var(--line-strong), 0 16px 32px -24px rgb(0 0 0 / 0.28);
-    transform: translateY(-1px);
+    box-shadow: 0 0 0 1px var(--line-strong);
   }
 }
 
@@ -307,12 +283,11 @@ input[type='radio'] {
   accent-color: var(--primary);
 }
 input[type='checkbox']:checked {
-  animation: tick 320ms var(--ease-out);
+  animation: tick 180ms var(--ease-out);
 }
 
 @keyframes tick {
-  0% { transform: scale(0.7); }
-  60% { transform: scale(1.15); }
+  0% { transform: scale(0.92); }
   100% { transform: scale(1); }
 }
 
@@ -322,7 +297,7 @@ input[type='checkbox']:checked {
 }
 
 .enter {
-  animation: enter 420ms var(--ease-out) backwards;
+  animation: enter 340ms var(--ease-out) backwards;
 }
 
 /*
@@ -330,9 +305,9 @@ input[type='checkbox']:checked {
  * so it does not become the frame for fixed children (forms) or block hover.
  */
 
-/* Staggered entrance for the tiles of a grid. */
+/* Staggered entrance for the tiles of a grid (40ms step, max 6). */
 .stagger > * {
-  animation: enter 520ms var(--ease-out) backwards;
+  animation: enter 360ms var(--ease-out) backwards;
 }
 .stagger > *:nth-child(2) { animation-delay: 40ms; }
 .stagger > *:nth-child(3) { animation-delay: 80ms; }
@@ -343,22 +318,19 @@ input[type='checkbox']:checked {
 
 /* Content under a page's tabs fades in when the tab changes. */
 main.tab-swap > :not(header) {
-  animation: enter 360ms var(--ease-out) backwards;
+  animation: enter 280ms var(--ease-out) backwards;
 }
 
-/* Meters fill from the left when they appear. */
+/* Meters fill from the left using transform only (never animating width). */
 .meter-fill {
   transform-origin: left center;
-  animation: grow 900ms var(--ease-glide) both;
-  transition: width 600ms var(--ease-glide);
+  animation: grow 420ms var(--ease-out) both;
 }
 @keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
-/* Skeletons shimmer while data loads. */
+/* Static skeleton surface (no decorative shimmer loop). */
 .skeleton {
-  background: linear-gradient(90deg, var(--skeleton) 0%, var(--skeleton-hi) 50%, var(--skeleton) 100%);
-  background-size: 200% 100%;
-  animation: shimmer 1.4s ease-in-out infinite;
+  background: var(--skeleton);
 }
 
 @keyframes shimmer {

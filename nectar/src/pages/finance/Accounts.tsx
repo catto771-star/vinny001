@@ -47,43 +47,49 @@ export default function Accounts({ f }: { f: Finance }) {
             <ul className="grid gap-4 sm:grid-cols-2">
               {accountRows.map(({ bank: b, balance }, idx) => {
                 const share = positiveSum > 0 && balance > 0 ? Math.round((balance / positiveSum) * 100) : 0;
-                const gradients = [
-                  'linear-gradient(135deg, #4f46e5 0%, #2563eb 100%)',
-                  'linear-gradient(135deg, #0d9488 0%, #0284c7 100%)',
-                  'linear-gradient(135deg, #c026d3 0%, #7c3aed 100%)',
-                  'linear-gradient(135deg, #ea580c 0%, #db2777 100%)',
+                const finishes = [
+                  'linear-gradient(155deg, #27272b 0%, #18181b 55%, #111113 100%)',
+                  'linear-gradient(155deg, #22262b 0%, #16191d 55%, #101215 100%)',
+                  'linear-gradient(155deg, #282623 0%, #1a1816 55%, #121110 100%)',
                 ];
-                const bg = b.color ? `linear-gradient(135deg, ${b.color} 0%, #151936 140%)` : gradients[idx % gradients.length];
                 return (
                   <li
                     key={b.id}
-                    className="relative flex min-h-[158px] min-w-0 flex-col justify-between overflow-hidden rounded-[22px] p-5 text-white shadow-lg transition-transform duration-200 hover:-translate-y-0.5"
-                    style={{ background: bg }}
+                    className="relative flex min-h-[156px] min-w-0 flex-col justify-between overflow-hidden rounded-[14px] p-5 text-[#ededed]"
+                    style={{
+                      background: finishes[idx % finishes.length],
+                      boxShadow: 'inset 0 1px 0 rgb(255 255 255 / 0.14), 0 0 0 1px rgb(255 255 255 / 0.08)',
+                    }}
                   >
-                    <div className="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-white/10" aria-hidden="true" />
                     <div className="flex items-center gap-2">
-                      <span className="mr-auto min-w-0 truncate text-sm font-semibold">{b.name}</span>
-                      <span className="rounded-full bg-black/25 px-2.5 py-0.5 font-mono text-[11px] font-semibold backdrop-blur">{b.currency ?? 'BRL'}</span>
+                      <span className="inline-flex min-w-0 flex-1 items-center gap-2 text-sm font-medium text-[#ededed]">
+                        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: b.color || 'var(--brand)' }} aria-hidden="true" />
+                        <span className="truncate">{b.name}</span>
+                      </span>
+                      <span className="rounded-[4px] border border-white/12 bg-white/6 px-2 py-0.5 font-mono text-[11px] leading-4 text-[#a1a1a6]">
+                        {b.currency ?? 'BRL'}
+                      </span>
                       <button
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-black/20 text-white/90 transition-colors hover:bg-black/35"
+                        type="button"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] border border-white/10 bg-white/5 text-[#a1a1a6] transition-colors duration-150 hover:bg-white/12 hover:text-[#ededed]"
                         onClick={() => setBank(b)}
                         aria-label={`Editar ${b.name}`}
                       >
-                        <Pencil size={14} strokeWidth={1.7} />
+                        <Pencil {...I} />
                       </button>
                     </div>
-                    <div className="my-2 flex items-center justify-between gap-3">
-                      <svg width="34" height="24" viewBox="0 0 34 24" aria-hidden="true" className="opacity-90">
-                        <rect x="0.5" y="0.5" width="33" height="23" rx="5" fill="#fbbf24" fillOpacity="0.28" stroke="#fcd34d" strokeWidth="1" />
-                        <path d="M11 1v22M23 1v22M1 9h10M23 9h10M1 15h10M23 15h10" stroke="#fcd34d" strokeOpacity="0.7" strokeWidth="1" />
+                    <div className="my-3 flex items-center justify-between gap-4">
+                      <svg width="34" height="24" viewBox="0 0 34 24" aria-hidden="true">
+                        <rect x="0.5" y="0.5" width="33" height="23" rx="4.5" fill="#a1a1aa" fillOpacity="0.22" stroke="#a1a1aa" strokeOpacity="0.55" strokeWidth="1" />
+                        <path d="M11 1v22M23 1v22M1 9h10M23 9h10M1 15h10M23 15h10" stroke="#e4e4e7" strokeOpacity="0.4" strokeWidth="1" />
                       </svg>
-                      <Figure value={money(balance)} className="truncate text-[24px] leading-7 font-bold" />
+                      <Figure value={money(balance)} className="truncate text-[24px] leading-none font-medium text-[#ededed]" />
                     </div>
-                    <div className="flex items-center gap-2.5">
-                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/25">
-                        <div className="h-full rounded-full bg-white/90 transition-[width] duration-300" style={{ width: `${share}%` }} />
+                    <div className="flex items-center gap-3">
+                      <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
+                        <div className="h-full rounded-full" style={{ width: `${share}%`, background: b.color || '#ededed' }} />
                       </div>
-                      <span className="figure text-xs font-medium text-white/90">{share}%</span>
+                      <span className="figure text-xs text-[#a1a1a6]">{share}%</span>
                     </div>
                   </li>
                 );

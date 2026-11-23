@@ -12,11 +12,11 @@ export function PageHeader({ title, subtitle, tabs, tab, onTab, action }: {
   action?: ReactNode;
 }) {
   return (
-    <header className="mb-7 md:mb-9">
+    <header className="mb-6 md:mb-8">
       <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
         <div className="mr-auto min-w-0">
           <h1 className="display">{title}</h1>
-          {subtitle && <p className="mt-2 text-[15px] text-fg2">{subtitle}</p>}
+          {subtitle && <p className="mt-2 text-sm text-fg2">{subtitle}</p>}
         </div>
         {action}
       </div>
@@ -48,15 +48,15 @@ export function Stat({ label, value, unit, hint, loading, accent }: {
     <div className="min-w-0">
       <div className="label">{label}</div>
       {loading ? <Skeleton className="mt-2 h-8 w-20" /> : (
-        <Figure value={value} unit={unit} className={`mt-1.5 block text-[clamp(22px,6vw,32px)] leading-9 font-medium ${accent ? 'text-brand-ink' : ''}`} />
+        <Figure value={value} unit={unit} className={`mt-2 block text-[28px] leading-none font-medium ${accent ? 'text-brand-ink' : ''}`} />
       )}
-      {hint && <div className="mt-1 text-[13px] leading-5 text-fg3">{hint}</div>}
+      {hint && <div className="mt-2 text-xs leading-4 text-fg3">{hint}</div>}
     </div>
   );
 }
 
 export function Skeleton({ className = '', style }: { className?: string; style?: CSSProperties }) {
-  return <div className={`skeleton rounded-md ${className}`} style={style} aria-hidden />;
+  return <div className={`skeleton rounded-[6px] ${className}`} style={style} aria-hidden />;
 }
 
 /** Placeholder rows while a list loads. */
@@ -66,7 +66,7 @@ export function ListSkeleton({ rows = 3 }: { rows?: number }) {
       {Array.from({ length: rows }, (_, i) => (
         <div key={i} className="flex items-center gap-3">
           <Skeleton className="h-5 w-5 shrink-0 rounded-[6px]" />
-          <div className="min-w-0 flex-1 space-y-1.5">
+          <div className="min-w-0 flex-1 space-y-2">
             <Skeleton className="h-3.5" style={{ width: `${[72, 54, 64, 46, 58][i % 5]}%` }} />
             <Skeleton className="h-2.5 w-24" />
           </div>
@@ -79,7 +79,7 @@ export function ListSkeleton({ rows = 3 }: { rows?: number }) {
 export function Empty({ icon, children, action }: { icon?: ReactNode; children: ReactNode; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center gap-3 px-4 py-10 text-center">
-      {icon && <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-raised text-fg3">{icon}</div>}
+      {icon && <div className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-line bg-raised text-fg3">{icon}</div>}
       <p className="max-w-sm text-sm text-fg2">{children}</p>
       {action}
     </div>

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { AlertTriangle, Calendar, CheckCircle2, FolderKanban, LayoutTemplate, ListChecks, Plus, Trash2 } from 'lucide-react';
+import { FolderKanban, LayoutTemplate, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { write } from '../../lib/useTable';
 import { addDays, toDay } from '../../lib/dates';
@@ -22,13 +22,6 @@ type Filter = (typeof FILTERS)[number];
 
 export const HEALTH_TONE: Record<Health, string> = {
   late: 'text-negative', risk: 'text-warning', ok: 'text-positive', done: 'text-fg3', open: 'text-fg3',
-};
-const HEALTH_BADGE: Record<Health, string> = {
-  late: 'bg-negative/15 text-negative',
-  risk: 'bg-warning/15 text-warning',
-  ok: 'bg-positive/15 text-positive',
-  done: 'bg-raised text-fg2',
-  open: 'bg-raised text-fg3',
 };
 
 const short = (day: string) => `${Number(day.slice(8))}/${day.slice(5, 7)}`;
@@ -75,38 +68,26 @@ export default function Projects() {
 
       {tab === 'Projetos' && !loading && (
         <>
-          <div className="mb-6 grid grid-cols-2 gap-3.5 xl:grid-cols-4">
-            <div className="kpi-indigo flex items-center gap-3.5">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/18"><FolderKanban size={20} /></span>
-              <div>
-                <div className="figure text-[26px] leading-7 font-bold">{going.length}</div>
-                <div className="mt-0.5 text-xs text-white/85">Em andamento</div>
-              </div>
+          <div className="mb-6 grid grid-cols-2 gap-4 xl:grid-cols-4">
+            <div className="card">
+              <div className="label">Em andamento</div>
+              <div className="figure mt-3 text-[28px] leading-none font-medium text-fg">{going.length}</div>
             </div>
-            <div className="kpi-gold flex items-center gap-3.5">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-black/12"><ListChecks size={20} /></span>
-              <div>
-                <div className="figure text-[26px] leading-7 font-bold">{openTasksCount}</div>
-                <div className="mt-0.5 text-xs font-medium opacity-80">Subetapas abertas</div>
-              </div>
+            <div className="card">
+              <div className="label">Subetapas abertas</div>
+              <div className="figure mt-3 text-[28px] leading-none font-medium text-fg">{openTasksCount}</div>
             </div>
-            <div className="kpi-pink flex items-center gap-3.5">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/18"><AlertTriangle size={20} /></span>
-              <div>
-                <div className="figure text-[26px] leading-7 font-bold">{riskCount}</div>
-                <div className="mt-0.5 text-xs text-white/85">Em risco / atraso</div>
-              </div>
+            <div className="card">
+              <div className="label">Em risco ou atraso</div>
+              <div className={`figure mt-3 text-[28px] leading-none font-medium ${riskCount > 0 ? 'text-warning' : 'text-fg'}`}>{riskCount}</div>
             </div>
-            <div className="kpi-teal flex items-center gap-3.5">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/18"><CheckCircle2 size={20} /></span>
-              <div>
-                <div className="figure text-[26px] leading-7 font-bold">{doneCount}</div>
-                <div className="mt-0.5 text-xs text-white/85">Concluídos</div>
-              </div>
+            <div className="card">
+              <div className="label">Concluídos</div>
+              <div className="figure mt-3 text-[28px] leading-none font-medium text-fg">{doneCount}</div>
             </div>
           </div>
 
-          <div className="segmented mb-5 w-fit max-w-full overflow-x-auto" role="tablist" aria-label="Filtro">
+          <div className="segmented mb-6 w-fit max-w-full overflow-x-auto" role="tablist" aria-label="Filtro">
             {FILTERS.map((f) => <button key={f} role="tab" aria-selected={f === filter} className={f === filter ? 'tab-active' : 'tab'} onClick={() => setFilter(f)}>{f}</button>)}
           </div>
           {shown.length === 0 && (
@@ -130,7 +111,7 @@ export default function Projects() {
             {templates.map((t) => (
               <li key={t.id} className="card">
                 <div className="mb-1 flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: t.color }} />
+                  <span className="h-2 w-2 rounded-full" style={{ background: t.color }} />
                   <span className="mr-auto font-medium">{t.name}</span>
                   <button className="icon-btn" aria-label={`Excluir modelo ${t.name}`} onClick={async () => {
                     if (confirm('Excluir este modelo?') && await write(supabase.from('projects').delete().eq('id', t.id))) void data.reload();
@@ -167,92 +148,88 @@ function ProjectCard({ project: p, data, today, onOpen }: { project: Project; da
     <li className="min-w-0">
       <button
         type="button"
-        className="card glow flex h-full w-full min-w-0 flex-col overflow-hidden p-0 text-left"
+        className="card glow flex h-full w-full min-w-0 flex-col p-5 text-left"
         onClick={onOpen}
       >
-        {/* LMS Colored Top Visual Banner */}
-        <div
-          className="relative flex w-full items-center justify-between gap-2 px-5 py-4"
-          style={{ background: `linear-gradient(135deg, ${p.color}48 0%, ${p.color}16 100%)` }}
-        >
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-sunken/75 px-2.5 py-1 text-[11px] font-medium text-fg backdrop-blur">
-            <Calendar size={12} strokeWidth={1.8} aria-hidden="true" style={{ color: p.color }} />
-            {p.due_date ? `Prazo ${short(p.due_date)}` : 'Sem prazo'}
+        {/* Quiet Header: 6px color dot, deadline, status */}
+        <div className="mb-4 flex w-full items-center justify-between gap-2 text-xs">
+          <span className="inline-flex min-w-0 items-center gap-2 text-fg3">
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: p.color }} aria-hidden="true" />
+            <span className="truncate">{p.due_date ? `Prazo ${short(p.due_date)}` : 'Sem prazo'}</span>
           </span>
-          <span className={`badge ${p.status === 'paused' ? 'bg-raised text-fg2' : HEALTH_BADGE[health]}`}>
+          <span className={`shrink-0 font-medium ${p.status === 'paused' ? 'text-fg3' : HEALTH_TONE[health]}`}>
             {p.status === 'paused' ? STATUS_LABEL.paused : HEALTH_LABEL[health]}
           </span>
         </div>
 
-        {/* Body: Progress % + Title + Description */}
-        <div className="flex w-full flex-1 flex-col p-5">
-          <div className="mb-3">
-            <div className="mb-1.5 flex items-baseline gap-2">
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-raised" role="progressbar" aria-valuenow={prog.pct} aria-valuemin={0} aria-valuemax={100} aria-label={`Progresso de ${p.name}`}>
-                <div className="meter-fill h-full rounded-full" style={{ width: `${Math.max(prog.pct, prog.total > 0 ? 3 : 0)}%`, background: p.color }} />
-              </div>
-              <span className="figure shrink-0 text-sm font-bold text-fg">{prog.pct}%</span>
+        <h3 className="w-full truncate text-[15px] leading-6 font-medium text-fg">{p.name}</h3>
+        {p.description && <p className="mt-1 line-clamp-2 w-full text-xs leading-5 text-fg3">{p.description}</p>}
+
+        {/* Progress % + bar */}
+        <div className="mt-4 w-full">
+          <div className="mb-2 flex items-center gap-3">
+            <div className="h-1 flex-1 overflow-hidden rounded-full bg-raised" role="progressbar" aria-valuenow={prog.pct} aria-valuemin={0} aria-valuemax={100} aria-label={`Progresso de ${p.name}`}>
+              <div className="meter-fill h-full rounded-full" style={{ width: `${Math.max(prog.pct, prog.total > 0 ? 3 : 0)}%`, background: p.color }} />
             </div>
-            <div className="flex items-center justify-between text-[11px] text-fg3">
-              <span>
-                {prog.total === 0 ? 'Sem etapas cadastradas' : prog.by === 'steps' ? `${prog.done} de ${prog.total} etapas` : `${prog.done} de ${prog.total} subetapas`}
+            <span className="figure shrink-0 text-xs font-medium text-fg">{prog.pct}%</span>
+          </div>
+          <div className="flex items-center justify-between text-xs text-fg3">
+            <span>
+              {prog.total === 0 ? 'Sem etapas cadastradas' : prog.by === 'steps' ? `${prog.done} de ${prog.total} etapas` : `${prog.done} de ${prog.total} subetapas`}
+            </span>
+            {p.budget != null && <span className="figure">{formatIn(Number(p.budget), p.budget_currency ?? 'BRL')}</span>}
+          </div>
+        </div>
+
+        {/* Upcoming Steps (Etapas) & Substeps (Subetapas) */}
+        <div className="mt-4 w-full flex-1 border-t border-line pt-4">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-medium text-fg2">Próximas etapas e subetapas</span>
+            {(plan.remainingSteps > 0 || plan.remainingTasks > 0) && (
+              <span className="figure text-xs text-fg3">
+                {plan.remainingSteps > 0 ? `${plan.remainingSteps} et.` : ''}{plan.remainingSteps > 0 && plan.remainingTasks > 0 ? ' · ' : ''}{plan.remainingTasks > 0 ? `${plan.remainingTasks} sub.` : ''}
               </span>
-              {p.budget != null && <span className="figure">{formatIn(Number(p.budget), p.budget_currency ?? 'BRL')}</span>}
-            </div>
+            )}
           </div>
 
-          <h3 className="truncate text-base font-semibold text-fg">{p.name}</h3>
-          {p.description && <p className="mt-1 line-clamp-2 text-xs leading-5 text-fg3">{p.description}</p>}
-
-          {/* Upcoming Steps (Etapas) & Substeps (Subetapas) */}
-          <div className="mt-4 flex-1 border-t border-line pt-3.5">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-fg2">Próximas etapas e subetapas</span>
-              {(plan.remainingSteps > 0 || plan.remainingTasks > 0) && (
-                <span className="figure text-[11px] text-fg3">
-                  {plan.remainingSteps > 0 ? `${plan.remainingSteps} et.` : ''}{plan.remainingSteps > 0 && plan.remainingTasks > 0 ? ' · ' : ''}{plan.remainingTasks > 0 ? `${plan.remainingTasks} sub.` : ''}
-                </span>
-              )}
+          {!hasUpcoming ? (
+            <div className="rounded-[8px] border border-line bg-sunken/60 px-3 py-2 text-xs text-fg3">
+              {prog.total > 0 && prog.pct >= 100
+                ? 'Todas as etapas e subetapas concluídas'
+                : 'Abrir para cadastrar etapas e subetapas'}
             </div>
-
-            {!hasUpcoming ? (
-              <div className="rounded-xl bg-raised/60 px-3 py-2.5 text-xs text-fg3">
-                {prog.total > 0 && prog.pct >= 100
-                  ? 'Todas as etapas e subetapas concluídas'
-                  : 'Toque para abrir e cadastrar etapas e subetapas'}
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                {plan.nextSteps.map((item) => (
-                  <div key={item.step.id} className="rounded-xl bg-raised/55 p-2.5">
-                    <div className="flex items-center gap-2 text-xs font-medium text-fg">
-                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: p.color }} aria-hidden="true" />
-                      <span className="min-w-0 flex-1 truncate">{item.step.title}</span>
-                      {item.step.due_date && <span className="figure shrink-0 text-[10px] text-fg3">{short(item.step.due_date)}</span>}
-                      {item.totalSubsteps > 0 && (
-                        <span className="figure shrink-0 rounded bg-surface px-1.5 py-0.5 text-[10px] text-fg3">
-                          {item.doneSubsteps}/{item.totalSubsteps}
-                        </span>
-                      )}
-                    </div>
-                    {item.substeps.length > 0 && (
-                      <ul className="mt-1.5 space-y-1 border-l border-line-strong pl-3">
-                        {item.substeps.map((sub) => (
-                          <li key={sub.id} className="flex items-center gap-1.5 text-[11px] text-fg2">
-                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${sub.status === 'in_progress' ? 'bg-[#f5b700]' : 'bg-fg3/60'}`} aria-hidden="true" />
-                            <span className="truncate">{sub.title}</span>
-                          </li>
-                        ))}
-                      </ul>
+          ) : (
+            <div className="space-y-2">
+              {plan.nextSteps.map((item) => (
+                <div key={item.step.id} className="rounded-[8px] border border-line bg-sunken/60 p-3">
+                  <div className="flex items-center gap-2 text-xs font-medium text-fg">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: p.color }} aria-hidden="true" />
+                    <span className="min-w-0 flex-1 truncate">{item.step.title}</span>
+                    {item.step.due_date && <span className="figure shrink-0 text-xs text-fg3">{short(item.step.due_date)}</span>}
+                    {item.totalSubsteps > 0 && (
+                      <span className="figure shrink-0 text-xs text-fg3">
+                        {item.doneSubsteps}/{item.totalSubsteps}
+                      </span>
                     )}
                   </div>
-                ))}
+                  {item.substeps.length > 0 && (
+                    <ul className="mt-2 space-y-1 border-l border-line-strong pl-3">
+                      {item.substeps.map((sub) => (
+                        <li key={sub.id} className="flex items-center gap-2 text-xs text-fg2">
+                          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${sub.status === 'in_progress' ? 'bg-warning' : 'bg-fg3/50'}`} aria-hidden="true" />
+                          <span className="truncate">{sub.title}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
 
                 {plan.looseSubsteps.length > 0 && (
-                  <ul className="space-y-1.5 rounded-xl bg-raised/45 p-2.5">
+                  <ul className="space-y-1.5 rounded-[8px] border border-line bg-sunken/60 p-3">
                     {plan.looseSubsteps.map((sub) => (
                       <li key={sub.id} className="flex items-center gap-2 text-xs text-fg2">
-                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${sub.status === 'in_progress' ? 'bg-[#f5b700]' : sub.priority === 'high' ? 'bg-negative' : 'bg-fg3/60'}`} aria-hidden="true" />
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${sub.status === 'in_progress' ? 'bg-warning' : sub.priority === 'high' ? 'bg-negative' : 'bg-fg3/50'}`} aria-hidden="true" />
                         <span className="min-w-0 flex-1 truncate">{sub.title}</span>
                       </li>
                     ))}
@@ -261,7 +238,6 @@ function ProjectCard({ project: p, data, today, onOpen }: { project: Project; da
               </div>
             )}
           </div>
-        </div>
       </button>
     </li>
   );
