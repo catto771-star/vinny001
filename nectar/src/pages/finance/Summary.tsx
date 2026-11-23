@@ -1,18 +1,32 @@
-import { CalendarClock, Receipt } from 'lucide-react';
-import { conv, displayCurrency, money, symbolOf } from '../../lib/money';
+import { useState, type FormEvent } from 'react';
+import { CalendarClock, Gauge, Plus, Receipt } from 'lucide-react';
+import { CURRENCIES, conv, displayCurrency, money, symbolOf, type Currency } from '../../lib/money';
 import { formatDay, toDay } from '../../lib/dates';
-import { byCategory, cardUsed, dailyExpenses, invoices, monthKey, monthSummary, netWorth, recurringInMonth, bankBalance } from '../../lib/finance';
+import { EXPENSE_CATEGORIES, bankBalance, byCategory, cardUsed, dailyExpenses, invoices, monthKey, monthSummary, netWorth, recurringInMonth } from '../../lib/finance';
+import { evaluateBudgets, type BudgetStatus, type CategoryBudget } from '../../lib/cashflow';
+import { supabase } from '../../lib/supabase';
+import { write } from '../../lib/useTable';
 import { ColumnChart, RankedBars } from '../../components/Charts';
-import { Empty, Stat } from '../../components/ui';
+import { Empty, Field, FieldGroup, Modal, Stat } from '../../components/ui';
+import { useRates } from './useRates';
 import type { Finance } from './useFinance';
 
+const BUDGET_BADGE: Record<BudgetStatus, { label: string; cls: string; bar: string }> = {
+  ok: { label: 'No ritmo', cls: 'bg-positive/10 text-positive', bar: 'bg-brand' },
+  warn: { label: 'Atenção', cls: 'bg-warning/10 text-warning', bar: 'bg-warning' },
+  over: { label: 'Acima do limite', cls: 'bg-negative/10 text-negative', bar: 'bg-negative' },
+};
+
 export default function Summary({ f, year, month, onPay }: { f: Finance; year: number; month: number; onPay: (o: { template_id: string; date: string }) => void }) {
+  const [editingBudget, setEditingBudget] = useState<Partial<CategoryBudget> | null>(null);
+  const fx = useRates(null);
   const today = toDay(new Date());
   const occ = recurringInMonth(f.activeTemplates, f.txs.rows, f.skips.rows, year, month);
   const s = monthSummary(f.txs.rows, occ, year, month);
   const worth = netWorth(f.banks.rows, f.txs.rows, f.transfers.rows, f.payments.rows, today);
   const daily = dailyExpenses(f.txs.rows, year, month);
   const categories = byCategory(f.txs.rows, 'expense', year, month);
+  const budgetRows = evaluateBudgets(f.budgets.rows, f.txs.rows, year, month, today, fx.rates);
   const key = monthKey(year, month);
   const dueInvoices = f.cards.rows.flatMap((c) => invoices(c, f.txs.rows, f.payments.rows).filter((i) => !i.paid && monthKey(i.year, i.month) === key).map((i) => ({ card: c, i })));
   const toPay = [
@@ -40,6 +54,74 @@ export default function Summary({ f, year, month, onPay }: { f: Finance; year: n
             : <Empty>As categorias aparecem quando houver saídas no mês</Empty>}
         </section>
       </div>
+
+      {/* Monthly category budgets with pace marker */}
+      <section className="card mb-6" aria-label="Orçamento por categoria">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <div className="mr-auto">
+            <div className="font-medium">Orçamento por categoria</div>
+            <div className="text-[13px] text-fg3">
+              Limites mensais com marcador de ritmo{budgetRows[0] && budgetRows[0].expectedPct > 0 && budgetRows[0].expectedPct < 100 ? ` · hoje em ${budgetRows[0].expectedPct}% do mês` : ''}
+            </div>
+          </div>
+          <button type="button" className="btn-secondary h-9" onClick={() => setEditingBudget({ currency: displayCurrency() })}>
+            <Plus size={15} strokeWidth={1.6} aria-hidden="true" />Definir limite
+          </button>
+        </div>
+        {budgetRows.length === 0 ? (
+          <Empty icon={<Gauge size={18} strokeWidth={1.5} />}>
+            Defina tetos mensais para categorias como Mercado, Alimentação ou Lazer e acompanhe o ritmo de gasto no mês.
+          </Empty>
+        ) : (
+          <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {budgetRows.map((r) => {
+              const meta = BUDGET_BADGE[r.status];
+              return (
+                <li key={r.budget.id} className="min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setEditingBudget(r.budget)}
+                    className="flex w-full min-w-0 flex-col rounded-xl border border-line bg-raised/40 p-3.5 text-left transition-colors hover:bg-raised/70 focus-visible:ring-2 focus-visible:ring-brand"
+                  >
+                    <div className="mb-1.5 flex w-full min-w-0 items-center gap-2">
+                      <span className="mr-auto truncate text-sm font-medium">{r.budget.category}</span>
+                      <span className={`badge ${meta.cls}`}>{meta.label}</span>
+                    </div>
+                    <div className="mb-2 flex flex-wrap items-baseline gap-x-2 text-xs">
+                      <span className="figure text-sm font-medium text-fg">{money(r.spentBrl)}</span>
+                      <span className="figure text-fg3">de {money(r.limitBrl)}</span>
+                      <span className={`figure ml-auto font-medium ${r.status === 'over' ? 'text-negative' : 'text-fg2'}`}>{r.pct}%</span>
+                    </div>
+                    <div
+                      className="relative h-2 rounded-full bg-raised"
+                      role="progressbar"
+                      aria-valuenow={Math.min(100, r.pct)}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label={`Orçamento de ${r.budget.category}`}
+                    >
+                      <div className={`h-2 rounded-full ${meta.bar}`} style={{ width: `${Math.min(100, r.pct)}%` }} />
+                      {r.expectedPct > 0 && r.expectedPct < 100 && (
+                        <span
+                          className="absolute -top-1 h-4 w-0.5 rounded bg-fg2"
+                          style={{ left: `calc(${r.expectedPct}% - 1px)` }}
+                          title={`Ritmo esperado hoje: ${r.expectedPct}%`}
+                        />
+                      )}
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-xs text-fg3">
+                      <span className={r.remainingBrl < 0 ? 'text-negative' : ''}>
+                        {r.remainingBrl >= 0 ? `Restam ${money(r.remainingBrl)}` : `Estourou ${money(-r.remainingBrl)}`}
+                      </span>
+                      {r.expectedPct > 0 && r.expectedPct < 100 && <span className="figure">mês em {r.expectedPct}%</span>}
+                    </div>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <section className="card">
@@ -78,6 +160,77 @@ export default function Summary({ f, year, month, onPay }: { f: Finance; year: n
           )}
         </section>
       </div>
+
+      {editingBudget && (
+        <BudgetModal
+          budget={editingBudget}
+          existing={f.budgets.rows}
+          onClose={() => setEditingBudget(null)}
+          onSaved={() => { setEditingBudget(null); void f.budgets.reload(); }}
+        />
+      )}
     </>
+  );
+}
+
+function BudgetModal({ budget, existing, onClose, onSaved }: {
+  budget: Partial<CategoryBudget>;
+  existing: CategoryBudget[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [category, setCategory] = useState(budget.category ?? '');
+  const [limit, setLimit] = useState(budget.monthly_limit != null ? String(budget.monthly_limit) : '');
+  const [currency, setCurrency] = useState<Currency>(budget.currency ?? 'BRL');
+  const [saving, setSaving] = useState(false);
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    const val = Number(limit.replace(',', '.'));
+    const cat = category.trim();
+    if (!cat || !Number.isFinite(val) || val <= 0) return;
+    setSaving(true);
+    const match = budget.id ? { id: budget.id } : existing.find((b) => b.category.toLowerCase() === cat.toLowerCase());
+    const ok = match
+      ? await write(supabase.from('category_budgets').update({ category: cat, monthly_limit: val, currency, updated_at: new Date().toISOString() }).eq('id', match.id))
+      : await write(supabase.from('category_budgets').insert({ category: cat, monthly_limit: val, currency }));
+    setSaving(false);
+    if (ok) onSaved();
+  }
+
+  async function remove() {
+    if (budget.id && confirm(`Remover o limite de ${budget.category}?`) && await write(supabase.from('category_budgets').delete().eq('id', budget.id))) {
+      onSaved();
+    }
+  }
+
+  return (
+    <Modal title={budget.id ? `Limite: ${budget.category}` : 'Novo limite mensal'} onClose={onClose}>
+      <form onSubmit={save}>
+        <Field label="Categoria">
+          <input className="input" list="budget-cats" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Mercado, Alimentação, Lazer…" required autoFocus />
+          <datalist id="budget-cats">{EXPENSE_CATEGORIES.map((c) => <option key={c} value={c} />)}</datalist>
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={`Limite mensal (${symbolOf(currency)})`}>
+            <input className="input figure" inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value)} required placeholder="1200" />
+          </Field>
+          <FieldGroup label="Moeda">
+            <div className="segmented w-full">
+              {CURRENCIES.map((c) => (
+                <button key={c.code} type="button" className={`flex-1 ${currency === c.code ? 'tab-active' : 'tab'}`} aria-pressed={currency === c.code} onClick={() => setCurrency(c.code)}>
+                  {c.symbol}
+                </button>
+              ))}
+            </div>
+          </FieldGroup>
+        </div>
+        <p className="mb-4 text-xs text-fg3">Compara os gastos desta categoria no mês com o limite e mostra uma marca vertical com o ritmo esperado para o dia de hoje.</p>
+        <div className="flex gap-2">
+          {budget.id && <button type="button" className="btn-ghost text-negative" onClick={remove}>Remover</button>}
+          <button className="btn-primary ml-auto" disabled={saving}>{saving ? 'Salvando…' : 'Salvar'}</button>
+        </div>
+      </form>
+    </Modal>
   );
 }

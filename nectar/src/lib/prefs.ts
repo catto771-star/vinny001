@@ -30,7 +30,7 @@ export const EXPORT_TABLES = [
   'reminder_recurring_templates', 'events', 'projects', 'project_steps', 'project_tasks', 'project_tags', 'goals', 'goal_entries',
   'knowledge_areas', 'knowledge_blocks', 'knowledge_connections', 'diary_entries', 'brain_entries', 'chat_messages',
   'automations', 'automation_runs', 'banks', 'cards', 'transaction_recurring_templates', 'installment_purchases',
-  'transactions', 'transaction_recurring_skips', 'transfers', 'card_invoice_payments', 'foods', 'exercises', 'set_types',
+  'transactions', 'transaction_recurring_skips', 'transfers', 'card_invoice_payments', 'category_budgets', 'foods', 'exercises', 'set_types',
   'exercise_settings', 'workout_plans', 'workout_plan_sessions', 'workout_plan_exercises', 'workouts', 'workout_sets',
   'cardio_sessions', 'diet_plans', 'diet_plan_meals', 'diet_plan_items', 'diet_day_targets', 'diet_weekday_targets',
   'diet_day_overrides', 'food_logs', 'meal_photos', 'body_assessments', 'body_measurements', 'body_photos',
