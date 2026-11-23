@@ -397,8 +397,71 @@ export async function runTool(db: Db, uid: string, name: string, a: ToolArgs, no
       if (error) return fail(error);
       const id = data?.[0]?.id as string | undefined;
       return {
-        feito: `Marco adicionado em ${found[0].name}: ${a.titulo}`,
+        feito: `Etapa adicionada em ${found[0].name}: ${a.titulo}`,
+        link: `/projetos?p=${found[0].id}`,
         ...(id ? { undo: { table: 'project_steps', op: 'delete', id } } : {}),
+      };
+    }
+
+    case 'criar_plano_projeto': {
+      const { data: projs } = await own.select('projects', 'id,name').eq('is_template', false).is('archived_at', null);
+      const list = projs ?? [];
+      const byId = list.find((p) => p.id === String(a.projeto));
+      const found = byId ? [byId] : matchByName(list, String(a.projeto));
+      if (!found.length) return { erro: `nenhum projeto com "${a.projeto}"` };
+      if (found.length > 1) return { erro: 'mais de um projeto combina; pergunte qual', opcoes: found.slice(0, 8).map((p) => p.name) };
+      const proj = found[0];
+      const { data: existingSteps } = await own.select('project_steps', 'order_index').eq('project_id', proj.id);
+      let order = (existingSteps ?? []).reduce((m, s) => Math.max(m, Number(s.order_index ?? 0)), -1) + 1;
+      const etapas = a.etapas as { titulo: string; prazo: string | null; subetapas: string[] }[];
+      let createdSteps = 0;
+      let createdSubsteps = 0;
+      for (const et of etapas) {
+        const { data: stepRows, error: stepErr } = await own.insert('project_steps', {
+          project_id: proj.id, title: et.titulo, due_date: et.prazo, completed: false, order_index: order++,
+        }).select('id');
+        if (stepErr) return fail(stepErr);
+        const stepId = stepRows?.[0]?.id as string | undefined;
+        createdSteps += 1;
+        for (const subTitle of et.subetapas) {
+          const { data: taskRows, error: taskErr } = await own.insert('tasks', {
+            title: subTitle,
+            priority: 'medium',
+            due_date: et.prazo ? zonedToUtc(et.prazo, '23:59', tz) : null,
+            due_all_day: !!et.prazo,
+            project_step_id: stepId ?? null,
+          }).select('id');
+          if (taskErr) return fail(taskErr);
+          const taskId = taskRows?.[0]?.id as string | undefined;
+          if (taskId) {
+            await db.from('project_tasks').insert({ project_id: proj.id, task_id: taskId });
+            createdSubsteps += 1;
+          }
+        }
+      }
+      return {
+        feito: `Plano criado em ${proj.name}: ${createdSteps} ${createdSteps === 1 ? 'etapa' : 'etapas'}${createdSubsteps ? ` e ${createdSubsteps} ${createdSubsteps === 1 ? 'subetapa' : 'subetapas'}` : ''}`,
+        link: `/projetos?p=${proj.id}`,
+      };
+    }
+
+    case 'concluir_marco_projeto': {
+      const { data: projs } = await own.select('projects', 'id,name').eq('is_template', false).is('archived_at', null);
+      const foundProj = matchByName(projs ?? [], String(a.projeto));
+      if (!foundProj.length) return { erro: `nenhum projeto com "${a.projeto}"` };
+      if (foundProj.length > 1) return { erro: 'mais de um projeto combina; pergunte qual', opcoes: foundProj.slice(0, 8).map((p) => p.name) };
+      const proj = foundProj[0];
+      const { data: steps } = await own.select('project_steps', 'id,title').eq('project_id', proj.id).eq('completed', false);
+      const foundStep = matchByName((steps ?? []).map((s) => ({ id: s.id, name: s.title })), String(a.titulo));
+      if (!foundStep.length) return { erro: `nenhuma etapa aberta com "${a.titulo}" em ${proj.name}` };
+      if (foundStep.length > 1) return { erro: 'mais de uma etapa combina; pergunte qual', opcoes: foundStep.slice(0, 8).map((s) => s.name) };
+      const step = foundStep[0];
+      const { error } = await own.update('project_steps', { completed: true, completed_at: new Date().toISOString() }).eq('id', step.id);
+      if (error) return fail(error);
+      return {
+        feito: `Etapa concluída em ${proj.name}: ${step.name}`,
+        link: `/projetos?p=${proj.id}`,
+        undo: { table: 'project_steps', op: 'update', id: step.id, patch: { completed: false, completed_at: null } },
       };
     }
 
@@ -418,6 +481,7 @@ export async function runTool(db: Db, uid: string, name: string, a: ToolArgs, no
       const id = data?.[0]?.id as string | undefined;
       return {
         feito: `Refeição registrada: ${a.alimento} (${a.kcal} kcal)`,
+        link: '/saude',
         ...(id ? { undo: { table: 'food_logs', op: 'delete', id } } : {}),
       };
     }
@@ -434,7 +498,153 @@ export async function runTool(db: Db, uid: string, name: string, a: ToolArgs, no
       const id = data?.[0]?.id as string | undefined;
       return {
         feito: `Peso registrado: ${String(a.peso_kg).replace('.', ',')} kg`,
+        link: '/saude',
         ...(id ? { undo: { table: 'body_measurements', op: 'delete', id } } : {}),
+      };
+    }
+
+    case 'registrar_treino': {
+      const { data, error } = await own.insert('workouts', {
+        date: a.data ?? now.date,
+        title: a.titulo,
+        duration_min: a.duracao_min,
+        notes: a.notas,
+      }).select('id');
+      if (error) return fail(error);
+      const id = data?.[0]?.id as string | undefined;
+      return {
+        feito: `Treino registrado: ${a.titulo}${a.duracao_min ? ` (${a.duracao_min} min)` : ''}`,
+        link: '/saude',
+        ...(id ? { undo: { table: 'workouts', op: 'delete', id } } : {}),
+      };
+    }
+
+    case 'registrar_cardio': {
+      const durMin = Number(a.duracao_min);
+      const { data, error } = await own.insert('cardio_sessions', {
+        date: a.data ?? now.date,
+        cardio_type: a.tipo,
+        duration_s: durMin * 60,
+        distance_km: a.distancia_km,
+        kcal: a.kcal,
+        notes: a.notas,
+      }).select('id');
+      if (error) return fail(error);
+      const id = data?.[0]?.id as string | undefined;
+      return {
+        feito: `Cardio registrado: ${a.tipo}, ${durMin} min${a.distancia_km ? ` · ${String(a.distancia_km).replace('.', ',')} km` : ''}`,
+        link: '/saude',
+        ...(id ? { undo: { table: 'cardio_sessions', op: 'delete', id } } : {}),
+      };
+    }
+
+    case 'resumo_saude_hoje': {
+      const day = String(a.data ?? now.date);
+      const [{ data: logs, error }, { data: workouts }, { data: cardio }, { data: weights }] = await Promise.all([
+        own.select('food_logs', 'meal,food_name,kcal,protein_g,carbs_g,fat_g').eq('date', day),
+        own.select('workouts', 'title,duration_min').eq('date', day),
+        own.select('cardio_sessions', 'cardio_type,duration_s,distance_km,kcal').eq('date', day),
+        own.select('body_measurements', 'value,measured_at').eq('metric', 'weight_kg').order('measured_at', { ascending: false }).limit(1),
+      ]);
+      if (error) return fail(error);
+      const rows = logs ?? [];
+      const sum = (k: 'kcal' | 'protein_g' | 'carbs_g' | 'fat_g') => Math.round(rows.reduce((s, r) => s + Number(r[k] ?? 0), 0) * 10) / 10;
+      return {
+        data: day,
+        peso_atual_kg: weights?.[0]?.value ?? null,
+        alimentacao: {
+          registros: rows.length,
+          kcal: Math.round(sum('kcal')),
+          proteina_g: sum('protein_g'),
+          carbo_g: sum('carbo_g'),
+          gordura_g: sum('fat_g'),
+        },
+        treinos: (workouts ?? []).map((w) => ({ titulo: w.title ?? 'Treino', duracao_min: w.duration_min })),
+        cardio: (cardio ?? []).map((c) => ({ tipo: c.cardio_type, duracao_min: Math.round(Number(c.duration_s) / 60), distancia_km: c.distance_km, kcal: c.kcal })),
+      };
+    }
+
+    case 'registrar_transferencia': {
+      const { data: banks, error: bErr } = await own.select('banks', 'id,name,currency');
+      if (bErr) return fail(bErr);
+      const list = banks ?? [];
+      const fromMatches = matchByName(list, String(a.origem));
+      const toMatches = matchByName(list, String(a.destino));
+      if (!fromMatches.length) return { erro: `conta de origem não encontrada: "${a.origem}"` };
+      if (!toMatches.length) return { erro: `conta de destino não encontrada: "${a.destino}"` };
+      if (fromMatches[0].id === toMatches[0].id) return { erro: 'as contas de origem e destino devem ser diferentes' };
+      const currency = typeof a.moeda === 'string' ? a.moeda : (fromMatches[0].currency ?? 'BRL');
+      const rawVal = Number(a.valor);
+      let amountBrl = rawVal;
+      if (currency !== 'BRL') {
+        const rate = typeof a.cotacao === 'number' ? a.cotacao : await fetchBrlRate(currency as 'EUR' | 'USD');
+        if (!rate) return { erro: `não consegui obter a cotação de ${currency} agora; informe cotacao` };
+        amountBrl = Math.round(rawVal * rate * 100) / 100;
+      }
+      const { data, error } = await own.insert('transfers', {
+        from_bank_id: fromMatches[0].id,
+        to_bank_id: toMatches[0].id,
+        amount: amountBrl,
+        date: a.data ?? now.date,
+        description: a.descricao ?? `Transferência ${fromMatches[0].name} → ${toMatches[0].name}`,
+      }).select('id');
+      if (error) return fail(error);
+      const id = data?.[0]?.id as string | undefined;
+      const moneyStr = `${CURRENCY_SYM[currency] ?? currency} ${rawVal.toFixed(2).replace('.', ',')}`;
+      return {
+        feito: `Transferência registrada: ${moneyStr} de ${fromMatches[0].name} para ${toMatches[0].name}`,
+        link: '/financas',
+        ...(id ? { undo: { table: 'transfers', op: 'delete', id } } : {}),
+      };
+    }
+
+    case 'definir_orcamento': {
+      const { data, error } = await own.upsert('category_budgets', {
+        category: a.categoria,
+        monthly_limit: a.limite,
+        currency: a.moeda ?? 'BRL',
+      }, { onConflict: 'user_id,category' }).select('id');
+      if (error) return fail(error);
+      const id = data?.[0]?.id as string | undefined;
+      const sym = CURRENCY_SYM[String(a.moeda ?? 'BRL')] ?? 'R$';
+      return {
+        feito: `Limite definido para ${a.categoria}: ${sym} ${Number(a.limite).toFixed(2).replace('.', ',')}/mês`,
+        link: '/financas',
+        ...(id ? { undo: { table: 'category_budgets', op: 'delete', id } } : {}),
+      };
+    }
+
+    case 'concluir_lembrete': {
+      const { data: open } = await own.select('reminders', 'id,title').eq('completed', false).limit(200);
+      const found = matchByName((open ?? []).map((r) => ({ id: r.id, name: r.title })), String(a.titulo));
+      if (!found.length) return { erro: `nenhum lembrete aberto com "${a.titulo}"` };
+      if (found.length > 1) return { erro: 'mais de um lembrete combina; pergunte qual', opcoes: found.slice(0, 8).map((r) => r.name) };
+      const { error } = await own.update('reminders', { completed: true }).eq('id', found[0].id);
+      if (error) return fail(error);
+      return {
+        feito: `Lembrete concluído: ${found[0].name}`,
+        link: '/lembretes',
+        undo: { table: 'reminders', op: 'update', id: found[0].id, patch: { completed: false } },
+      };
+    }
+
+    case 'reagendar_compromisso': {
+      const { data: evs } = await own.select('events', 'id,title,start_at,end_at,all_day').order('start_at', { ascending: false }).limit(200);
+      const found = matchByName((evs ?? []).map((e) => ({ id: e.id, name: e.title, start_at: e.start_at, end_at: e.end_at, all_day: e.all_day })), String(a.titulo));
+      if (!found.length) return { erro: `nenhum compromisso encontrado com "${a.titulo}"` };
+      if (found.length > 1) return { erro: 'mais de um compromisso combina; pergunte qual', opcoes: found.slice(0, 8).map((e) => e.name) };
+      const ev = found[0];
+      const inicio = a.inicio ? String(a.inicio) : null;
+      const fim = a.fim ? String(a.fim) : null;
+      const all_day = !inicio;
+      const start_at = zonedToUtc(String(a.data), inicio ?? '00:00', tz);
+      const end_at = all_day ? null : fim ? zonedToUtc(String(a.data), fim, tz) : new Date(new Date(start_at).getTime() + 3600_000).toISOString();
+      const { error } = await own.update('events', { start_at, end_at, all_day }).eq('id', ev.id);
+      if (error) return fail(error);
+      return {
+        feito: `Compromisso reagendado: ${ev.name} → ${String(a.data).split('-').reverse().join('/')}${inicio ? ` às ${inicio}` : ''}`,
+        link: '/agenda',
+        undo: { table: 'events', op: 'update', id: ev.id, patch: { start_at: ev.start_at, end_at: ev.end_at, all_day: ev.all_day } },
       };
     }
 

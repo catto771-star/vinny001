@@ -25,8 +25,9 @@ const RUNS_PER_CALL = 3;
 
 type ContentPart = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } };
 type Msg = { role: string; content: string | ContentPart[] | null; tool_calls?: unknown[]; tool_call_id?: string };
-type ActionRecord = { tool: string; summary: string; undo?: UndoSpec };
+type ActionRecord = { tool: string; summary: string; link?: string; undo?: UndoSpec };
 type Reply = { reply: string; actions: ActionRecord[]; model: string };
+type ScreenCtx = { route?: string; label?: string; hint?: string } | null;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -66,20 +67,43 @@ Deno.serve(async (req) => {
   const rawMessage = String(body.message ?? '').trim();
   const message = rawMessage || (imageUrl ? 'Analise esta imagem e me ajude a registrar os dados relevantes no Painel.' : '');
   if (!message || message.length > 4000) return json({ error: 'A mensagem precisa ter de 1 a 4000 caracteres.' }, 400);
-  const { data: past } = await scoped(db, user.id).select('chat_messages', 'content,is_user,created_at,metadata').order('created_at', { ascending: false }).limit(30);
+  const threadId = typeof body.thread_id === 'string' && body.thread_id.trim() ? body.thread_id.trim().slice(0, 64) : undefined;
+  const threadTitle = typeof body.thread_title === 'string' && body.thread_title.trim() ? body.thread_title.trim().slice(0, 80) : undefined;
+  const screenContext: ScreenCtx = body.context && typeof body.context === 'object'
+    ? {
+      route: typeof body.context.route === 'string' ? body.context.route.slice(0, 80) : undefined,
+      label: typeof body.context.label === 'string' ? body.context.label.slice(0, 80) : undefined,
+      hint: typeof body.context.hint === 'string' ? body.context.hint.slice(0, 260) : undefined,
+    }
+    : null;
+
+  const { data: past } = await scoped(db, user.id).select('chat_messages', 'content,is_user,created_at,metadata').order('created_at', { ascending: false }).limit(60);
+  const scopedPast = ((past ?? []) as (StoredMessage & { metadata?: { thread_id?: string; kind?: string } | null })[]).filter((m) => {
+    if (!threadId) return true;
+    if (m.metadata?.kind === 'briefing' || m.metadata?.kind === 'automation') return false;
+    const mid = m.metadata?.thread_id || 'default';
+    return mid === threadId;
+  }).slice(0, 30);
+
   let out: Reply;
   try {
-    out = await converse(db, user.id, key, message, (past ?? []) as StoredMessage[], imageUrl);
+    out = await converse(db, user.id, key, message, scopedPast, imageUrl, screenContext);
   } catch (e) {
     return json({ error: 'ai_failed', message: (e as Error).message }, 502);
   }
-  const rows = exchangeRows(imageUrl ? `${message} [imagem anexada]` : message, out.reply, { model: out.model, actions: out.actions }).map((r) => ({ ...r, user_id: user.id }));
+  const meta: Record<string, unknown> = {
+    model: out.model,
+    actions: out.actions,
+    ...(threadId ? { thread_id: threadId } : {}),
+    ...(threadTitle ? { thread_title: threadTitle } : {}),
+  };
+  const rows = exchangeRows(imageUrl ? `${message} [imagem anexada]` : message, out.reply, meta).map((r) => ({ ...r, user_id: user.id }));
   const { error: saveError } = await db.from('chat_messages').insert(rows);
   return json({ ...out, saved: !saveError, ...(saveError ? { saveError: saveError.message } : {}) });
 });
 
 /** One autonomous multi-step request to Claude Sonnet (or user's selected model) with tools. */
-async function converse(db: Db, uid: string, key: string, message: string, past: StoredMessage[], imageUrl: string | null = null): Promise<Reply> {
+async function converse(db: Db, uid: string, key: string, message: string, past: StoredMessage[], imageUrl: string | null = null, screenContext: ScreenCtx = null): Promise<Reply> {
   const { data: settings } = await scoped(db, uid).select('user_settings', 'timezone,display_name,display_currency,assistant_model').maybeSingle();
   const tz = settings?.timezone ?? 'America/Sao_Paulo';
   const userModel = (settings?.assistant_model as string | null) ?? 'anthropic/claude-sonnet-4';
@@ -89,7 +113,7 @@ async function converse(db: Db, uid: string, key: string, message: string, past:
     ? [{ type: 'text', text: message }, { type: 'image_url', image_url: { url: imageUrl } }]
     : message;
   const messages: Msg[] = [
-    { role: 'system', content: systemPrompt(now, tz, { name: settings?.display_name, displayCurrency: settings?.display_currency, ...snap }) },
+    { role: 'system', content: systemPrompt(now, tz, { name: settings?.display_name, displayCurrency: settings?.display_currency, screenContext, ...snap }) },
     ...history(past),
     { role: 'user', content: userContent },
   ];
@@ -108,7 +132,12 @@ async function converse(db: Db, uid: string, key: string, message: string, past:
       const checked = checkArgs(call.function.name, parsed);
       const result = checked.ok ? await runTool(db, uid, call.function.name, checked.args, now, tz) : { erro: checked.error };
       if (checked.ok && WRITES.has(call.function.name) && !('erro' in result)) {
-        actions.push({ tool: call.function.name, summary: String(result.feito ?? ''), ...(result.undo ? { undo: result.undo } : {}) });
+        actions.push({
+          tool: call.function.name,
+          summary: String(result.feito ?? ''),
+          ...(typeof result.link === 'string' ? { link: result.link } : {}),
+          ...(result.undo ? { undo: result.undo } : {}),
+        });
       }
       messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result).slice(0, 12000) });
     }

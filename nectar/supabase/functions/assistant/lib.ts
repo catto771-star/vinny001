@@ -113,6 +113,26 @@ export const TOOLS = [
     titulo: str('Título do marco'),
     prazo: str('Data prevista YYYY-MM-DD, opcional'),
   }, ['projeto', 'titulo']),
+  fn('criar_plano_projeto', 'Cria várias etapas (marcos) e suas subetapas (tarefas) dentro de um projeto de uma só vez.', {
+    projeto: str('Nome ou id do projeto'),
+    etapas: {
+      type: 'array',
+      description: 'Lista de etapas em ordem, cada uma com título, prazo opcional (YYYY-MM-DD) e lista opcional de subetapas',
+      items: {
+        type: 'object',
+        properties: {
+          titulo: str('Título da etapa'),
+          prazo: str('Data prevista YYYY-MM-DD, opcional'),
+          subetapas: { type: 'array', items: str('Título de subetapa'), description: 'Tarefas vinculadas a esta etapa' },
+        },
+        required: ['titulo'],
+      },
+    },
+  }, ['projeto', 'etapas']),
+  fn('concluir_marco_projeto', 'Marca uma etapa (marco) de um projeto como concluída.', {
+    projeto: str('Nome do projeto'),
+    titulo: str('Título ou parte do título da etapa'),
+  }, ['projeto', 'titulo']),
   fn('registrar_refeicao', 'Registra um alimento ou refeição no diário alimentar de Saúde.', {
     alimento: str('Nome do alimento ou refeição'),
     refeicao: { type: 'string', enum: ['cafe', 'almoco', 'jantar', 'lanche'], description: 'Qual refeição do dia' },
@@ -127,6 +147,46 @@ export const TOOLS = [
     peso_kg: { type: 'number', description: 'Peso em quilogramas (ex.: 78.4)' },
     observacoes: str('Observação opcional'),
   }, ['peso_kg']),
+  fn('registrar_treino', 'Registra uma sessão de treino de musculação em Saúde.', {
+    titulo: str('Nome do treino (ex.: Superior A, Pernas)'),
+    duracao_min: { type: 'integer', description: 'Duração em minutos, opcional' },
+    notas: str('Observações ou exercícios feitos, opcional'),
+    data: str('YYYY-MM-DD, opcional (hoje)'),
+  }, ['titulo']),
+  fn('registrar_cardio', 'Registra uma sessão de cardio em Saúde.', {
+    tipo: str('Modalidade (ex.: corrida, caminhada, bike, elíptico)'),
+    duracao_min: { type: 'integer', description: 'Duração em minutos' },
+    distancia_km: { type: 'number', description: 'Distância em km, opcional' },
+    kcal: { type: 'number', description: 'Calorias gastas, opcional' },
+    notas: str('Observações, opcional'),
+    data: str('YYYY-MM-DD, opcional (hoje)'),
+  }, ['tipo', 'duracao_min']),
+  fn('resumo_saude_hoje', 'Consulta peso mais recente, calorias/macros consumidos e treinos/cardio de uma data (padrão hoje).', {
+    data: str('YYYY-MM-DD, opcional (hoje)'),
+  }),
+  fn('registrar_transferencia', 'Transfere saldo entre duas contas bancárias do usuário (ex.: Revolut para Wise).', {
+    origem: str('Nome da conta de origem'),
+    destino: str('Nome da conta de destino'),
+    valor: { type: 'number', description: 'Valor positivo transferido' },
+    moeda: { type: 'string', enum: ['BRL', 'EUR', 'USD'], description: 'Opcional (usa moeda da conta de origem)' },
+    cotacao: { type: 'number', description: 'Cotação em BRL se moeda estrangeira, opcional' },
+    descricao: str('Descrição opcional'),
+    data: str('YYYY-MM-DD, opcional (hoje)'),
+  }, ['origem', 'destino', 'valor']),
+  fn('definir_orcamento', 'Define ou atualiza o teto mensal de gasto para uma categoria em Finanças.', {
+    categoria: str('Nome da categoria (ex.: Mercado, Alimentação, Transporte)'),
+    limite: { type: 'number', description: 'Valor mensal limite positivo' },
+    moeda: { type: 'string', enum: ['BRL', 'EUR', 'USD'], description: 'Opcional (padrão BRL)' },
+  }, ['categoria', 'limite']),
+  fn('concluir_lembrete', 'Marca um lembrete aberto como concluído pelo título.', {
+    titulo: str('Título ou parte do título do lembrete'),
+  }, ['titulo']),
+  fn('reagendar_compromisso', 'Reagenda um compromisso da Agenda para outra data e/ou horário.', {
+    titulo: str('Título ou parte do título do compromisso'),
+    data: str('Nova data YYYY-MM-DD'),
+    inicio: str('Novo horário HH:MM, opcional'),
+    fim: str('Novo horário de término HH:MM, opcional'),
+  }, ['titulo', 'data']),
   fn('listar_memorias', 'Lista o que você já aprendeu e guardou sobre o usuário.'),
   fn('salvar_memoria', 'Guarda uma preferência, regra, rotina ou correção aprendida com o usuário para lembrar em futuras conversas.', {
     categoria: { type: 'string', enum: [...MEMORY_CATEGORIES] },
@@ -280,6 +340,31 @@ export function checkArgs(name: string, raw: unknown): { ok: true; args: ToolArg
       if (prazo && !DATE.test(prazo)) return fail('prazo deve ser YYYY-MM-DD');
       return { ok: true, args: { projeto, titulo, prazo: prazo || null } };
     }
+    case 'criar_plano_projeto': {
+      const projeto = text('projeto', 140);
+      if (!projeto) return fail('projeto é obrigatório');
+      if (!Array.isArray(a.etapas) || !a.etapas.length) return fail('etapas deve ter ao menos 1 item');
+      const etapas: { titulo: string; prazo: string | null; subetapas: string[] }[] = [];
+      for (const rawStep of a.etapas.slice(0, 12)) {
+        const s = (rawStep && typeof rawStep === 'object' ? rawStep : {}) as Record<string, unknown>;
+        const titulo = typeof s.titulo === 'string' ? s.titulo.trim().slice(0, 160) : '';
+        if (!titulo) return fail('cada etapa precisa de titulo');
+        const prazo = typeof s.prazo === 'string' ? s.prazo.trim() : '';
+        if (prazo && !DATE.test(prazo)) return fail('prazo da etapa deve ser YYYY-MM-DD');
+        const subs = Array.isArray(s.subetapas)
+          ? s.subetapas.filter((x): x is string => typeof x === 'string' && !!x.trim()).map((x) => x.trim().slice(0, 160)).slice(0, 8)
+          : [];
+        etapas.push({ titulo, prazo: prazo || null, subetapas: subs });
+      }
+      return { ok: true, args: { projeto, etapas } };
+    }
+    case 'concluir_marco_projeto': {
+      const projeto = text('projeto', 140);
+      const titulo = text('titulo', 160);
+      if (!projeto) return fail('projeto é obrigatório');
+      if (!titulo) return fail('titulo da etapa é obrigatório');
+      return { ok: true, args: { projeto, titulo } };
+    }
     case 'registrar_refeicao': {
       const alimento = text('alimento', 160);
       const kcal = Math.round(Number(a.kcal));
@@ -305,6 +390,72 @@ export function checkArgs(name: string, raw: unknown): { ok: true; args: ToolArg
       const peso = Math.round(Number(a.peso_kg) * 10) / 10;
       if (!(peso >= 25 && peso <= 350)) return fail('peso_kg deve estar entre 25 e 350');
       return { ok: true, args: { peso_kg: peso, observacoes: text('observacoes', 200) || null } };
+    }
+    case 'registrar_treino': {
+      const titulo = text('titulo', 140);
+      const data = text('data');
+      const dur = a.duracao_min == null ? null : Math.round(Number(a.duracao_min));
+      if (!titulo) return fail('titulo do treino é obrigatório');
+      if (data && !DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
+      if (dur !== null && !(dur > 0 && dur <= 600)) return fail('duracao_min deve estar entre 1 e 600');
+      return { ok: true, args: { titulo, duracao_min: dur, notas: text('notas', 400) || null, data: data || null } };
+    }
+    case 'registrar_cardio': {
+      const tipo = text('tipo', 80);
+      const dur = Math.round(Number(a.duracao_min));
+      const dist = a.distancia_km == null ? null : Math.round(Number(a.distancia_km) * 100) / 100;
+      const kcal = a.kcal == null ? null : Math.round(Number(a.kcal));
+      const data = text('data');
+      if (!tipo) return fail('tipo de cardio é obrigatório');
+      if (!(dur > 0 && dur <= 600)) return fail('duracao_min deve estar entre 1 e 600');
+      if (dist !== null && !(dist >= 0 && dist <= 300)) return fail('distancia_km inválido');
+      if (kcal !== null && !(kcal >= 0 && kcal <= 10000)) return fail('kcal inválido');
+      if (data && !DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
+      return { ok: true, args: { tipo, duracao_min: dur, distancia_km: dist, kcal, notas: text('notas', 300) || null, data: data || null } };
+    }
+    case 'resumo_saude_hoje': {
+      const data = text('data');
+      if (data && !DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
+      return { ok: true, args: { data: data || null } };
+    }
+    case 'registrar_transferencia': {
+      const origem = text('origem', 100);
+      const destino = text('destino', 100);
+      const valor = Math.round(Number(a.valor) * 100) / 100;
+      const moedaRaw = text('moeda').toUpperCase();
+      const moeda = ['BRL', 'EUR', 'USD'].includes(moedaRaw) ? moedaRaw : null;
+      const cotacao = a.cotacao == null ? null : Number(a.cotacao);
+      const data = text('data');
+      if (!origem || !destino) return fail('origem e destino são obrigatórios');
+      if (!(valor > 0 && valor <= 1e9)) return fail('valor deve ser positivo');
+      if (cotacao !== null && !(Number.isFinite(cotacao) && cotacao > 0)) return fail('cotacao inválida');
+      if (data && !DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
+      return { ok: true, args: { origem, destino, valor, ...(moeda ? { moeda } : {}), ...(cotacao ? { cotacao } : {}), descricao: text('descricao', 200) || null, data: data || null } };
+    }
+    case 'definir_orcamento': {
+      const categoria = text('categoria', 80);
+      const limite = Math.round(Number(a.limite) * 100) / 100;
+      const moedaRaw = text('moeda').toUpperCase();
+      const moeda = ['BRL', 'EUR', 'USD'].includes(moedaRaw) ? moedaRaw : 'BRL';
+      if (!categoria) return fail('categoria é obrigatória');
+      if (!(limite > 0 && limite <= 1e9)) return fail('limite deve ser positivo');
+      return { ok: true, args: { categoria, limite, moeda } };
+    }
+    case 'concluir_lembrete': {
+      const titulo = text('titulo', 160);
+      if (!titulo) return fail('titulo do lembrete é obrigatório');
+      return { ok: true, args: { titulo } };
+    }
+    case 'reagendar_compromisso': {
+      const titulo = text('titulo', 160);
+      const data = text('data');
+      const inicio = text('inicio');
+      const fim = text('fim');
+      if (!titulo) return fail('titulo do compromisso é obrigatório');
+      if (!DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
+      if (inicio && !TIME.test(inicio)) return fail('inicio deve ser HH:MM');
+      if (fim && !TIME.test(fim)) return fail('fim deve ser HH:MM');
+      return { ok: true, args: { titulo, data, inicio: inicio || null, fim: fim || null } };
     }
     case 'salvar_memoria': {
       const conteudo = text('conteudo', 400);
@@ -332,9 +483,12 @@ export function checkArgs(name: string, raw: unknown): { ok: true; args: ToolArg
 
 /** Tool calls that change data; the reply lists them so the user sees what was done (and can undo). */
 export const WRITES = new Set([
-  'criar_tarefa', 'concluir_tarefa', 'reagendar_tarefa', 'criar_lembrete', 'criar_compromisso',
-  'marcar_habito', 'registrar_transacao', 'criar_nota', 'registrar_progresso_meta',
-  'criar_marco_projeto', 'registrar_refeicao', 'registrar_peso', 'salvar_memoria', 'esquecer_memoria',
+  'criar_tarefa', 'concluir_tarefa', 'reagendar_tarefa', 'criar_lembrete', 'concluir_lembrete',
+  'criar_compromisso', 'reagendar_compromisso', 'marcar_habito', 'registrar_transacao',
+  'registrar_transferencia', 'definir_orcamento', 'criar_nota', 'registrar_progresso_meta',
+  'criar_marco_projeto', 'criar_plano_projeto', 'concluir_marco_projeto',
+  'registrar_refeicao', 'registrar_peso', 'registrar_treino', 'registrar_cardio',
+  'salvar_memoria', 'esquecer_memoria',
 ]);
 
 /** Validates an optional base64 image data URL sent from the browser for multimodal prompts. */
@@ -368,6 +522,7 @@ export function textToBlocks(text: string): unknown[] {
 export interface Snapshot {
   name?: string | null;
   displayCurrency?: string | null;
+  screenContext?: { route?: string; label?: string; hint?: string } | null;
   tasksToday: string[];
   tasksLate: number;
   habitsToday: string[];
@@ -385,6 +540,7 @@ export function systemPrompt(now: LocalNow, tz: string, s: Snapshot): string {
     'Responda em português do Brasil, direto, claro e prático. Use listas curtas só quando ajudarem.',
     'Autonomia e precisão:',
     '- Use as ferramentas para consultar e agir; nunca invente dados nem ids. Encadeie quantas ferramentas forem necessárias para resolver o pedido por completo numa única resposta.',
+    '- Para criar várias etapas e subetapas de um projeto, use criar_plano_projeto em uma única chamada.',
     '- Para concluir/reagendar tarefa ou marcar hábito, passe o título/nome. Nunca diga que algo não existe sem consultar antes (listar_tarefas com periodo "todas").',
     '- Converta datas relativas (hoje, amanhã, sexta) para YYYY-MM-DD a partir de hoje. Em finanças, respeite a moeda citada (EUR, USD ou BRL) e escolha a conta adequada conforme o que você sabe do usuário.',
     '- Se o usuário enviar uma foto de recibo/nota fiscal ou prato de comida, extraia os dados com cuidado e registre usando a ferramenta certa (ou confirme se algum valor estiver ilegível).',
@@ -397,6 +553,9 @@ export function systemPrompt(now: LocalNow, tz: string, s: Snapshot): string {
     `- Hábitos de hoje: ${s.habitsToday.length ? s.habitsToday.join('; ') : 'nenhum'}`,
     `- Metas ativas: ${s.goals.length ? s.goals.join('; ') : 'nenhuma'}`,
   ];
+  if (s.screenContext?.label) {
+    lines.push(`- Tela atual do usuário: ${s.screenContext.label} (${s.screenContext.route ?? ''})${s.screenContext.hint ? ` — ${s.screenContext.hint}` : ''}`);
+  }
   if (s.eventsToday?.length) lines.push(`- Compromissos hoje: ${s.eventsToday.join('; ')}`);
   if (s.projects?.length) lines.push(`- Projetos ativos: ${s.projects.join('; ')}`);
   if (s.accounts?.length) lines.push(`- Contas bancárias: ${s.accounts.map((a) => `${a.name} (${a.currency})`).join(', ')}`);
@@ -515,8 +674,11 @@ export function withoutSkipped(candidates: string[], skip: Map<string, number>, 
  * which the not-null metadata column refuses.
  */
 export function exchangeRows(question: string, reply: string, metadata: Record<string, unknown>, at = new Date()) {
+  const userMeta: Record<string, unknown> = {};
+  if (typeof metadata.thread_id === 'string' && metadata.thread_id) userMeta.thread_id = metadata.thread_id;
+  if (typeof metadata.thread_title === 'string' && metadata.thread_title) userMeta.thread_title = metadata.thread_title;
   return [
-    { content: question, is_user: true, metadata: {}, created_at: at.toISOString() },
+    { content: question, is_user: true, metadata: userMeta, created_at: at.toISOString() },
     { content: reply, is_user: false, metadata, created_at: new Date(at.getTime() + 1).toISOString() },
   ];
 }
