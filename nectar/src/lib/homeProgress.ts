@@ -57,3 +57,21 @@ export function goalRows(goals: Goal[], valueOf: (g: Goal) => number, today: Day
     .sort((a, b) => PACE_ORDER.indexOf(a.pace) - PACE_ORDER.indexOf(b.pace) || (a.daysLeft ?? 1e9) - (b.daysLeft ?? 1e9));
   return { rows: all.slice(0, limit), more: Math.max(0, all.length - limit) };
 }
+
+/**
+ * Computes the next value for a 1-tap habit toggle/increment on the Home card:
+ * boolean toggles 0 <-> 1, quantity/duration advances by step (or resets to 0
+ * once already at/above target), and measurable toggles 0 <-> target.
+ */
+export function nextHabitQuickValue(
+  habit: { habit_type: 'boolean' | 'quantity' | 'duration' | 'measurable'; target_value: number | null },
+  currentValue: number,
+): number {
+  const target = habit.target_value ?? 1;
+  if (habit.habit_type === 'boolean') return currentValue > 0 ? 0 : 1;
+  if (habit.habit_type === 'measurable') return currentValue >= target ? 0 : target;
+  if (currentValue >= target) return 0;
+  const step = habit.habit_type === 'duration' && target >= 30 ? 5 : 1;
+  return Math.min(target, currentValue + step);
+}
+

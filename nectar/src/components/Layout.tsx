@@ -2,13 +2,16 @@ import { Fragment, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   Bell, CalendarDays, CheckSquare, Dumbbell, FolderKanban, Gauge, LogOut, Menu, Moon, Notebook, Repeat,
-  Bot, Settings, Sun, Target, Wallet, Workflow, type LucideIcon,
+  Bot, Search, Settings, Sun, Target, Wallet, Workflow, type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { applyTheme, readTheme, type Theme } from '../lib/theme';
 import { Modal } from './ui';
 import { Motion } from './Motion';
 import { Toaster } from './Toaster';
+import { CommandPalette, openCommandPalette } from './CommandPalette';
+import { QuickCaptureModal } from './QuickCaptureModal';
+import { ReviewModal } from './ReviewModal';
 
 type NavGroup = 'Dia a dia' | 'Vida e finanças' | 'Sistema';
 
@@ -66,10 +69,20 @@ export default function Layout({ email }: { email: string }) {
       <a href="#main-content" className="skip-link">Pular para o conteúdo</a>
       <Motion />
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-y-auto px-3 py-5 md:flex">
-        <div className="mb-6 flex h-8 items-center gap-2 px-3">
+        <div className="mb-4 flex h-8 items-center gap-2 px-3">
           <Mark />
           <span className="text-[17px] font-semibold tracking-[-0.02em]">Painel</span>
         </div>
+        <button
+          type="button"
+          onClick={openCommandPalette}
+          className="mb-4 flex h-9 items-center gap-2 rounded-[10px] bg-raised px-3 text-xs text-fg2 transition-colors hover:bg-sunken hover:text-fg"
+          aria-label="Abrir busca global e comandos (Ctrl+K)"
+        >
+          <Search size={14} strokeWidth={1.75} aria-hidden="true" className="text-fg3" />
+          <span className="mr-auto">Buscar ou agir…</span>
+          <kbd className="rounded bg-surface px-1.5 py-0.5 font-mono text-[10px] text-fg3 shadow-[var(--indicator-shadow)]">⌘K</kbd>
+        </button>
         <nav className="slide-group side-nav relative flex flex-col gap-0.5" aria-label="Seções">
           {SECTIONS.map(({ path, label, icon: Icon, group }, i) => {
             const showGroup = i > 0 && SECTIONS[i - 1].group !== group;
@@ -139,6 +152,14 @@ export default function Layout({ email }: { email: string }) {
 
       {more && (
         <Modal title="Seções" onClose={() => setMore(false)}>
+          <button
+            type="button"
+            onClick={() => { setMore(false); openCommandPalette(); }}
+            className="mb-3 flex h-11 w-full items-center gap-2.5 rounded-[14px] bg-raised px-3.5 text-sm text-fg2 hover:text-fg"
+          >
+            <Search size={16} strokeWidth={1.6} aria-hidden="true" className="text-fg3" />
+            <span>Buscar tarefas, projetos, notas ou agir…</span>
+          </button>
           <nav className="grid grid-cols-2 gap-2" aria-label="Mais seções">
             {SECTIONS.filter((s) => !s.mobile).map(({ path, label, icon: Icon }) => (
               <NavLink
@@ -156,6 +177,9 @@ export default function Layout({ email }: { email: string }) {
           </div>
         </Modal>
       )}
+      <CommandPalette />
+      <QuickCaptureModal />
+      <ReviewModal />
       <Toaster />
     </div>
   );

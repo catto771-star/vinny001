@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { goalRows, projectRows } from './homeProgress';
+import { goalRows, nextHabitQuickValue, projectRows } from './homeProgress';
 import type { Goal } from './goals';
 import type { Project } from './projects';
 
@@ -59,3 +59,17 @@ describe('goals on the home screen', () => {
     expect(p).toMatchObject({ pct: 33, valueText: '' }); // the percentage already says it
   });
 });
+
+describe('nextHabitQuickValue', () => {
+  it('toggles boolean and measurable habits and steps quantity/duration up to target', () => {
+    expect(nextHabitQuickValue({ habit_type: 'boolean', target_value: 1 }, 0)).toBe(1);
+    expect(nextHabitQuickValue({ habit_type: 'boolean', target_value: 1 }, 1)).toBe(0);
+    expect(nextHabitQuickValue({ habit_type: 'quantity', target_value: 4 }, 2)).toBe(3);
+    expect(nextHabitQuickValue({ habit_type: 'quantity', target_value: 4 }, 4)).toBe(0);
+    expect(nextHabitQuickValue({ habit_type: 'duration', target_value: 30 }, 10)).toBe(15);
+    expect(nextHabitQuickValue({ habit_type: 'duration', target_value: 30 }, 28)).toBe(30);
+    expect(nextHabitQuickValue({ habit_type: 'measurable', target_value: 2000 }, 0)).toBe(2000);
+    expect(nextHabitQuickValue({ habit_type: 'measurable', target_value: 2000 }, 2000)).toBe(0);
+  });
+});
+

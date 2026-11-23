@@ -1,0 +1,246 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
+import {
+  CheckSquare, CornerDownLeft, FolderKanban, Moon, Notebook, Plus, Repeat, Search, Sparkles, Sun, Target, Wallet, X,
+} from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { applyTheme, readTheme } from '../lib/theme';
+import { filterCommands, nextCommandIndex, type CommandGroup, type CommandItem } from '../lib/commands';
+import { SECTIONS } from './Layout';
+import { openQuickCapture } from './QuickCaptureModal';
+import { openGuidedReview } from './ReviewModal';
+
+export function openCommandPalette() {
+  window.dispatchEvent(new Event('painel-open-palette'));
+}
+
+const SECTION_KEYWORDS: Record<string, string> = {
+  inicio: 'home dashboard resumo hoje',
+  assistente: 'ia chat ai claude conversa',
+  agenda: 'calendario compromissos google semana',
+  tarefas: 'todo afazeres lista',
+  habitos: 'rotina sequencia streak',
+  lembretes: 'alarme notificacao',
+  saude: 'treino dieta calorias corpo peso academia',
+  financas: 'dinheiro gastos receitas contas cartoes euro dolar real',
+  projetos: 'kanban marcos',
+  metas: 'objetivos alvos progresso',
+  conhecimento: 'notas diario segundo cerebro obsidian',
+  'piloto-automatico': 'automacoes cron',
+  configuracoes: 'preferencias conta tema cor conectores',
+};
+
+const GROUP_ICON: Record<CommandGroup, typeof Search> = {
+  Ações: Sparkles,
+  'Ir para': CornerDownLeft,
+  Tarefas: CheckSquare,
+  Projetos: FolderKanban,
+  Metas: Target,
+  Hábitos: Repeat,
+  Notas: Notebook,
+};
+
+export function CommandPalette() {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setOpen((v) => !v);
+      }
+    };
+    const onOpen = () => setOpen(true);
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('painel-open-palette', onOpen);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('painel-open-palette', onOpen);
+    };
+  }, []);
+
+  if (!open) return null;
+  return <PaletteDialog onClose={() => setOpen(false)} />;
+}
+
+function PaletteDialog({ onClose }: { onClose: () => void }) {
+  const navigate = useNavigate();
+  const [query, setQuery] = useState('');
+  const [active, setActive] = useState(0);
+  const [dynamic, setDynamic] = useState<CommandItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    inputRef.current?.focus();
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    let cancelled = false;
+    void Promise.all([
+      supabase.from('tasks').select('id,title,due_date').eq('completed', false).eq('is_archived', false).limit(80),
+      supabase.from('projects').select('id,name,status').eq('is_template', false).is('archived_at', null).limit(40),
+      supabase.from('goals').select('id,title,status').eq('status', 'active').limit(40),
+      supabase.from('habits').select('id,name').eq('is_archived', false).limit(50),
+      supabase.from('knowledge_blocks').select('id,title').order('updated_at', { ascending: false }).limit(80),
+    ]).then(([t, p, g, h, n]) => {
+      if (cancelled) return;
+      const items: CommandItem[] = [
+        ...((t.data ?? []) as { id: string; title: string; due_date: string | null }[]).map((x) => ({
+          id: `task:${x.id}`, group: 'Tarefas' as const, title: x.title,
+          subtitle: x.due_date ? `Prazo ${x.due_date.slice(8, 10)}/${x.due_date.slice(5, 7)}` : 'Aberta',
+          to: '/tarefas',
+        })),
+        ...((p.data ?? []) as { id: string; name: string; status: string }[]).map((x) => ({
+          id: `proj:${x.id}`, group: 'Projetos' as const, title: x.name,
+          subtitle: x.status === 'paused' ? 'Pausado' : x.status === 'completed' ? 'Concluído' : 'Em andamento',
+          to: `/projetos?p=${x.id}`,
+        })),
+        ...((g.data ?? []) as { id: string; title: string }[]).map((x) => ({
+          id: `goal:${x.id}`, group: 'Metas' as const, title: x.title, subtitle: 'Meta ativa', to: '/metas',
+        })),
+        ...((h.data ?? []) as { id: string; name: string }[]).map((x) => ({
+          id: `habit:${x.id}`, group: 'Hábitos' as const, title: x.name, subtitle: 'Rotina', to: '/habitos',
+        })),
+        ...((n.data ?? []) as { id: string; title: string }[]).map((x) => ({
+          id: `note:${x.id}`, group: 'Notas' as const, title: x.title || 'Sem título', subtitle: 'Conhecimento', to: '/conhecimento',
+        })),
+      ];
+      setDynamic(items);
+      setLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+      document.body.style.overflow = overflow;
+      if (opener && opener.isConnected) opener.focus();
+    };
+  }, []);
+
+  const baseItems = useMemo<CommandItem[]>(() => {
+    const dark = readTheme() === 'dark';
+    return [
+      { id: 'act:task', group: 'Ações', title: 'Nova tarefa rápida', subtitle: 'Criar tarefa sem sair da tela', keywords: 'adicionar criar todo', action: 'capture:task' },
+      { id: 'act:money', group: 'Ações', title: 'Novo lançamento financeiro', subtitle: 'Registrar gasto ou receita em €, R$ ou US$', keywords: 'despesa gasto receita euro dinheiro', action: 'capture:money' },
+      { id: 'act:note', group: 'Ações', title: 'Nova nota rápida', subtitle: 'Salvar ideia no Conhecimento', keywords: 'anotacao segundo cerebro', action: 'capture:note' },
+      { id: 'act:review-daily', group: 'Ações', title: 'Revisão diária guiada', subtitle: 'Zerar atrasos, revisar rotina e definir foco', keywords: 'planejar dia ritual', action: 'review:daily' },
+      { id: 'act:review-weekly', group: 'Ações', title: 'Revisão semanal guiada', subtitle: 'Projetos, metas, finanças e constância da semana', keywords: 'planejar semana ritual', action: 'review:weekly' },
+      { id: 'act:theme', group: 'Ações', title: dark ? 'Usar tema claro' : 'Usar tema escuro', subtitle: 'Alternar aparência', keywords: 'dark light modo', action: 'theme' },
+      ...SECTIONS.map((s) => ({
+        id: `nav:${s.path}`,
+        group: 'Ir para' as const,
+        title: s.label,
+        subtitle: s.group,
+        keywords: SECTION_KEYWORDS[s.path] ?? '',
+        to: `/${s.path}`,
+      })),
+    ];
+  }, []);
+
+  const results = useMemo(() => filterCommands([...baseItems, ...dynamic], query, 18), [baseItems, dynamic, query]);
+  const safeActive = results.length ? Math.min(active, results.length - 1) : -1;
+
+  function run(item: CommandItem) {
+    onClose();
+    if (item.to) { navigate(item.to); return; }
+    if (item.action === 'capture:task') openQuickCapture('task');
+    else if (item.action === 'capture:money') openQuickCapture('money');
+    else if (item.action === 'capture:note') openQuickCapture('note');
+    else if (item.action === 'review:daily') openGuidedReview('daily');
+    else if (item.action === 'review:weekly') openGuidedReview('weekly');
+    else if (item.action === 'theme') applyTheme(readTheme() === 'dark' ? 'light' : 'dark');
+  }
+
+  function iconFor(item: CommandItem) {
+    if (item.action === 'capture:money') return Wallet;
+    if (item.action === 'capture:task') return Plus;
+    if (item.action === 'capture:note') return Notebook;
+    if (item.action === 'theme') return readTheme() === 'dark' ? Sun : Moon;
+    return GROUP_ICON[item.group];
+  }
+
+  return createPortal(
+    <div
+      className="modal-backdrop fixed inset-0 z-40 flex items-start justify-center bg-[rgb(12_12_13/0.42)] px-4 pt-[12vh] backdrop-blur-[2px]"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Paleta de comandos e busca global"
+        className="modal-panel w-full max-w-xl overflow-hidden rounded-[22px] bg-surface shadow-[var(--float-shadow)] ring-1 ring-line-strong"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') { e.preventDefault(); onClose(); return; }
+          if (e.key === 'Enter' && safeActive >= 0) { e.preventDefault(); run(results[safeActive]); return; }
+          if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) {
+            e.preventDefault();
+            setActive(nextCommandIndex(safeActive, results.length, e.key));
+          }
+        }}
+      >
+        <div className="flex items-center gap-3 border-b border-line px-4 py-3.5">
+          <Search size={18} strokeWidth={1.75} className="shrink-0 text-fg3" aria-hidden="true" />
+          <input
+            ref={inputRef}
+            className="w-full bg-transparent text-[15px] text-fg outline-none placeholder:text-fg3"
+            placeholder="Buscar tarefas, projetos, metas, notas ou executar ação…"
+            aria-label="Buscar ou digitar comando"
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setActive(0); }}
+          />
+          {query && (
+            <button type="button" className="icon-btn h-8 w-8" onClick={() => { setQuery(''); setActive(0); inputRef.current?.focus(); }} aria-label="Limpar busca">
+              <X size={15} strokeWidth={1.75} aria-hidden="true" />
+            </button>
+          )}
+          <kbd className="hidden rounded-md bg-raised px-1.5 py-0.5 font-mono text-[11px] text-fg3 sm:inline">ESC</kbd>
+        </div>
+
+        <div className="max-h-[58vh] overflow-y-auto p-2" role="listbox" aria-label="Resultados">
+          {results.length === 0 ? (
+            <p className="px-4 py-10 text-center text-sm text-fg3">
+              {loading ? 'Carregando dados…' : `Nada encontrado para "${query}".`}
+            </p>
+          ) : (
+            results.map((item, i) => {
+              const prev = results[i - 1];
+              const showGroup = !prev || prev.group !== item.group;
+              const Icon = iconFor(item);
+              const selected = i === safeActive;
+              return (
+                <div key={item.id}>
+                  {showGroup && (
+                    <div className="px-3 pt-2.5 pb-1 text-[11px] font-medium tracking-[0.06em] text-fg3 uppercase">
+                      {item.group}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    onMouseEnter={() => setActive(i)}
+                    onClick={() => run(item)}
+                    className={`flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-left text-sm transition-colors duration-100 ${selected ? 'bg-raised text-fg' : 'text-fg2 hover:bg-raised/60'}`}
+                  >
+                    <Icon size={16} strokeWidth={1.6} aria-hidden="true" className={`shrink-0 ${selected ? 'text-brand' : 'text-fg3'}`} />
+                    <span className="min-w-0 flex-1 truncate font-medium text-fg">{item.title}</span>
+                    {item.subtitle && <span className="max-w-[40%] shrink-0 truncate text-xs text-fg3">{item.subtitle}</span>}
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        <div className="flex items-center justify-between border-t border-line px-4 py-2 text-[11px] text-fg3">
+          <span>↑↓ navegar · ↵ abrir</span>
+          <span>⌘K / Ctrl+K</span>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
