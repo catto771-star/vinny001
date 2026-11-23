@@ -109,8 +109,8 @@ export default function Layout({ email }: { email: string }) {
     setTheme(next);
   };
   const row = ({ isActive }: { isActive: boolean }) =>
-    `relative z-[1] flex h-9 items-center gap-2.5 rounded-[10px] px-3 text-sm transition-colors duration-300 ${
-      isActive ? 'bg-indicator font-medium text-fg shadow-[var(--indicator-shadow)]' : 'text-fg2 hover:bg-raised/60 hover:text-fg'
+    `relative z-[1] flex h-9 items-center gap-2.5 rounded-[10px] px-3 text-sm transition-colors duration-200 ${
+      isActive ? 'bg-brand font-medium text-on-brand' : 'text-fg2 hover:bg-raised/70 hover:text-fg'
     }`;
   const mobile = SECTIONS.filter((s) => s.mobile);
   const inMore = !mobile.some((s) => pathname.startsWith(`/${s.path}`));
@@ -119,15 +119,15 @@ export default function Layout({ email }: { email: string }) {
     <div className="min-h-screen md:flex">
       <a href="#main-content" className="skip-link">Pular para o conteúdo</a>
       <Motion />
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-y-auto px-3 py-5 md:flex">
-        <div className="mb-4 flex h-8 items-center gap-2 px-3">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-y-auto border-r border-line bg-surface/50 px-3 py-5 md:flex">
+        <div className="mb-4 flex h-8 items-center gap-2.5 px-3">
           <Mark />
           <span className="text-[17px] font-semibold tracking-[-0.02em]">Painel</span>
         </div>
         <button
           type="button"
           onClick={openCommandPalette}
-          className="mb-4 flex h-9 items-center gap-2 rounded-[10px] bg-raised px-3 text-xs text-fg2 transition-colors hover:bg-sunken hover:text-fg"
+          className="mb-4 flex h-9 items-center gap-2 rounded-[10px] border border-line bg-raised/70 px-3 text-xs text-fg2 transition-colors hover:border-line-strong hover:bg-raised hover:text-fg"
           aria-label="Abrir busca global e comandos (Ctrl+K)"
         >
           <Search size={14} strokeWidth={1.75} aria-hidden="true" className="text-fg3" />
@@ -140,14 +140,14 @@ export default function Layout({ email }: { email: string }) {
             return (
               <Fragment key={path}>
                 {showGroup && (
-                  <div className="mt-4 mb-1 px-3 text-[11px] font-medium tracking-[0.06em] text-fg3 uppercase select-none" aria-hidden="true">
+                  <div className="mt-5 mb-1.5 px-3 text-[12px] font-medium text-fg3 select-none" aria-hidden="true">
                     {group}
                   </div>
                 )}
                 <NavLink to={`/${path}`} className={row}>
                   {({ isActive }) => (
                     <>
-                      <Icon {...ICON} className={`transition-colors duration-300 ${isActive ? 'text-brand' : 'text-fg3'}`} />
+                      <Icon {...ICON} className={`transition-colors duration-200 ${isActive ? 'text-on-brand' : 'text-fg3'}`} />
                       <span className="truncate">{label}</span>
                     </>
                   )}
@@ -158,14 +158,15 @@ export default function Layout({ email }: { email: string }) {
         </nav>
         <div className="mt-auto border-t border-line pt-3">
           <div className="truncate px-3 pb-2 text-xs text-fg3" title={email}>{email}</div>
-          <div className="flex gap-1 px-1">
+          <div className="flex items-center gap-1 px-1">
             <button
-              className="icon-btn"
+              className="btn-ghost h-8 flex-1 justify-start gap-2 px-2 text-xs"
               onClick={toggleTheme}
               title={theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'}
               aria-label={theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'}
             >
-              {theme === 'dark' ? <Sun {...ICON} /> : <Moon {...ICON} />}
+              {theme === 'dark' ? <Sun size={15} strokeWidth={1.6} /> : <Moon size={15} strokeWidth={1.6} />}
+              <span>{theme === 'dark' ? 'Tema claro' : 'Tema escuro'}</span>
             </button>
             <button className="icon-btn" onClick={() => supabase.auth.signOut()} title="Sair" aria-label="Sair">
               <LogOut {...ICON} />

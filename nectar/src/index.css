@@ -12,62 +12,62 @@
 :root,
 .light {
   --bg: #f3f3f1;
-  --sunken: #e9e9e6;
+  --sunken: #e8e8e4;
   --surface: #ffffff;
-  --raised: #f1f1ef;
-  --line: rgb(12 12 13 / 0.07);
-  --line-strong: rgb(12 12 13 / 0.14);
-  --card-ring: transparent;
-  --fg: #0c0c0d;
-  --fg2: #46464b;
-  --fg3: #6b6b72;
+  --raised: #f1f1ee;
+  --line: rgb(12 13 16 / 0.08);
+  --line-strong: rgb(12 13 16 / 0.16);
+  --card-ring: rgb(12 13 16 / 0.06);
+  --fg: #0c0d10;
+  --fg2: #464952;
+  --fg3: #686d78;
   --brand: #f25000;
   --brand-ink: #c2410c;
   --on-brand: #0c0c0d;
   --warning: #b45309;
-  --primary: #0c0c0d;
+  --primary: #0c0d10;
   --primary-ink: #ffffff;
   --positive: #15803d;
   --negative: #dc2626;
-  --chart-neutral: #d9d9d5;
+  --chart-neutral: #dcdce0;
   --skeleton: #ececea;
   --skeleton-hi: #f7f7f6;
   --indicator: #ffffff;
-  --indicator-shadow: 0 1px 2px rgb(12 12 13 / 0.08), 0 0 0 0.5px rgb(12 12 13 / 0.06);
-  --glass: rgb(255 255 255 / 0.68);
-  --glass-ring: rgb(12 12 13 / 0.06);
-  --float-shadow: 0 18px 40px -18px rgb(12 12 13 / 0.35);
+  --indicator-shadow: 0 1px 2px rgb(12 13 16 / 0.08), 0 0 0 0.5px rgb(12 13 16 / 0.06);
+  --glass: rgb(255 255 255 / 0.78);
+  --glass-ring: rgb(12 13 16 / 0.07);
+  --float-shadow: 0 18px 40px -18px rgb(12 13 16 / 0.28);
   --glow: color-mix(in srgb, var(--brand) 9%, transparent);
   color-scheme: light;
 }
 
 .dark {
-  --bg: #141415;
-  --sunken: #0f0f10;
-  --surface: #19191b;
-  --raised: #232325;
-  --line: rgb(237 237 237 / 0.08);
-  --line-strong: rgb(237 237 237 / 0.14);
-  --card-ring: rgb(237 237 237 / 0.06);
-  --fg: #ededed;
-  --fg2: #a1a1a6;
-  --fg3: #8a8a90;
+  --bg: #0b0d11;
+  --sunken: #07090d;
+  --surface: #13161e;
+  --raised: #1c202b;
+  --line: rgb(255 255 255 / 0.07);
+  --line-strong: rgb(255 255 255 / 0.14);
+  --card-ring: rgb(255 255 255 / 0.06);
+  --fg: #f3f4f6;
+  --fg2: #a1a7b4;
+  --fg3: #7c8393;
   --brand: #ff6a1a;
   --brand-ink: #ff7a2e;
   --on-brand: #0c0c0d;
   --warning: #fb923c;
-  --primary: #ededed;
-  --primary-ink: #141415;
-  --positive: #4cc38a;
-  --negative: #e5484d;
-  --chart-neutral: #3a3a3e;
-  --skeleton: #222224;
-  --skeleton-hi: #2c2c2f;
-  --indicator: #2a2a2d;
+  --primary: #f3f4f6;
+  --primary-ink: #0b0d11;
+  --positive: #34d399;
+  --negative: #f43f5e;
+  --chart-neutral: #2a303e;
+  --skeleton: #1a1e28;
+  --skeleton-hi: #242938;
+  --indicator: #202532;
   --indicator-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
-  --glass: rgb(25 25 27 / 0.7);
-  --glass-ring: rgb(237 237 237 / 0.08);
-  --float-shadow: 0 18px 40px -18px rgb(0 0 0 / 0.8);
+  --glass: rgb(19 22 30 / 0.8);
+  --glass-ring: rgb(255 255 255 / 0.08);
+  --float-shadow: 0 20px 44px -18px rgb(0 0 0 / 0.85);
   --glow: color-mix(in srgb, var(--brand) 12%, transparent);
   color-scheme: dark;
 }
@@ -129,18 +129,22 @@ body {
   letter-spacing: -0.02em;
 }
 
-/* Editorial type: big, tight titles; small spaced labels. */
+/* Crisp studio typography: tight display titles, calm sentence-case labels. */
 @utility display {
-  @apply text-[clamp(26px,5.5vw,34px)] leading-[1.1] font-semibold tracking-[-0.03em] text-balance;
+  @apply text-[clamp(26px,5.5vw,32px)] leading-[1.12] font-semibold tracking-[-0.03em] text-balance;
 }
 
 @utility card {
-  @apply rounded-[20px] bg-surface p-5 transition-[box-shadow,transform] duration-300 ease-out;
+  @apply rounded-[18px] bg-surface p-5 transition-[box-shadow,transform,border-color] duration-200 ease-out;
   box-shadow: 0 0 0 1px var(--card-ring);
 }
 
+@utility card-hero {
+  @apply rounded-[18px] bg-brand p-5 text-on-brand transition-[box-shadow,transform] duration-200 ease-out;
+}
+
 @utility label {
-  @apply text-[12px] leading-5 font-medium tracking-[0.06em] text-fg3 uppercase;
+  @apply text-[12px] leading-5 font-medium text-fg3;
 }
 
 @utility btn {
@@ -149,7 +153,7 @@ body {
 
 @utility btn-primary {
   @apply btn bg-primary text-primary-ink hover:opacity-90;
-  box-shadow: 0 1px 0 rgb(255 255 255 / 0.1) inset, 0 6px 16px -10px rgb(12 12 13 / 0.6);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.1) inset, 0 6px 16px -10px rgb(12 12 13 / 0.5);
 }
 
 @utility btn-secondary {
@@ -234,9 +238,14 @@ body {
   display: none;
 }
 
-/* Sidebar: the active row is a white sheet that glides between sections. */
+/* Sidebar: active section glides as a crisp solid-accent pill. */
 .side-nav[data-ind]::before {
   border-radius: 10px;
+  background: var(--brand);
+  box-shadow: none;
+}
+.side-nav[data-ind] > [aria-current="page"] {
+  color: var(--on-brand);
 }
 
 /* Frosted floating bar on phones: the one place the page gets glassy. */
@@ -255,13 +264,10 @@ body {
   color: var(--primary-ink);
 }
 
-/* Cards that answer the pointer with a soft light where it is. */
+/* Interactive cards strengthen their hairline border gently on hover without color wash. */
 @media (hover: hover) {
-  .glow {
-    background-image: radial-gradient(420px circle at var(--mx, 50%) var(--my, -40%), var(--glow), transparent 60%);
-  }
   .glow:hover {
-    box-shadow: 0 0 0 1px var(--card-ring), 0 24px 48px -32px rgb(12 12 13 / 0.35);
+    box-shadow: 0 0 0 1px var(--line-strong), 0 16px 32px -24px rgb(0 0 0 / 0.28);
     transform: translateY(-1px);
   }
 }

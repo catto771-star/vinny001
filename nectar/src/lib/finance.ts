@@ -220,6 +220,27 @@ export function netWorth(banks: Bank[], txs: Tx[], transfers: Transfer[], paymen
   return reais(banks.reduce((s, b) => s + cents(bankBalance(b, txs, transfers, payments, upTo)), 0));
 }
 
+export interface NetWorthPoint { key: string; year: number; month: number; date: Day; value: number }
+
+/** Net worth at the end of each of the last `count` months (clamped to `today` for the current month). */
+export function netWorthHistory(
+  banks: Bank[], txs: Tx[], transfers: Transfer[], payments: InvoicePayment[],
+  year: number, month: number, count: number, today?: Day,
+): NetWorthPoint[] {
+  return Array.from({ length: count }, (_, i) => {
+    const m = addMonths(year, month, i - count + 1);
+    const end = dayOf(m.year, m.month, 31);
+    const date = today && end > today && monthKey(m.year, m.month) === today.slice(0, 7) ? today : end;
+    return {
+      key: monthKey(m.year, m.month),
+      year: m.year,
+      month: m.month,
+      date,
+      value: netWorth(banks, txs, transfers, payments, date),
+    };
+  });
+}
+
 // ---------------------------------------------------------------------------
 // The month
 // ---------------------------------------------------------------------------

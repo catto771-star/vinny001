@@ -1,20 +1,23 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, Bell, Check, CheckSquare, FolderKanban, Plus, Search, Sparkles, Target, Wallet } from 'lucide-react';
+import { ArrowUpRight, Bell, Check, CheckSquare, Compass, FolderKanban, Plus, Search, Target, Wallet } from 'lucide-react';
 import { useTable, queuedWrite } from '../lib/useTable';
 import { latestPerKey } from '../lib/serial';
 import { formatDay, formatTime, toDay } from '../lib/dates';
 import { num, plural } from '../lib/format';
+import { money } from '../lib/money';
 import { bucketTasks, type Task } from '../lib/tasks';
 import { isDone, routineFor, type Habit, type HabitCompletion } from '../lib/habits';
 import { reminderPanel, type Reminder } from '../lib/reminders';
 import { sumNutrients } from '../lib/nutrition';
-import { workoutSummary } from '../lib/training';
+import { weeklyStats, workoutSummary } from '../lib/training';
 import { goalRows, nextHabitQuickValue, projectRows } from '../lib/homeProgress';
 import { PACE_LABEL, currentValue, sumLinkedAccountsInGoalCurrency, type Goal, type GoalEntry } from '../lib/goals';
 import { HEALTH_LABEL, projectProgress } from '../lib/projects';
-import { bankBalance, type Bank, type InvoicePayment, type Transfer, type Tx } from '../lib/finance';
+import { bankBalance, netWorth, netWorthHistory, type Bank, type InvoicePayment, type Transfer, type Tx } from '../lib/finance';
+import { seriesDelta } from '../lib/charts';
 import { calorieStatus, dayHeadline, greeting } from '../lib/today';
+import { DeltaBadge, ProgressRing, SegmentedMeter, Sparkline } from '../components/Charts';
 import { Empty, Figure, Skeleton } from '../components/ui';
 import { openQuickCapture } from '../components/QuickCaptureModal';
 import { openCommandPalette } from '../components/CommandPalette';
@@ -30,9 +33,9 @@ const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const WEEKDAY = new Intl.DateTimeFormat('pt-BR', { weekday: 'short' });
 const CAL_TONE = {
   empty: 'bg-raised text-fg2',
-  deficit: 'bg-positive/10 text-positive',
-  goal: 'bg-positive/10 text-positive',
-  surplus: 'bg-warning/10 text-warning',
+  deficit: 'bg-positive/12 text-positive',
+  goal: 'bg-positive/12 text-positive',
+  surplus: 'bg-warning/12 text-warning',
 } as const;
 
 /** A bento tile whose header opens the full section, allowing direct interactive actions inside. */
@@ -45,20 +48,10 @@ function Tile({ to, title, meta, className = '', children }: { to: string; title
       >
         <h2 className="label mr-auto">{title}</h2>
         {meta}
-        <ArrowUpRight size={16} strokeWidth={1.75} aria-hidden="true" className="text-fg3 transition-transform duration-300 ease-out group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-fg" />
+        <ArrowUpRight size={15} strokeWidth={1.75} aria-hidden="true" className="text-fg3 transition-transform duration-200 ease-out group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-fg" />
       </Link>
       {children}
     </section>
-  );
-}
-
-/** A thin meter that fills in when the tile appears. */
-function Meter({ value, max, tone = 'var(--brand)', thick = false }: { value: number; max: number; tone?: string; thick?: boolean }) {
-  const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
-  return (
-    <div className={`${thick ? 'h-2.5' : 'h-1.5'} overflow-hidden rounded-full bg-raised`} role="presentation">
-      <div className="meter-fill h-full rounded-full" style={{ width: `${pct}%`, background: value > max * 1.05 ? 'var(--negative)' : tone }} />
-    </div>
   );
 }
 
@@ -79,6 +72,8 @@ export default function Home() {
   const habitQueue = useRef(latestPerKey()).current;
   const now = new Date();
   const today = toDay(now);
+  const curYear = now.getFullYear();
+  const curMonth = now.getMonth() + 1;
 
   useEffect(() => {
     const refresh = () => {
@@ -146,9 +141,20 @@ export default function Home() {
   const next = [...panel.overdue, ...panel.today, ...panel.thisWeek].slice(0, 4);
   const workout = h.workouts.rows.find((w) => w.date === today);
   const summary = workout ? workoutSummary(workout, h.sets.rows, h.workouts.rows, h.typeById) : null;
+  const weekTraining = weeklyStats(today, 6, h.sets.rows, h.workouts.rows, h.typeById);
+  const curWeekTraining = weekTraining.at(-1);
+  const workoutSpark = weekTraining.map((w) => w.tonnage);
   const eaten = sumNutrients(h.foodLogs.rows.filter((l) => l.date === today));
   const { target, dayType } = energyForDay(h, today);
   const cal = calorieStatus(eaten.kcal, target?.kcal ?? 0);
+
+  const worth = netWorth(banks.rows, txs.rows, transfers.rows, payments.rows, today);
+  const worthSeries = netWorthHistory(banks.rows, txs.rows, transfers.rows, payments.rows, curYear, curMonth, 6, today);
+  const worthDelta = seriesDelta(worthSeries.map((p) => ({ label: p.key, value: p.value })));
+
+  const totalActions = doneToday + dueToday.length + routine.length;
+  const completedActions = doneToday + doneHabits;
+  const dayExecPct = totalActions > 0 ? Math.round((completedActions / totalActions) * 100) : 100;
 
   const projectPct = (id: string) => projectProgress(projects.tasksOf(id), projects.stepsOf(id)).pct;
   const projectList = projectRows(projects.projects.rows, (p) => projectPct(p.id), today);
@@ -164,6 +170,7 @@ export default function Home() {
   }), today);
   const loadingProjects = projects.projects.loading || projects.tasks.loading || projects.steps.loading || projects.links.loading;
   const loadingGoals = goals.loading || entries.loading || banks.loading || txs.loading;
+  const loadingFinance = banks.loading || txs.loading;
 
   const loadingTasks = tasks.loading;
   const loadingHabits = habits.loading || completions.loading;
@@ -177,7 +184,7 @@ export default function Home() {
         <div className="min-w-0">
           <p className="label">{greeting(now.getHours())} · {capitalize(formatDay(today))}</p>
           {ready
-            ? <h1 className="mt-2 max-w-[46ch] text-[20px] leading-7 font-medium tracking-[-0.02em] text-fg md:text-[24px] md:leading-8">{headline}</h1>
+            ? <h1 className="mt-1.5 max-w-[46ch] text-[22px] leading-7 font-semibold tracking-[-0.025em] text-fg md:text-[26px] md:leading-8">{headline}</h1>
             : <div className="mt-3" aria-busy="true" aria-label="Carregando"><Skeleton className="h-6 w-[70%] max-w-md" /></div>}
         </div>
         <div className="flex flex-wrap items-center gap-2" aria-label="Ações rápidas">
@@ -188,7 +195,7 @@ export default function Home() {
             <Wallet size={15} strokeWidth={1.6} aria-hidden="true" />Gasto
           </button>
           <button type="button" className="btn-secondary h-10 px-3.5 md:h-9" onClick={() => openGuidedReview('daily')}>
-            <Sparkles size={15} strokeWidth={1.6} aria-hidden="true" />Revisão
+            <Compass size={15} strokeWidth={1.6} aria-hidden="true" />Revisão
           </button>
           <button type="button" className="icon-btn h-10 w-10 bg-surface md:hidden" onClick={openCommandPalette} aria-label="Buscar ou executar comando">
             <Search size={17} strokeWidth={1.6} aria-hidden="true" />
@@ -196,93 +203,131 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="stagger grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-12">
-        {/* Calories: a compact read of the day, in four lines. */}
-        <Tile to="/saude" title="Calorias" className="order-4 col-span-2 lg:order-2 lg:col-span-4"
-          meta={<span className="text-xs text-fg3">{dayType === 'training' ? 'dia de treino' : 'dia de descanso'}</span>}>
-          {loadingFood ? <div className="space-y-3"><Skeleton className="h-8 w-40" /><Skeleton className="h-3.5 w-28" /><Skeleton className="h-3 w-24" /></div> : !target ? (
-            <>
-              <Figure value={num(eaten.kcal)} unit="kcal" className="text-[28px] leading-8 font-medium" />
-              <p className="mt-2 text-sm text-fg2">Cadastre suas metas em Saúde › Plano.</p>
-            </>
-          ) : (
-            <>
-              <div className="flex items-baseline gap-1.5">
-                <Figure value={num(eaten.kcal)} className="text-[28px] leading-8 font-medium tracking-[-0.03em]" />
-                <span className="figure text-sm text-fg3">/ {num(target.kcal)} kcal</span>
+      {/* Top visual KPI bento strip */}
+      <div className="stagger mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 md:gap-4 xl:grid-cols-4">
+        {/* 1. Daily Execution Ring */}
+        <Tile to="/habitos" title="Ritmo de hoje" className="justify-between">
+          {!ready ? <Skeleton className="h-14 w-full" /> : (
+            <div className="flex items-center gap-4">
+              <ProgressRing pct={dayExecPct} size={62} strokeWidth={5.5} tone={dayExecPct >= 100 ? 'var(--positive)' : 'var(--brand)'} />
+              <div className="min-w-0 flex-1">
+                <div className="figure text-lg font-semibold">{completedActions} <span className="text-xs font-normal text-fg3">de {totalActions}</span></div>
+                <p className="mt-0.5 text-xs text-fg3">{doneToday} {plural(doneToday, 'tarefa', 'tarefas')} · {doneHabits} {plural(doneHabits, 'hábito', 'hábitos')}</p>
+                <div className="mt-2.5">
+                  <SegmentedMeter pct={dayExecPct} segments={12} height={6} tone={dayExecPct >= 100 ? 'var(--positive)' : 'var(--brand)'} label="Ritmo do dia" />
+                </div>
               </div>
-              <div className="mt-3"><Meter value={eaten.kcal} max={target.kcal} /></div>
-              <p className="mt-3 text-sm font-medium">{cal.done}</p>
-              <p className="mt-0.5 text-xs text-fg3">{cal.rest}</p>
-              <p className={`mt-3 inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-medium ${CAL_TONE[cal.state]}`}>{cal.verdict}</p>
-              <p className="figure mt-4 text-xs text-fg3">
-                P {num(eaten.protein_g)}/{num(target.protein_g)} · C {num(eaten.carbs_g)}/{num(target.carbs_g)} · G {num(eaten.fat_g)}/{num(target.fat_g)} g
-              </p>
-            </>
+            </div>
           )}
         </Tile>
 
-        {/* Habits: interactive 1-tap check directly from Home. */}
-        <Tile to="/habitos" title="Hábitos" className="order-2 col-span-2 sm:col-span-1 lg:order-3 lg:col-span-4">
-          {loadingHabits ? <Skeleton className="h-9 w-20" /> : (
-            <Figure value={doneHabits} unit={`de ${routine.length}`} className="text-[28px] leading-8 font-medium" />
-          )}
-          <div className="mt-4 flex gap-1" aria-hidden>
-            {(loadingHabits ? [0, 1, 2, 3] : routine).map((x, i) => (
-              <span key={typeof x === 'number' ? i : x.id} className={`h-2 flex-1 rounded-full transition-colors duration-500 ${typeof x !== 'number' && done(x) ? 'bg-primary' : 'bg-raised'}`} />
-            ))}
-          </div>
-          {!loadingHabits && routine.length > 0 && (
-            <ul className="mt-4 space-y-1 text-sm">
-              {routine.slice(0, 5).map((x) => {
-                const isComplete = done(x);
-                const c = completionOf(x);
-                const val = c?.value ?? 0;
-                const showProgress = (x.habit_type === 'quantity' || x.habit_type === 'duration') && x.target_value;
-                return (
-                  <li key={x.id}>
-                    <button
-                      type="button"
-                      onClick={() => quickHabit(x)}
-                      aria-pressed={isComplete}
-                      className="flex w-full items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-left transition-colors hover:bg-raised active:scale-[0.99]"
-                    >
-                      <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors ${isComplete ? 'bg-primary text-primary-ink' : 'ring-1 ring-line-strong'}`}>
-                        {isComplete && <Check size={11} strokeWidth={3} aria-hidden="true" />}
-                      </span>
-                      <span className={`min-w-0 flex-1 truncate ${isComplete ? 'text-fg3 line-through' : 'text-fg'}`}>{x.name}</span>
-                      {showProgress && (
-                        <span className="figure shrink-0 text-xs text-fg3">{num(val)}/{num(x.target_value!)}</span>
-                      )}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+        {/* 2. Net Worth + 6-month Sparkline */}
+        <Tile
+          to="/financas"
+          title="Patrimônio"
+          meta={!loadingFinance && worthDelta && worthDelta.diff !== 0 && <DeltaBadge pct={worthDelta.pct} diff={worthDelta.diff} />}
+          className="justify-between"
+        >
+          {loadingFinance ? <Skeleton className="h-14 w-full" /> : (
+            <div className="flex flex-col gap-2">
+              <Figure value={money(worth)} className="block text-[22px] leading-7 font-semibold" />
+              <div className="flex items-end justify-between gap-2">
+                <p className="text-xs text-fg3">
+                  {banks.rows.length} {plural(banks.rows.length, 'conta', 'contas')} · 6 meses
+                </p>
+                {worthSeries.some((p) => p.value !== 0) && (
+                  <Sparkline
+                    values={worthSeries.map((p) => p.value)}
+                    width={76}
+                    height={26}
+                    tone={worthDelta && worthDelta.diff < 0 ? 'var(--negative)' : 'var(--positive)'}
+                  />
+                )}
+              </div>
+            </div>
           )}
         </Tile>
 
-        {/* Workout */}
-        <Tile to="/saude" title="Treino" className="order-3 col-span-2 sm:col-span-1 lg:order-4 lg:col-span-3">
-          {h.workouts.loading ? <Skeleton className="h-9 w-24" /> : summary ? (
-            <>
-              <Figure value={num(summary.tonnage)} unit="kg" className="text-[28px] leading-8 font-medium" />
-              <p className="mt-3 truncate text-sm font-medium">{workout?.title || 'Treino registrado'}</p>
-              <p className="mt-0.5 text-xs text-fg3">
-                {summary.sets} {plural(summary.sets, 'série', 'séries')}
-                {summary.records.length > 0 && <> · <span className="text-brand-ink">{summary.records.length} {plural(summary.records.length, 'recorde', 'recordes')}</span></>}
-              </p>
-            </>
+        {/* 3. Calories ProgressRing + Macros */}
+        <Tile
+          to="/saude"
+          title="Calorias"
+          meta={<span className="text-xs text-fg3">{dayType === 'training' ? 'treino' : 'descanso'}</span>}
+          className="justify-between"
+        >
+          {loadingFood ? <Skeleton className="h-14 w-full" /> : !target ? (
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <Figure value={num(eaten.kcal)} unit="kcal" className="text-[22px] leading-7 font-semibold" />
+                <p className="mt-1 text-xs text-fg3">Defina metas em Saúde › Plano</p>
+              </div>
+            </div>
           ) : (
-            <>
-              <p className="text-[22px] leading-7 font-semibold tracking-[-0.02em]">{dayType === 'training' ? 'Treino pendente' : 'Descanso'}</p>
-              <p className="mt-2 text-xs text-fg3">{dayType === 'training' ? 'Registre as séries em Saúde › Treino.' : 'Recuperação também conta.'}</p>
-            </>
+            <div className="flex items-center gap-3.5">
+              <ProgressRing
+                pct={cal.pct}
+                size={62}
+                strokeWidth={5.5}
+                tone={cal.state === 'surplus' ? 'var(--warning)' : cal.state === 'goal' ? 'var(--positive)' : 'var(--brand)'}
+                label={`${Math.round(cal.pct)}%`}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline gap-1">
+                  <Figure value={num(eaten.kcal)} className="text-base font-semibold" />
+                  <span className="figure text-xs text-fg3">/ {num(target.kcal)} kcal</span>
+                </div>
+                <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${CAL_TONE[cal.state]}`}>
+                  {cal.verdict}
+                </span>
+                <p className="figure mt-1.5 truncate text-[11px] text-fg3">
+                  P {num(eaten.protein_g)}g · C {num(eaten.carbs_g)}g · G {num(eaten.fat_g)}g
+                </p>
+              </div>
+            </div>
           )}
         </Tile>
 
+        {/* 4. Workout + Weekly Volume Sparkline */}
+        <Tile
+          to="/saude"
+          title="Treino"
+          meta={!h.workouts.loading && curWeekTraining && <span className="figure text-xs text-fg3">{curWeekTraining.sessions} na semana</span>}
+          className="justify-between"
+        >
+          {h.workouts.loading ? <Skeleton className="h-14 w-full" /> : (
+            <div className="flex items-end justify-between gap-3">
+              <div className="min-w-0">
+                {summary ? (
+                  <>
+                    <Figure value={num(summary.tonnage)} unit="kg" className="text-[22px] leading-7 font-semibold" />
+                    <p className="mt-1 truncate text-xs text-fg3">
+                      {workout?.title || 'Treino'} · {summary.sets} {plural(summary.sets, 'série', 'séries')}
+                      {summary.records.length > 0 && <> · <span className="text-brand-ink">{summary.records.length} PR</span></>}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[19px] leading-6 font-semibold tracking-[-0.02em]">
+                      {dayType === 'training' ? 'Treino pendente' : 'Dia de descanso'}
+                    </p>
+                    <p className="mt-1 truncate text-xs text-fg3">
+                      {curWeekTraining && curWeekTraining.tonnage > 0
+                        ? `${num(curWeekTraining.tonnage)} kg nesta semana`
+                        : dayType === 'training' ? 'Registre em Saúde › Treino' : 'Recuperação também conta'}
+                    </p>
+                  </>
+                )}
+              </div>
+              {workoutSpark.some((v) => v > 0) && <Sparkline values={workoutSpark} width={78} height={34} tone="var(--brand)" />}
+            </div>
+          )}
+        </Tile>
+      </div>
+
+      {/* Main interactive bento workspace */}
+      <div className="stagger grid grid-cols-1 gap-3 md:gap-4 lg:grid-cols-12">
         {/* Tasks: interactive completion directly from Home. */}
-        <Tile to="/tarefas" title="Para hoje" className="order-1 col-span-2 lg:order-1 lg:col-span-8"
+        <Tile to="/tarefas" title="Para hoje" className="lg:col-span-8"
           meta={!loadingTasks && <span className="figure text-xs text-fg3">{doneToday} de {doneToday + dueToday.length} feitas</span>}>
           {loadingTasks ? (
             <div className="space-y-4">{[70, 52, 64, 44].map((w) => <Skeleton key={w} className="h-4" style={{ width: `${w}%` }} />)}</div>
@@ -308,7 +353,7 @@ export default function Home() {
                     />
                     <span className={`h-2 w-2 shrink-0 rounded-full ${t.priority === 'high' ? 'bg-negative' : t.priority === 'medium' ? 'bg-brand' : 'bg-fg3/40'}`} aria-hidden />
                     <Link to="/tarefas" className="mr-auto min-w-0 truncate hover:underline">{t.title}</Link>
-                    {late ? <span className="badge bg-negative/10 text-negative">atrasada</span>
+                    {late ? <span className="badge bg-negative/12 text-negative">atrasada</span>
                       : t.due_date && !t.due_all_day && <span className="figure shrink-0 text-xs text-fg3">{formatTime(t.due_date)}</span>}
                   </li>
                 );
@@ -317,8 +362,58 @@ export default function Home() {
           )}
         </Tile>
 
+        {/* Habits: interactive 1-tap check directly from Home. */}
+        <Tile
+          to="/habitos"
+          title="Hábitos"
+          className="lg:col-span-4"
+          meta={!loadingHabits && <span className="figure text-xs text-fg3">{doneHabits}/{routine.length}</span>}
+        >
+          {loadingHabits ? <Skeleton className="h-9 w-20" /> : (
+            <>
+              <div className="mb-3">
+                <SegmentedMeter
+                  pct={routine.length ? (doneHabits / routine.length) * 100 : 0}
+                  segments={Math.min(18, Math.max(8, routine.length || 8))}
+                  height={8}
+                  tone={doneHabits === routine.length && routine.length > 0 ? 'var(--positive)' : 'var(--brand)'}
+                  label="Hábitos concluídos hoje"
+                />
+              </div>
+              {routine.length > 0 && (
+                <ul className="space-y-0.5 text-sm">
+                  {routine.slice(0, 5).map((x) => {
+                    const isComplete = done(x);
+                    const c = completionOf(x);
+                    const val = c?.value ?? 0;
+                    const showProgress = (x.habit_type === 'quantity' || x.habit_type === 'duration') && x.target_value;
+                    return (
+                      <li key={x.id}>
+                        <button
+                          type="button"
+                          onClick={() => quickHabit(x)}
+                          aria-pressed={isComplete}
+                          className="flex w-full items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-left transition-colors hover:bg-raised active:scale-[0.99]"
+                        >
+                          <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors ${isComplete ? 'bg-brand text-on-brand' : 'ring-1 ring-line-strong'}`}>
+                            {isComplete && <Check size={11} strokeWidth={3} aria-hidden="true" />}
+                          </span>
+                          <span className={`min-w-0 flex-1 truncate ${isComplete ? 'text-fg3 line-through' : 'text-fg'}`}>{x.name}</span>
+                          {showProgress && (
+                            <span className="figure shrink-0 text-xs text-fg3">{num(val)}/{num(x.target_value!)}</span>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </>
+          )}
+        </Tile>
+
         {/* Next reminders: checkable directly from Home. */}
-        <Tile to="/lembretes" title="A seguir" className="order-5 col-span-2 lg:order-5 lg:col-span-5">
+        <Tile to="/lembretes" title="A seguir" className="lg:col-span-4">
           {reminders.loading ? (
             <div className="space-y-3">{[60, 45, 52].map((w) => <Skeleton key={w} className="h-4" style={{ width: `${w}%` }} />)}</div>
           ) : next.length === 0 ? <Empty icon={<Bell size={18} strokeWidth={1.5} />}>Nenhum lembrete pendente</Empty> : (
@@ -326,8 +421,8 @@ export default function Home() {
               {next.map((r) => {
                 const late = panel.overdue.includes(r);
                 return (
-                  <li key={r.id} className="relative flex items-center gap-2.5 text-[15px]">
-                    <span className={`absolute top-[9px] -left-[21px] h-2 w-2 rounded-full ring-4 ring-surface ${late ? 'bg-negative' : 'bg-brand'}`} aria-hidden />
+                  <li key={r.id} className="relative flex items-center gap-2.5 text-sm">
+                    <span className={`absolute top-[7px] -left-[21px] h-2 w-2 rounded-full ring-4 ring-surface ${late ? 'bg-negative' : 'bg-brand'}`} aria-hidden />
                     <input
                       type="checkbox"
                       className="h-4 w-4 shrink-0 cursor-pointer"
@@ -335,7 +430,7 @@ export default function Home() {
                       onChange={() => void toggleReminder(r)}
                       aria-label={`Concluir lembrete ${r.title}`}
                     />
-                    <span className={`figure w-[72px] shrink-0 text-[13px] ${late ? 'text-negative' : 'text-fg3'}`}>
+                    <span className={`figure w-[68px] shrink-0 text-xs ${late ? 'text-negative' : 'text-fg3'}`}>
                       {toDay(new Date(r.datetime)) !== today && <span className="mr-1">{WEEKDAY.format(new Date(r.datetime)).replace('.', '')}</span>}{formatTime(r.datetime)}
                     </span>
                     <span className="min-w-0 flex-1 truncate">{r.title}</span>
@@ -346,25 +441,24 @@ export default function Home() {
           )}
         </Tile>
 
-        {/* Projects in motion */}
-        <Tile to="/projetos" title="Projetos" className="order-6 col-span-2 lg:order-6 lg:col-span-6"
+        {/* Projects in motion with LMS-style ProgressRing */}
+        <Tile to="/projetos" title="Projetos" className="lg:col-span-4"
           meta={projectList.more > 0 && <span className="text-xs text-fg3">+{projectList.more} em andamento</span>}>
           {loadingProjects ? (
-            <div className="space-y-5">{[0, 1].map((i) => <div key={i} className="space-y-2"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-1.5 w-full" /></div>)}</div>
+            <div className="space-y-4">{[0, 1].map((i) => <div key={i} className="space-y-2"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-1.5 w-full" /></div>)}</div>
           ) : projectList.rows.length === 0 ? <Empty icon={<FolderKanban size={18} strokeWidth={1.5} />}>Nenhum projeto em andamento</Empty> : (
-            <ul className="space-y-5">
+            <ul className="space-y-3.5">
               {projectList.rows.map((r) => (
                 <li key={r.id}>
-                  <Link to={`/projetos?p=${r.id}`} className="group block rounded-lg focus-visible:ring-2 focus-visible:ring-brand">
-                    <div className="mb-2 flex items-baseline gap-3">
-                      <span className="mr-auto truncate text-[15px] font-medium group-hover:underline">{r.name}</span>
-                      <span className="figure text-sm">{r.pct}%</span>
+                  <Link to={`/projetos?p=${r.id}`} className="group flex items-center gap-3 rounded-xl p-1 -mx-1 transition-colors hover:bg-raised/60 focus-visible:ring-2 focus-visible:ring-brand">
+                    <ProgressRing pct={r.pct} size={44} strokeWidth={4} tone={r.color} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium group-hover:underline">{r.name}</div>
+                      <p className="mt-0.5 truncate text-xs text-fg3">
+                        <span className={HEALTH_TONE[r.health]}>{HEALTH_LABEL[r.health]}</span>
+                        {r.dueText && <> · {r.dueText}{r.daysLeft != null && r.daysLeft >= 0 && <> ({r.daysLeft}d)</>}</>}
+                      </p>
                     </div>
-                    <Meter value={r.pct} max={100} tone={r.color} />
-                    <p className="mt-1.5 text-xs text-fg3">
-                      <span className={HEALTH_TONE[r.health]}>{HEALTH_LABEL[r.health]}</span>
-                      {r.dueText && <> · prazo {r.dueText}{r.daysLeft != null && r.daysLeft >= 0 && <> ({r.daysLeft} {plural(r.daysLeft, 'dia', 'dias')})</>}</>}
-                    </p>
                   </Link>
                 </li>
               ))}
@@ -372,26 +466,24 @@ export default function Home() {
           )}
         </Tile>
 
-        {/* Goals in motion */}
-        <Tile to="/metas" title="Metas" className="order-7 col-span-2 lg:order-7 lg:col-span-6"
+        {/* Goals in motion with compact ProgressRing */}
+        <Tile to="/metas" title="Metas" className="lg:col-span-4"
           meta={goalList.more > 0 && <span className="text-xs text-fg3">+{goalList.more} ativas</span>}>
           {loadingGoals ? (
-            <div className="space-y-5">{[0, 1].map((i) => <div key={i} className="space-y-2"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-1.5 w-full" /></div>)}</div>
+            <div className="space-y-4">{[0, 1].map((i) => <div key={i} className="space-y-2"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-1.5 w-full" /></div>)}</div>
           ) : goalList.rows.length === 0 ? <Empty icon={<Target size={18} strokeWidth={1.5} />}>Nenhuma meta ativa</Empty> : (
-            <ul className="space-y-5">
+            <ul className="space-y-3.5">
               {goalList.rows.map((r) => (
                 <li key={r.id}>
-                  <Link to="/metas" className="group block rounded-lg focus-visible:ring-2 focus-visible:ring-brand">
-                    <div className="mb-2 flex items-baseline gap-3">
-                      <span className="mr-auto truncate text-[15px] font-medium group-hover:underline">{r.title}</span>
-                      <span className="figure text-sm">{r.pct}%</span>
+                  <Link to="/metas" className="group flex items-center gap-3 rounded-xl p-1 -mx-1 transition-colors hover:bg-raised/60 focus-visible:ring-2 focus-visible:ring-brand">
+                    <ProgressRing pct={r.pct} size={44} strokeWidth={4} tone={r.pace === 'done' || r.pace === 'ahead' ? 'var(--positive)' : r.pace === 'late' ? 'var(--negative)' : 'var(--brand)'} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium group-hover:underline">{r.title}</div>
+                      <p className="mt-0.5 truncate text-xs text-fg3">
+                        <span className={PACE_TONE[r.pace]}>{PACE_LABEL[r.pace]}</span>
+                        {r.valueText && <>{' · '}<span className="figure">{r.valueText}</span></>}
+                      </p>
                     </div>
-                    <Meter value={r.pct} max={100} tone="var(--brand)" />
-                    <p className="mt-1.5 text-xs text-fg3">
-                      <span className={PACE_TONE[r.pace]}>{PACE_LABEL[r.pace]}</span>
-                      {r.valueText && <>{' · '}<span className="figure">{r.valueText}</span></>}
-                      {r.dueText && <> · até {r.dueText}</>}
-                    </p>
                   </Link>
                 </li>
               ))}
@@ -402,3 +494,4 @@ export default function Home() {
     </>
   );
 }
+
