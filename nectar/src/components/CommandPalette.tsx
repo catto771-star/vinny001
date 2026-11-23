@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
-  CheckSquare, CornerDownLeft, FolderKanban, Moon, Notebook, Plus, Repeat, Search, Sparkles, Sun, Target, Wallet, X,
+  Bot, CheckSquare, CornerDownLeft, FolderKanban, Moon, Notebook, Plus, Repeat, Search, Sparkles, Sun, Target, Wallet, X,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { applyTheme, readTheme } from '../lib/theme';
@@ -10,6 +10,7 @@ import { filterCommands, nextCommandIndex, type CommandGroup, type CommandItem }
 import { SECTIONS } from './Layout';
 import { openQuickCapture } from './QuickCaptureModal';
 import { openGuidedReview } from './ReviewModal';
+import { openAssistantDrawer } from './AssistantDrawer';
 
 export function openCommandPalette() {
   window.dispatchEvent(new Event('painel-open-palette'));
@@ -139,12 +140,37 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
     ];
   }, []);
 
-  const results = useMemo(() => filterCommands([...baseItems, ...dynamic], query, 18), [baseItems, dynamic, query]);
+  const results = useMemo(() => {
+    const matched = filterCommands([...baseItems, ...dynamic], query, 17);
+    const trimmed = query.trim();
+    if (!trimmed) {
+      return [
+        { id: 'act-assistant', group: 'Ações' as const, title: 'Abrir Assistente', subtitle: '⌘J · painel lateral', action: 'assistant:open', keywords: 'ia chat copilot assistente' },
+        ...matched,
+      ];
+    }
+    return [
+      ...matched,
+      {
+        id: 'act-ask-assistant',
+        group: 'Ações' as const,
+        title: `Perguntar ao Assistente: "${trimmed}"`,
+        subtitle: 'Executar com contexto da tela',
+        action: `assistant:ask:${trimmed}`,
+        keywords: trimmed,
+      },
+    ];
+  }, [baseItems, dynamic, query]);
   const safeActive = results.length ? Math.min(active, results.length - 1) : -1;
 
   function run(item: CommandItem) {
     onClose();
     if (item.to) { navigate(item.to); return; }
+    if (item.action === 'assistant:open') { openAssistantDrawer(); return; }
+    if (item.action?.startsWith('assistant:ask:')) {
+      openAssistantDrawer({ prompt: item.action.slice('assistant:ask:'.length) });
+      return;
+    }
     if (item.action === 'capture:task') openQuickCapture('task');
     else if (item.action === 'capture:money') openQuickCapture('money');
     else if (item.action === 'capture:note') openQuickCapture('note');
@@ -154,6 +180,7 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
   }
 
   function iconFor(item: CommandItem) {
+    if (item.action?.startsWith('assistant:')) return Bot;
     if (item.action === 'capture:money') return Wallet;
     if (item.action === 'capture:task') return Plus;
     if (item.action === 'capture:note') return Notebook;
@@ -163,14 +190,14 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
 
   return createPortal(
     <div
-      className="modal-backdrop fixed inset-0 z-40 flex items-start justify-center bg-[rgb(12_12_13/0.42)] px-4 pt-[12vh] backdrop-blur-[2px]"
+      className="modal-backdrop fixed inset-0 z-40 flex items-start justify-center bg-black/50 px-4 pt-[12vh] backdrop-blur-[2px]"
       onClick={onClose}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Paleta de comandos e busca global"
-        className="modal-panel w-full max-w-xl overflow-hidden rounded-[22px] bg-surface shadow-[var(--float-shadow)] ring-1 ring-line-strong"
+        className="modal-panel w-full max-w-xl overflow-hidden rounded-[14px] border border-line-strong bg-surface shadow-[var(--float-shadow)]"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
           if (e.key === 'Escape') { e.preventDefault(); onClose(); return; }
@@ -181,28 +208,28 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
           }
         }}
       >
-        <div className="flex items-center gap-3 border-b border-line px-4 py-3.5">
-          <Search size={18} strokeWidth={1.75} className="shrink-0 text-fg3" aria-hidden="true" />
+        <div className="flex items-center gap-3 border-b border-line px-4 py-3">
+          <Search size={16} strokeWidth={1.5} className="shrink-0 text-fg3" aria-hidden="true" />
           <input
             ref={inputRef}
-            className="w-full bg-transparent text-[15px] text-fg outline-none placeholder:text-fg3"
-            placeholder="Buscar tarefas, projetos, metas, notas ou executar ação…"
+            className="w-full bg-transparent text-sm text-fg outline-none placeholder:text-fg3"
+            placeholder="Buscar ou perguntar ao Assistente"
             aria-label="Buscar ou digitar comando"
             value={query}
             onChange={(e) => { setQuery(e.target.value); setActive(0); }}
           />
           {query && (
-            <button type="button" className="icon-btn h-8 w-8" onClick={() => { setQuery(''); setActive(0); inputRef.current?.focus(); }} aria-label="Limpar busca">
-              <X size={15} strokeWidth={1.75} aria-hidden="true" />
+            <button type="button" className="icon-btn h-7 w-7" onClick={() => { setQuery(''); setActive(0); inputRef.current?.focus(); }} aria-label="Limpar busca">
+              <X size={15} strokeWidth={1.5} aria-hidden="true" />
             </button>
           )}
-          <kbd className="hidden rounded-md bg-raised px-1.5 py-0.5 font-mono text-[11px] text-fg3 sm:inline">ESC</kbd>
+          <kbd className="hidden rounded-[4px] border border-line bg-raised px-1.5 py-0.5 font-mono text-[11px] text-fg3 sm:inline">Esc</kbd>
         </div>
 
         <div className="max-h-[58vh] overflow-y-auto p-2" role="listbox" aria-label="Resultados">
           {results.length === 0 ? (
             <p className="px-4 py-10 text-center text-sm text-fg3">
-              {loading ? 'Carregando dados…' : `Nada encontrado para "${query}".`}
+              {loading ? 'Carregando dados…' : `Nada encontrado para "${query}"`}
             </p>
           ) : (
             results.map((item, i) => {
@@ -213,7 +240,7 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
               return (
                 <div key={item.id}>
                   {showGroup && (
-                    <div className="px-3 pt-2.5 pb-1 text-[11px] font-medium tracking-[0.06em] text-fg3 uppercase">
+                    <div className="px-3 pt-3 pb-1 text-xs font-normal text-fg3">
                       {item.group}
                     </div>
                   )}
@@ -223,9 +250,9 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
                     aria-selected={selected}
                     onMouseEnter={() => setActive(i)}
                     onClick={() => run(item)}
-                    className={`flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-left text-sm transition-colors duration-100 ${selected ? 'bg-raised text-fg' : 'text-fg2 hover:bg-raised/60'}`}
+                    className={`flex w-full items-center gap-3 rounded-[8px] px-3 py-2 text-left text-sm transition-colors duration-100 ${selected ? 'bg-raised text-fg' : 'text-fg2 hover:bg-raised/60'}`}
                   >
-                    <Icon size={16} strokeWidth={1.6} aria-hidden="true" className={`shrink-0 ${selected ? 'text-brand' : 'text-fg3'}`} />
+                    <Icon size={16} strokeWidth={1.5} aria-hidden="true" className={`shrink-0 ${selected ? 'text-fg' : 'text-fg3'}`} />
                     <span className="min-w-0 flex-1 truncate font-medium text-fg">{item.title}</span>
                     {item.subtitle && <span className="max-w-[40%] shrink-0 truncate text-xs text-fg3">{item.subtitle}</span>}
                   </button>
@@ -235,9 +262,9 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
-        <div className="flex items-center justify-between border-t border-line px-4 py-2 text-[11px] text-fg3">
-          <span>↑↓ navegar · ↵ abrir</span>
-          <span>⌘K / Ctrl+K</span>
+        <div className="flex items-center justify-between border-t border-line px-4 py-2 text-xs text-fg3">
+          <span>↑↓ navegar · ↵ executar</span>
+          <span className="font-mono">⌘K busca · ⌘J assistente</span>
         </div>
       </div>
     </div>,

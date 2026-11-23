@@ -184,3 +184,28 @@ describe('acting by name', () => {
     expect(matchByName(rows, 'academia')).toEqual([]);
   });
 });
+
+describe('threads, screen context, and extended tool args', () => {
+  it('propagates thread_id and thread_title onto both user and assistant rows', () => {
+    const [q, a] = exchangeRows('oi', 'olá', { model: 'm', thread_id: 't-1', thread_title: 'Finanças' }, new Date('2026-11-19T10:00:00Z'));
+    expect(q.metadata).toEqual({ thread_id: 't-1', thread_title: 'Finanças' });
+    expect(a.metadata).toMatchObject({ thread_id: 't-1', thread_title: 'Finanças' });
+  });
+
+  it('includes active screen context in systemPrompt when provided', () => {
+    const p = systemPrompt({ date: '2026-11-23', time: '10:00', weekday: 1 }, SP, {
+      tasksToday: [], tasksLate: 0, habitsToday: [], goals: [],
+      screenContext: { route: '/projetos', label: 'Projetos', hint: 'Projeto aberto: QQI' },
+    });
+    expect(p).toContain('Tela atual do usuário: Projetos (/projetos) — Projeto aberto: QQI');
+  });
+
+  it('validates criar_plano_projeto and registrar_transferencia arguments', () => {
+    expect(checkArgs('criar_plano_projeto', { projeto: 'QQI', etapas: [{ titulo: 'Módulo 1', subetapas: ['Ler apostila'] }] }))
+      .toEqual({ ok: true, args: { projeto: 'QQI', etapas: [{ titulo: 'Módulo 1', prazo: null, subetapas: ['Ler apostila'] }] } });
+    expect(checkArgs('criar_plano_projeto', { projeto: 'QQI', etapas: [] })).toMatchObject({ ok: false });
+    expect(checkArgs('registrar_transferencia', { origem: 'Revolut', destino: 'Wise', valor: 150, moeda: 'eur' }))
+      .toEqual({ ok: true, args: { origem: 'Revolut', destino: 'Wise', valor: 150, moeda: 'EUR', descricao: null, data: null } });
+  });
+});
+

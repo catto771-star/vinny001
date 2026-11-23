@@ -14,6 +14,7 @@ import { Toaster } from './Toaster';
 import { CommandPalette, openCommandPalette } from './CommandPalette';
 import { QuickCaptureModal, openQuickCapture } from './QuickCaptureModal';
 import { ReviewModal, openGuidedReview } from './ReviewModal';
+import { AssistantDrawer } from './AssistantDrawer';
 
 type NavGroup = 'Dia a dia' | 'Vida e finanças' | 'Sistema';
 
@@ -288,6 +289,7 @@ export default function Layout({ email }: { email: string }) {
         </Modal>
       )}
       <CommandPalette />
+      <AssistantDrawer />
       <QuickCaptureModal />
       <ReviewModal />
       <Toaster />
