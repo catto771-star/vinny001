@@ -1,0 +1,535 @@
+// Pure parts of the assistant: dates in the user's time zone, the tools the
+// model may call and the checks on their arguments, the system prompt, memory
+// formatting and the history sent along. No Deno or network here, so Vitest covers it.
+
+export interface LocalNow { date: string; time: string; weekday: number }
+
+export interface UndoSpec {
+  table: string;
+  op: 'delete' | 'update';
+  id: string;
+  patch?: Record<string, unknown>;
+}
+
+const WEEKDAYS = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+
+/** Today's date, time and weekday in a time zone. */
+export function localNow(tz: string, now = new Date()): LocalNow {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', weekday: 'short',
+  }).formatToParts(now).map((p) => [p.type, p.value]));
+  const date = `${parts.year}-${parts.month}-${parts.day}`;
+  const [y, m, d] = date.split('-').map(Number);
+  return { date, time: `${parts.hour}:${parts.minute}`, weekday: new Date(Date.UTC(y, m - 1, d)).getUTCDay() };
+}
+
+/** A local date and time in a time zone as a UTC instant (ISO). */
+export function zonedToUtc(date: string, time: string, tz: string): string {
+  const [y, m, d] = date.split('-').map(Number);
+  const [hh, mm] = time.split(':').map(Number);
+  const guess = Date.UTC(y, m - 1, d, hh, mm);
+  // The zone's offset at that moment: how far its wall clock is from UTC.
+  const wall = localNow(tz, new Date(guess));
+  const [wy, wm, wd] = wall.date.split('-').map(Number);
+  const [wh, wmin] = wall.time.split(':').map(Number);
+  const offset = Date.UTC(wy, wm - 1, wd, wh, wmin) - guess;
+  return new Date(guess - offset).toISOString();
+}
+
+export function addDays(date: string, n: number): string {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
+
+// ---------------------------------------------------------------------------
+// Tools
+// ---------------------------------------------------------------------------
+
+const str = (description: string) => ({ type: 'string', description });
+const fn = (name: string, description: string, properties: Record<string, unknown> = {}, required: string[] = []) => ({
+  type: 'function', function: { name, description, parameters: { type: 'object', properties, required } },
+});
+
+export const MEMORY_CATEGORIES = ['rotina', 'financas', 'saude', 'projetos', 'preferencia', 'aprendizado'] as const;
+export type MemoryCategory = (typeof MEMORY_CATEGORIES)[number];
+
+/** What the model may do, in the OpenAI tool format OpenRouter takes. */
+export const TOOLS = [
+  fn('listar_tarefas', 'Lista tarefas abertas do usuário.', { periodo: { type: 'string', enum: ['hoje', 'atrasadas', 'semana', 'todas'], description: 'hoje inclui as atrasadas' } }, ['periodo']),
+  fn('criar_tarefa', 'Cria uma tarefa (opcionalmente vinculada a um projeto e com horário).', {
+    titulo: str('Título curto'),
+    data: str('YYYY-MM-DD, opcional'),
+    hora: str('HH:MM, 24h, opcional'),
+    prioridade: { type: 'string', enum: ['alta', 'media', 'baixa'] },
+    projeto: str('Nome do projeto para vincular, opcional'),
+  }, ['titulo']),
+  fn('concluir_tarefa', 'Marca uma tarefa aberta como concluída, pelo id (de listar_tarefas) ou pelo título.', { id: str('id da tarefa, se souber'), titulo: str('título ou parte dele') }),
+  fn('reagendar_tarefa', 'Move uma tarefa aberta para outra data/horário, pelo id ou título.', {
+    id: str('id da tarefa, se souber'),
+    titulo: str('título ou parte dele'),
+    data: str('Nova data YYYY-MM-DD'),
+    hora: str('Novo horário HH:MM, opcional'),
+  }, ['data']),
+  fn('criar_lembrete', 'Cria um lembrete num dia e hora.', { titulo: str('O que lembrar'), data: str('YYYY-MM-DD'), hora: str('HH:MM, 24 h') }, ['titulo', 'data', 'hora']),
+  fn('listar_agenda', 'Lista compromissos, tarefas e lembretes num intervalo de datas.', {
+    inicio: str('Data inicial YYYY-MM-DD'),
+    fim: str('Data final YYYY-MM-DD'),
+  }, ['inicio', 'fim']),
+  fn('criar_compromisso', 'Agenda um compromisso (evento) na Agenda.', {
+    titulo: str('Título do compromisso'),
+    data: str('YYYY-MM-DD'),
+    inicio: str('Hora de início HH:MM, opcional se dia inteiro'),
+    fim: str('Hora de término HH:MM, opcional'),
+    local: str('Local, opcional'),
+    observacoes: str('Observações, opcional'),
+  }, ['titulo', 'data']),
+  fn('listar_habitos', 'Lista os hábitos de hoje e se já foram feitos.'),
+  fn('marcar_habito', 'Registra um hábito como feito hoje (ou com um valor, para quantidade e medição), pelo id ou pelo nome.', { id: str('id do hábito, se souber'), nome: str('nome do hábito'), valor: { type: 'number', description: 'opcional' } }),
+  fn('listar_contas', 'Lista as contas bancárias cadastradas e a moeda de cada uma.'),
+  fn('resumo_financeiro', 'Receitas, despesas e principais categorias de um mês.', { ano: { type: 'integer' }, mes: { type: 'integer', description: '1 a 12' } }, ['ano', 'mes']),
+  fn('registrar_transacao', 'Registra um gasto ou receita em BRL, EUR ou USD, opcionalmente numa conta específica (ex.: Revolut, Wise).', {
+    descricao: str('Descrição'),
+    valor: { type: 'number', description: 'Valor positivo na moeda informada' },
+    tipo: { type: 'string', enum: ['despesa', 'receita'] },
+    moeda: { type: 'string', enum: ['BRL', 'EUR', 'USD'], description: 'Padrão BRL (ou moeda da conta)' },
+    conta: str('Nome da conta bancária (ex.: Revolut, Wise), opcional'),
+    categoria: str('Categoria, opcional'),
+    data: str('YYYY-MM-DD, opcional (hoje)'),
+    cotacao: { type: 'number', description: 'Cotação em reais por unidade se moeda estrangeira, opcional' },
+  }, ['descricao', 'valor', 'tipo']),
+  fn('buscar_notas', 'Procura nas notas do usuário por um texto.', { texto: str('Palavras a procurar') }, ['texto']),
+  fn('criar_nota', 'Cria uma nota de conhecimento.', { titulo: str('Título'), texto: str('Conteúdo; uma linha por parágrafo') }, ['titulo']),
+  fn('listar_metas', 'Lista as metas ativas com o valor atual e o alvo.'),
+  fn('registrar_progresso_meta', 'Registra um novo valor/aporte numa meta pelo nome ou id.', {
+    id: str('id da meta, se souber'),
+    titulo: str('título ou parte dele'),
+    valor: { type: 'number', description: 'Valor do registro' },
+    nota: str('Observação opcional'),
+    data: str('YYYY-MM-DD, opcional (hoje)'),
+  }, ['valor']),
+  fn('listar_projetos', 'Lista os projetos em andamento com tarefas abertas.'),
+  fn('criar_marco_projeto', 'Adiciona um marco (etapa) a um projeto em andamento.', {
+    projeto: str('Nome do projeto'),
+    titulo: str('Título do marco'),
+    prazo: str('Data prevista YYYY-MM-DD, opcional'),
+  }, ['projeto', 'titulo']),
+  fn('registrar_refeicao', 'Registra um alimento ou refeição no diário alimentar de Saúde.', {
+    alimento: str('Nome do alimento ou refeição'),
+    refeicao: { type: 'string', enum: ['cafe', 'almoco', 'jantar', 'lanche'], description: 'Qual refeição do dia' },
+    kcal: { type: 'number', description: 'Calorias (kcal)' },
+    proteina_g: { type: 'number', description: 'Proteína em gramas, opcional' },
+    carbo_g: { type: 'number', description: 'Carboidrato em gramas, opcional' },
+    gordura_g: { type: 'number', description: 'Gordura em gramas, opcional' },
+    quantidade_g: { type: 'number', description: 'Peso aproximado em gramas, opcional (padrão 100)' },
+    data: str('YYYY-MM-DD, opcional (hoje)'),
+  }, ['alimento', 'kcal']),
+  fn('registrar_peso', 'Registra o peso corporal (kg) em Saúde.', {
+    peso_kg: { type: 'number', description: 'Peso em quilogramas (ex.: 78.4)' },
+    observacoes: str('Observação opcional'),
+  }, ['peso_kg']),
+  fn('listar_memorias', 'Lista o que você já aprendeu e guardou sobre o usuário.'),
+  fn('salvar_memoria', 'Guarda uma preferência, regra, rotina ou correção aprendida com o usuário para lembrar em futuras conversas.', {
+    categoria: { type: 'string', enum: [...MEMORY_CATEGORIES] },
+    conteudo: str('Fato claro e conciso (ex.: "Gastos em euro padrão vão na conta Revolut")'),
+  }, ['conteudo']),
+  fn('esquecer_memoria', 'Remove uma memória desatualizada ou corrigida pelo usuário.', {
+    id: str('id da memória, se souber'),
+    trecho: str('trecho do texto da memória'),
+  }),
+];
+
+export type ToolArgs = Record<string, unknown>;
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+const UUID = /^[0-9a-f-]{36}$/i;
+const PRIORITY: Record<string, 'high' | 'medium' | 'low'> = { alta: 'high', media: 'medium', média: 'medium', baixa: 'low' };
+const MEAL_MAP: Record<string, string> = { cafe: 'breakfast', almoco: 'lunch', jantar: 'dinner', lanche: 'snack' };
+
+/**
+ * Checks and normalizes a tool call's arguments. Returns the clean arguments
+ * or an error in Portuguese that goes back to the model so it can fix the call.
+ */
+export function checkArgs(name: string, raw: unknown): { ok: true; args: ToolArgs } | { ok: false; error: string } {
+  const a = (raw && typeof raw === 'object' ? raw : {}) as ToolArgs;
+  const text = (k: string, max = 200) => (typeof a[k] === 'string' ? (a[k] as string).trim().slice(0, max) : '');
+  const fail = (error: string) => ({ ok: false as const, error });
+  switch (name) {
+    case 'listar_tarefas': {
+      const periodo = ['hoje', 'atrasadas', 'semana', 'todas'].includes(String(a.periodo)) ? String(a.periodo) : 'hoje';
+      return { ok: true, args: { periodo } };
+    }
+    case 'criar_tarefa': {
+      const titulo = text('titulo');
+      if (!titulo) return fail('titulo é obrigatório');
+      const data = text('data');
+      if (data && !DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
+      const hora = text('hora');
+      if (hora && !TIME.test(hora)) return fail('hora deve ser HH:MM');
+      const projeto = text('projeto', 120);
+      const out: ToolArgs = { titulo, data: data || null, prioridade: PRIORITY[text('prioridade').toLowerCase()] ?? 'medium' };
+      if (hora) out.hora = hora;
+      if (projeto) out.projeto = projeto;
+      return { ok: true, args: out };
+    }
+    case 'concluir_tarefa':
+    case 'marcar_habito': {
+      const id = text('id', 64);
+      const label = text(name === 'concluir_tarefa' ? 'titulo' : 'nome', 200);
+      const validId = UUID.test(id);
+      const valor = a.valor === undefined || a.valor === null ? null : Number(a.valor);
+      if (valor !== null && !(Number.isFinite(valor) && valor >= 0)) return fail('valor deve ser um número positivo');
+      if (validId) return { ok: true, args: name === 'marcar_habito' ? { id, valor } : { id } };
+      if (!label) return fail(id ? 'id inválido: use o id que veio da listagem' : `informe o id ou o ${name === 'concluir_tarefa' ? 'título' : 'nome'}`);
+      return { ok: true, args: name === 'marcar_habito' ? { id: null, nome: label, valor } : { id: null, titulo: label } };
+    }
+    case 'reagendar_tarefa': {
+      const id = text('id', 64);
+      const titulo = text('titulo', 200);
+      const data = text('data');
+      const hora = text('hora');
+      if (!DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
+      if (hora && !TIME.test(hora)) return fail('hora deve ser HH:MM');
+      if (UUID.test(id)) return { ok: true, args: { id, titulo: null, data, hora: hora || null } };
+      if (!titulo) return fail('informe o id ou o título da tarefa');
+      return { ok: true, args: { id: null, titulo, data, hora: hora || null } };
+    }
+    case 'criar_lembrete': {
+      const titulo = text('titulo');
+      const data = text('data');
+      const hora = text('hora');
+      if (!titulo) return fail('titulo é obrigatório');
+      if (!DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
+      if (!TIME.test(hora)) return fail('hora deve ser HH:MM');
+      return { ok: true, args: { titulo, data, hora } };
+    }
+    case 'listar_agenda': {
+      const inicio = text('inicio');
+      const fim = text('fim');
+      if (!DATE.test(inicio) || !DATE.test(fim)) return fail('inicio e fim devem ser YYYY-MM-DD');
+      if (fim < inicio) return fail('fim deve ser igual ou posterior a inicio');
+      return { ok: true, args: { inicio, fim } };
+    }
+    case 'criar_compromisso': {
+      const titulo = text('titulo');
+      const data = text('data');
+      const inicio = text('inicio');
+      const fim = text('fim');
+      if (!titulo) return fail('titulo é obrigatório');
+      if (!DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
+      if (inicio && !TIME.test(inicio)) return fail('inicio deve ser HH:MM');
+      if (fim && !TIME.test(fim)) return fail('fim deve ser HH:MM');
+      if (inicio && fim && fim <= inicio) return fail('fim deve ser depois de inicio');
+      return {
+        ok: true,
+        args: { titulo, data, inicio: inicio || null, fim: fim || null, local: text('local', 140) || null, observacoes: text('observacoes', 500) || null },
+      };
+    }
+    case 'resumo_financeiro': {
+      const ano = Number(a.ano);
+      const mes = Number(a.mes);
+      if (!Number.isInteger(ano) || ano < 2000 || ano > 2100 || !Number.isInteger(mes) || mes < 1 || mes > 12) return fail('ano e mes inválidos');
+      return { ok: true, args: { ano, mes } };
+    }
+    case 'registrar_transacao': {
+      const descricao = text('descricao');
+      const valor = Math.round(Number(a.valor) * 100) / 100;
+      const tipo = text('tipo');
+      const data = text('data');
+      const moedaRaw = text('moeda').toUpperCase();
+      const moeda = moedaRaw ? (['BRL', 'EUR', 'USD'].includes(moedaRaw) ? moedaRaw : '') : null;
+      const conta = text('conta', 80);
+      const cotacao = a.cotacao === undefined || a.cotacao === null ? null : Number(a.cotacao);
+      if (!descricao) return fail('descricao é obrigatória');
+      if (!(valor > 0) || valor > 10_000_000) return fail('valor deve ser positivo');
+      if (tipo !== 'despesa' && tipo !== 'receita') return fail('tipo deve ser despesa ou receita');
+      if (moeda === '') return fail('moeda deve ser BRL, EUR ou USD');
+      if (data && !DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
+      if (cotacao !== null && !(Number.isFinite(cotacao) && cotacao > 0)) return fail('cotacao deve ser positiva');
+      const out: ToolArgs = { descricao, valor, tipo, categoria: text('categoria', 60) || null, data: data || null };
+      if (moeda) out.moeda = moeda;
+      if (conta) out.conta = conta;
+      if (cotacao !== null) out.cotacao = cotacao;
+      return { ok: true, args: out };
+    }
+    case 'buscar_notas': {
+      const texto = text('texto', 100);
+      if (!texto) return fail('texto é obrigatório');
+      return { ok: true, args: { texto } };
+    }
+    case 'criar_nota': {
+      const titulo = text('titulo', 120);
+      if (!titulo) return fail('titulo é obrigatório');
+      return { ok: true, args: { titulo, texto: text('texto', 8000) } };
+    }
+    case 'registrar_progresso_meta': {
+      const id = text('id', 64);
+      const titulo = text('titulo', 160);
+      const valor = Number(a.valor);
+      const data = text('data');
+      if (!Number.isFinite(valor)) return fail('valor numérico é obrigatório');
+      if (data && !DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
+      if (!UUID.test(id) && !titulo) return fail('informe o id ou o título da meta');
+      return { ok: true, args: { id: UUID.test(id) ? id : null, titulo: titulo || null, valor, nota: text('nota', 200) || null, data: data || null } };
+    }
+    case 'criar_marco_projeto': {
+      const projeto = text('projeto', 140);
+      const titulo = text('titulo', 160);
+      const prazo = text('prazo');
+      if (!projeto) return fail('projeto é obrigatório');
+      if (!titulo) return fail('titulo é obrigatório');
+      if (prazo && !DATE.test(prazo)) return fail('prazo deve ser YYYY-MM-DD');
+      return { ok: true, args: { projeto, titulo, prazo: prazo || null } };
+    }
+    case 'registrar_refeicao': {
+      const alimento = text('alimento', 160);
+      const kcal = Math.round(Number(a.kcal));
+      const refRaw = text('refeicao').toLowerCase() || 'lanche';
+      const meal = MEAL_MAP[refRaw] ?? 'snack';
+      const data = text('data');
+      if (!alimento) return fail('alimento é obrigatório');
+      if (!(kcal >= 0 && kcal <= 10000)) return fail('kcal inválido');
+      if (data && !DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
+      const numOr0 = (k: string) => { const n = Number(a[k]); return Number.isFinite(n) && n >= 0 ? Math.round(n * 10) / 10 : 0; };
+      const q = Number(a.quantidade_g);
+      return {
+        ok: true,
+        args: {
+          alimento, meal, kcal,
+          proteina_g: numOr0('proteina_g'), carbo_g: numOr0('carbo_g'), gordura_g: numOr0('gordura_g'),
+          quantidade_g: Number.isFinite(q) && q > 0 ? Math.round(q) : 100,
+          data: data || null,
+        },
+      };
+    }
+    case 'registrar_peso': {
+      const peso = Math.round(Number(a.peso_kg) * 10) / 10;
+      if (!(peso >= 25 && peso <= 350)) return fail('peso_kg deve estar entre 25 e 350');
+      return { ok: true, args: { peso_kg: peso, observacoes: text('observacoes', 200) || null } };
+    }
+    case 'salvar_memoria': {
+      const conteudo = text('conteudo', 400);
+      const catRaw = text('categoria').toLowerCase();
+      const categoria = (MEMORY_CATEGORIES as readonly string[]).includes(catRaw) ? catRaw : 'preferencia';
+      if (!conteudo) return fail('conteudo é obrigatório');
+      return { ok: true, args: { categoria, conteudo } };
+    }
+    case 'esquecer_memoria': {
+      const id = text('id', 64);
+      const trecho = text('trecho', 160);
+      if (!UUID.test(id) && !trecho) return fail('informe id ou trecho da memória');
+      return { ok: true, args: { id: UUID.test(id) ? id : null, trecho: trecho || null } };
+    }
+    case 'listar_habitos':
+    case 'listar_contas':
+    case 'listar_metas':
+    case 'listar_projetos':
+    case 'listar_memorias':
+      return { ok: true, args: {} };
+    default:
+      return fail(`ferramenta desconhecida: ${name}`);
+  }
+}
+
+/** Tool calls that change data; the reply lists them so the user sees what was done (and can undo). */
+export const WRITES = new Set([
+  'criar_tarefa', 'concluir_tarefa', 'reagendar_tarefa', 'criar_lembrete', 'criar_compromisso',
+  'marcar_habito', 'registrar_transacao', 'criar_nota', 'registrar_progresso_meta',
+  'criar_marco_projeto', 'registrar_refeicao', 'registrar_peso', 'salvar_memoria', 'esquecer_memoria',
+]);
+
+/** Validates an optional base64 image data URL sent from the browser for multimodal prompts. */
+export function validImageDataUrl(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const s = raw.trim();
+  if (!/^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(s)) return null;
+  if (s.length > 4_000_000) return null;
+  return s;
+}
+
+/** A note's text as blocks in the BlockNote shape the app reads. */
+export function textToBlocks(text: string): unknown[] {
+  return text.split('\n').map((line, i) => {
+    const bullet = /^\s*[-*•] /.test(line);
+    const clean = bullet ? line.replace(/^\s*[-*•] /, '') : line;
+    return {
+      id: `ai${i}${Math.random().toString(36).slice(2, 7)}`,
+      type: bullet ? 'bulletListItem' : 'paragraph',
+      props: {},
+      content: clean ? [{ type: 'text', text: clean, styles: {} }] : [],
+      children: [],
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Prompt and history
+// ---------------------------------------------------------------------------
+
+export interface Snapshot {
+  name?: string | null;
+  displayCurrency?: string | null;
+  tasksToday: string[];
+  tasksLate: number;
+  habitsToday: string[];
+  goals: string[];
+  eventsToday?: string[];
+  projects?: string[];
+  accounts?: { name: string; currency: string }[];
+  memories?: { category: string; content: string }[];
+}
+
+export function systemPrompt(now: LocalNow, tz: string, s: Snapshot): string {
+  const lines = [
+    'Você é o assistente autônomo do Painel, o sistema pessoal do usuário (tarefas, hábitos, agenda, lembretes, saúde, finanças multimoeda, projetos, metas e notas).',
+    `Hoje é ${WEEKDAYS[now.weekday]}, ${now.date.split('-').reverse().join('/')}, ${now.time} (${tz}).${s.name ? ` O usuário se chama ${s.name}.` : ''}${s.displayCurrency ? ` Moeda principal de exibição: ${s.displayCurrency}.` : ''}`,
+    'Responda em português do Brasil, direto, claro e prático. Use listas curtas só quando ajudarem.',
+    'Autonomia e precisão:',
+    '- Use as ferramentas para consultar e agir; nunca invente dados nem ids. Encadeie quantas ferramentas forem necessárias para resolver o pedido por completo numa única resposta.',
+    '- Para concluir/reagendar tarefa ou marcar hábito, passe o título/nome. Nunca diga que algo não existe sem consultar antes (listar_tarefas com periodo "todas").',
+    '- Converta datas relativas (hoje, amanhã, sexta) para YYYY-MM-DD a partir de hoje. Em finanças, respeite a moeda citada (EUR, USD ou BRL) e escolha a conta adequada conforme o que você sabe do usuário.',
+    '- Se o usuário enviar uma foto de recibo/nota fiscal ou prato de comida, extraia os dados com cuidado e registre usando a ferramenta certa (ou confirme se algum valor estiver ilegível).',
+    '- Aprendizado contínuo: sempre que o usuário revelar uma preferência duradoura, regra financeira (ex.: conta padrão por moeda), rotina de trabalho/estudo ou corrigir seu comportamento, chame salvar_memoria para lembrar nas próximas conversas. Se uma regra mudar, use esquecer_memoria e salve a nova.',
+    '- Só pergunte antes quando faltar dado essencial (ex.: valor de um gasto) ou para exclusões permanentes. Depois de agir, confirme de forma objetiva o que foi feito.',
+    '- Você não dá diagnóstico médico nem recomendação de investimento específica.',
+    '',
+    'Resumo de hoje:',
+    `- Tarefas para hoje: ${s.tasksToday.length ? s.tasksToday.join('; ') : 'nenhuma'}${s.tasksLate ? ` (mais ${s.tasksLate} atrasadas)` : ''}`,
+    `- Hábitos de hoje: ${s.habitsToday.length ? s.habitsToday.join('; ') : 'nenhum'}`,
+    `- Metas ativas: ${s.goals.length ? s.goals.join('; ') : 'nenhuma'}`,
+  ];
+  if (s.eventsToday?.length) lines.push(`- Compromissos hoje: ${s.eventsToday.join('; ')}`);
+  if (s.projects?.length) lines.push(`- Projetos ativos: ${s.projects.join('; ')}`);
+  if (s.accounts?.length) lines.push(`- Contas bancárias: ${s.accounts.map((a) => `${a.name} (${a.currency})`).join(', ')}`);
+  if (s.memories?.length) {
+    lines.push('', 'O que você já aprendeu sobre o usuário (use automaticamente):');
+    for (const m of s.memories) lines.push(`- [${m.category}] ${m.content}`);
+  }
+  return lines.join('\n');
+}
+
+export interface StoredMessage { content: string; is_user: boolean; created_at: string; metadata?: { kind?: string } | null }
+
+/**
+ * The recent conversation for the model, oldest first, within a size budget.
+ * Daily summaries from the autopilot go in as assistant messages.
+ */
+export function history(messages: StoredMessage[], maxChars = 12000, maxMessages = 20): { role: 'user' | 'assistant'; content: string }[] {
+  const recent = [...messages].sort((a, b) => a.created_at.localeCompare(b.created_at)).slice(-maxMessages);
+  const out: { role: 'user' | 'assistant'; content: string }[] = [];
+  let used = 0;
+  for (let i = recent.length - 1; i >= 0; i--) {
+    const m = recent[i];
+    const content = m.content.slice(0, 4000);
+    if (used + content.length > maxChars) break;
+    used += content.length;
+    out.unshift({ role: m.is_user ? 'user' : 'assistant', content });
+  }
+  // A conversation sent to the model starts with the user.
+  while (out.length && out[0].role !== 'user') out.shift();
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// The OpenRouter key as saved in the Supabase secrets
+// ---------------------------------------------------------------------------
+
+/** The key without what tends to come along when pasting: spaces, quotes, "Bearer ", "NAME=". */
+export function cleanKey(raw: string): string {
+  const once = raw.trim().replace(/^[A-Z_]+=/, '').replace(/^["']|["']$/g, '').replace(/^Bearer\s+/i, '');
+  // A key has no spaces; drop any blank or invisible character that came along.
+  return once.replace(/[\s\u00a0\u200b-\u200d\u2060\ufeff]/g, '');
+}
+
+/** "sk-or-v1-…a1b2 (73 caracteres)": enough to compare with the key list, not enough to use. */
+export function maskKey(key: string): string {
+  return `${key.slice(0, 9)}…${key.slice(-4)} (${key.length} caracteres)`;
+}
+
+/** What looks wrong with a key, to explain a refusal; never echoes the key. Null when it looks fine. */
+export function keyHint(key: string): string | null {
+  if (!key.startsWith('sk-or-')) return 'o valor salvo não parece uma chave do OpenRouter (deveria começar com sk-or-)';
+  if (key.length < 40) return 'a chave salva parece incompleta';
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+/** Default priority: Claude Sonnet 4 first for strong autonomous multi-step tool calling, with safe fallbacks. */
+export const PAID_MODELS = [
+  'anthropic/claude-sonnet-4',
+  'anthropic/claude-3.7-sonnet',
+  'google/gemini-2.5-pro',
+  'openai/gpt-4.1-mini',
+  'deepseek/deepseek-chat-v3.1',
+];
+
+/** Free variants: no credits needed, a daily message limit. */
+export const FREE_MODELS = ['deepseek/deepseek-chat-v3.1:free', 'deepseek/deepseek-chat-v3-0324:free', 'deepseek/deepseek-chat:free'];
+
+/** Order to try: env override alone; else user's chosen model first, then last working, then paid, then free. */
+export function modelCandidates(preferred?: string, working?: string | null, userModel?: string | null): string[] {
+  if (preferred) return [preferred];
+  const base = [...PAID_MODELS, ...FREE_MODELS];
+  const ordered: string[] = [];
+  const push = (m?: string | null) => { if (m && !ordered.includes(m)) ordered.push(m); };
+  push(userModel);
+  if (working && base.includes(working)) push(working);
+  for (const m of base) push(m);
+  return ordered;
+}
+
+export interface CatalogModel { id: string; context_length?: number; supported_parameters?: string[] }
+
+// Families that follow instructions and call tools well, best first.
+const FAMILIES = ['deepseek/', 'qwen/', 'meta-llama/', 'mistralai/', 'google/', 'z-ai/', 'moonshotai/', 'openai/'];
+
+/** From OpenRouter's catalog: free models that take tools, DeepSeek first, then good families, bigger context first. At most 8. */
+export function pickFreeModels(catalog: CatalogModel[]): string[] {
+  const rank = (id: string) => { const i = FAMILIES.findIndex((f) => id.startsWith(f)); return i < 0 ? FAMILIES.length : i; };
+  return catalog
+    .filter((m) => typeof m?.id === 'string' && m.id.endsWith(':free') && m.supported_parameters?.includes('tools'))
+    .sort((a, b) => rank(a.id) - rank(b.id) || (b.context_length ?? 0) - (a.context_length ?? 0))
+    .slice(0, 8)
+    .map((m) => m.id);
+}
+
+/** How long to leave a model aside after a failure: no credits 10 min, gone, restricted or unsupported 1 h, busy 1 min. */
+export function skipFor(status: number): number {
+  if (status === 402) return 10 * 60_000;
+  if (status === 404 || status === 400 || status === 403) return 60 * 60_000;
+  if (status === 429) return 60_000;
+  return 0;
+}
+
+/** Candidates whose wait is over; all of them if every one is waiting. */
+export function withoutSkipped(candidates: string[], skip: Map<string, number>, now: number): string[] {
+  const ready = candidates.filter((m) => (skip.get(m) ?? 0) <= now);
+  return ready.length ? ready : candidates;
+}
+
+/**
+ * The question and the answer as rows for chat_messages. Both carry the same
+ * columns: in a bulk insert a column missing from one row is sent as null,
+ * which the not-null metadata column refuses.
+ */
+export function exchangeRows(question: string, reply: string, metadata: Record<string, unknown>, at = new Date()) {
+  return [
+    { content: question, is_user: true, metadata: {}, created_at: at.toISOString() },
+    { content: reply, is_user: false, metadata, created_at: new Date(at.getTime() + 1).toISOString() },
+  ];
+}
+
+const fold = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+/** Items whose name matches: an exact match alone; else names that start with it, then those that contain it. */
+export function matchByName<T extends { name: string }>(rows: T[], query: string): T[] {
+  const q = fold(query);
+  if (!q) return [];
+  const exact = rows.filter((r) => fold(r.name) === q);
+  if (exact.length) return exact;
+  const starts = rows.filter((r) => fold(r.name).startsWith(q));
+  const contains = rows.filter((r) => !starts.includes(r) && fold(r.name).includes(q));
+  return [...starts, ...contains];
+}
