@@ -30,17 +30,22 @@ function lastIndex<T>(xs: T[], ok: (x: T) => boolean): number {
 
 const fmt = (n: number) => (Math.abs(n) >= 10000 ? `${num(n / 1000, 0)} mil` : num(n));
 
-export function DeltaBadge({ pct, diff, unit, invert = false }: { pct: number | null; diff: number; unit?: string; invert?: boolean }) {
+export function DeltaBadge({ pct, diff, unit, invert = false, context }: { pct: number | null; diff: number; unit?: string; invert?: boolean; context?: string }) {
   if (diff === 0 && pct === 0) {
-    return <span className="badge figure bg-raised text-fg3">0%</span>;
+    return <span className="figure text-xs text-fg3">0%{context ? ` ${context}` : ''}</span>;
   }
   const good = invert ? diff < 0 : diff > 0;
-  const cls = good ? 'bg-positive/12 text-positive' : 'bg-negative/12 text-negative';
+  const cls = good ? 'text-positive' : 'text-negative';
   const sign = diff > 0 ? '+' : '−';
   const text = pct !== null
     ? `${sign}${num(Math.abs(pct), 1)}%`
     : `${sign}${fmt(Math.abs(diff))}${unit ? ` ${unit}` : ''}`;
-  return <span className={`badge figure ${cls}`}>{text}</span>;
+  return (
+    <span className={`figure text-xs font-medium ${cls}`}>
+      {text}
+      {context && <span className="font-normal text-fg3"> {context}</span>}
+    </span>
+  );
 }
 
 export function ChartFrame({ title, subtitle, points, unit, children, aside, badge, emptyText = 'Sem registros neste período' }: {
@@ -179,10 +184,10 @@ export function ColumnChart({ title, subtitle, points, unit, height = 220, highl
   );
 }
 
-/** Smooth fintech-style area chart with vertical gradient wash, crosshair, and period delta pill. */
-export function AreaChart({ title, subtitle, points, unit, minZero = true, height = 240, aside, tone = ACCENT, showDelta = true, invertDelta = false, emptyText }: {
+/** Smooth area chart with subtle vertical wash, crosshair, and contextual period delta. */
+export function AreaChart({ title, subtitle, points, unit, minZero = true, height = 240, aside, tone = ACCENT, showDelta = true, invertDelta = false, deltaContext, emptyText }: {
   title: string; subtitle?: string; points: Point[]; unit: string; minZero?: boolean; height?: number; aside?: ReactNode;
-  tone?: string; showDelta?: boolean; invertDelta?: boolean; emptyText?: string;
+  tone?: string; showDelta?: boolean; invertDelta?: boolean; deltaContext?: string; emptyText?: string;
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const gradId = useId().replace(/:/g, '');
@@ -233,11 +238,11 @@ export function AreaChart({ title, subtitle, points, unit, minZero = true, heigh
       unit={unit}
       aside={aside}
       emptyText={emptyText}
-      badge={delta && <DeltaBadge pct={delta.pct} diff={delta.diff} unit={unit} invert={invertDelta} />}
+      badge={delta && <DeltaBadge pct={delta.pct} diff={delta.diff} unit={unit} invert={invertDelta} context={deltaContext} />}
     >
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className="w-full rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        className="w-full rounded-[8px] outline-none focus-visible:ring-2 focus-visible:ring-brand"
         role="img"
         tabIndex={0}
         aria-label={`${title}. Use as setas esquerda e direita para inspecionar os valores.`}
@@ -250,7 +255,7 @@ export function AreaChart({ title, subtitle, points, unit, minZero = true, heigh
       >
         <defs>
           <linearGradient id={`area-${gradId}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={tone} stopOpacity="0.26" />
+            <stop offset="0%" stopColor={tone} stopOpacity="0.18" />
             <stop offset="100%" stopColor={tone} stopOpacity="0.01" />
           </linearGradient>
         </defs>
@@ -356,7 +361,7 @@ export function DonutChart({ title, subtitle, rows, format = num, unit = '', cen
                   strokeDasharray={`${segLen} ${C}`}
                   strokeDashoffset={-arcOffset}
                   strokeLinecap="butt"
-                  className="cursor-pointer transition-all duration-200"
+                  className="cursor-pointer transition-opacity duration-150"
                   opacity={active === null || active === i ? 1 : 0.35}
                   onMouseEnter={() => setActive(i)}
                   onMouseLeave={() => setActive(null)}

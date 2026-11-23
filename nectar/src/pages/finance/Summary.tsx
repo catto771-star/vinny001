@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { ArrowDownLeft, ArrowUpRight, CalendarClock, Gauge, Plus, Receipt, TrendingUp, Wallet } from 'lucide-react';
+import { CalendarClock, Gauge, Plus, Receipt } from 'lucide-react';
 import { CURRENCIES, conv, displayCurrency, money, symbolOf, type Currency } from '../../lib/money';
 import { formatDay, monthName, toDay } from '../../lib/dates';
 import {
@@ -9,31 +9,30 @@ import {
 import { evaluateBudgets, projectCashFlow, type BudgetStatus, type CategoryBudget } from '../../lib/cashflow';
 import { supabase } from '../../lib/supabase';
 import { write } from '../../lib/useTable';
-import { AreaChart, ColumnChart, DonutChart, SegmentedMeter } from '../../components/Charts';
+import { AreaChart, ColumnChart, DonutChart } from '../../components/Charts';
 import { Empty, Field, FieldGroup, Figure, Modal, Skeleton } from '../../components/ui';
 import { useRates } from './useRates';
 import type { Finance } from './useFinance';
 
 const BUDGET_BADGE: Record<BudgetStatus, { label: string; cls: string; bar: string }> = {
-  ok: { label: 'No ritmo', cls: 'bg-positive/15 text-positive', bar: 'bg-brand' },
-  warn: { label: 'Atenção', cls: 'bg-warning/15 text-warning', bar: 'bg-warning' },
-  over: { label: 'Acima do limite', cls: 'bg-negative/15 text-negative', bar: 'bg-negative' },
+  ok: { label: 'No ritmo', cls: 'text-positive', bar: 'bg-brand' },
+  warn: { label: 'Atenção', cls: 'text-warning', bar: 'bg-warning' },
+  over: { label: 'Acima do limite', cls: 'text-negative', bar: 'bg-negative' },
 };
 
-const BANK_CARD_GRADIENTS = [
-  'linear-gradient(135deg, #4f46e5 0%, #2563eb 100%)',
-  'linear-gradient(135deg, #0d9488 0%, #0284c7 100%)',
-  'linear-gradient(135deg, #c026d3 0%, #7c3aed 100%)',
-  'linear-gradient(135deg, #ea580c 0%, #db2777 100%)',
+const CARD_FINISHES = [
+  'linear-gradient(155deg, #27272b 0%, #18181b 55%, #111113 100%)',
+  'linear-gradient(155deg, #22262b 0%, #16191d 55%, #101215 100%)',
+  'linear-gradient(155deg, #282623 0%, #1a1816 55%, #121110 100%)',
 ];
 
 const shortDay = (d: string) => `${Number(d.slice(8))}/${d.slice(5, 7)}`;
 
-function ChipIcon() {
+function MetallicChip() {
   return (
-    <svg width="34" height="24" viewBox="0 0 34 24" aria-hidden="true" className="opacity-90">
-      <rect x="0.5" y="0.5" width="33" height="23" rx="5" fill="#fbbf24" fillOpacity="0.28" stroke="#fcd34d" strokeWidth="1" />
-      <path d="M11 1v22M23 1v22M1 9h10M23 9h10M1 15h10M23 15h10" stroke="#fcd34d" strokeOpacity="0.7" strokeWidth="1" />
+    <svg width="34" height="24" viewBox="0 0 34 24" aria-hidden="true">
+      <rect x="0.5" y="0.5" width="33" height="23" rx="4.5" fill="#a1a1aa" fillOpacity="0.22" stroke="#a1a1aa" strokeOpacity="0.55" strokeWidth="1" />
+      <path d="M11 1v22M23 1v22M1 9h10M23 9h10M1 15h10M23 15h10" stroke="#e4e4e7" strokeOpacity="0.4" strokeWidth="1" />
     </svg>
   );
 }
@@ -105,77 +104,60 @@ export default function Summary({ f, year, month, onPay }: { f: Finance; year: n
 
   return (
     <>
-      {/* 4 Vivid Jewel KPI Cards */}
-      <section className="mb-6 grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumo do mês">
-        <div className="kpi-indigo flex min-w-0 flex-col justify-between">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-white/85">Patrimônio total</span>
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/18"><Wallet size={18} strokeWidth={2} /></span>
-          </div>
-          {f.loading ? <Skeleton className="mt-3 h-8 w-32" /> : (
-            <Figure value={money(worth)} className="mt-2 block truncate text-[26px] leading-8 font-bold" />
+      {/* 4 Quiet Graphite Stat Cards */}
+      <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumo do mês">
+        <div className="card flex min-w-0 flex-col justify-between">
+          <div className="label">Patrimônio total</div>
+          {f.loading ? <Skeleton className="mt-3 h-7 w-32" /> : (
+            <Figure value={money(worth)} className="mt-3 block truncate text-[28px] leading-none font-medium text-fg" />
           )}
-          <div className="mt-3 text-xs text-white/80">
+          <div className="mt-3 text-xs text-fg3">
             {f.banks.rows.length} {f.banks.rows.length === 1 ? 'conta ativa' : 'contas ativas'} · hoje
           </div>
         </div>
 
-        <div className="kpi-teal flex min-w-0 flex-col justify-between">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-white/85">Entra no mês</span>
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/18"><ArrowDownLeft size={18} strokeWidth={2} /></span>
-          </div>
-          {f.loading ? <Skeleton className="mt-3 h-8 w-28" /> : (
-            <Figure value={money(s.income)} className="mt-2 block truncate text-[24px] leading-8 font-bold" />
+        <div className="card flex min-w-0 flex-col justify-between">
+          <div className="label">Entra no mês</div>
+          {f.loading ? <Skeleton className="mt-3 h-7 w-28" /> : (
+            <Figure value={money(s.income)} className="mt-3 block truncate text-[28px] leading-none font-medium text-fg" />
           )}
-          <div className="mt-3 text-xs text-white/80">{money(s.received)} recebido · {money(s.toReceive)} a receber</div>
+          <div className="mt-3 text-xs text-fg3">{money(s.received)} recebido · {money(s.toReceive)} a receber</div>
         </div>
 
-        <div className="kpi-pink flex min-w-0 flex-col justify-between">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-white/85">Sai no mês</span>
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/18"><ArrowUpRight size={18} strokeWidth={2} /></span>
-          </div>
-          {f.loading ? <Skeleton className="mt-3 h-8 w-28" /> : (
-            <Figure value={money(s.expense)} className="mt-2 block truncate text-[24px] leading-8 font-bold" />
+        <div className="card flex min-w-0 flex-col justify-between">
+          <div className="label">Sai no mês</div>
+          {f.loading ? <Skeleton className="mt-3 h-7 w-28" /> : (
+            <Figure value={money(s.expense)} className="mt-3 block truncate text-[28px] leading-none font-medium text-fg" />
           )}
-          <div className="mt-3 text-xs text-white/80">{money(s.spent)} pago · {money(s.toSpend)} previsto</div>
+          <div className="mt-3 text-xs text-fg3">{money(s.spent)} pago · {money(s.toSpend)} previsto</div>
         </div>
 
-        <div className="kpi-gold flex min-w-0 flex-col justify-between">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold opacity-80">Sobra do mês</span>
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-black/12"><TrendingUp size={18} strokeWidth={2} /></span>
-          </div>
-          {f.loading ? <Skeleton className="mt-3 h-8 w-28" /> : (
-            <div className="mt-2 flex items-baseline gap-2">
-              <Figure value={money(s.leftover)} className="truncate text-[24px] leading-8 font-bold" />
-              {s.income > 0 && <span className="figure text-xs font-bold opacity-80">{saveRate}%</span>}
-            </div>
-          )}
-          <div className="mt-3">
-            <SegmentedMeter
-              pct={s.leftover < 0 ? 100 : saveRate}
-              segments={14}
-              height={7}
-              tone={s.leftover < 0 ? '#dc2626' : '#111322'}
-              label="Taxa de sobra do mês"
+        <div className="card flex min-w-0 flex-col justify-between">
+          <div className="label">Sobra do mês</div>
+          {f.loading ? <Skeleton className="mt-3 h-7 w-28" /> : (
+            <Figure
+              value={money(s.leftover)}
+              className={`mt-3 block truncate text-[28px] leading-none font-medium ${s.leftover < 0 ? 'text-negative' : 'text-fg'}`}
             />
+          )}
+          <div className="figure mt-3 text-xs text-fg3">
+            {s.income > 0 ? <span className={s.leftover >= 0 ? 'text-positive' : 'text-negative'}>{saveRate}% da entrada</span> : 'sem entradas no mês'}
           </div>
         </div>
       </section>
 
-      {/* Main Chart + Smart Donut directly on Resumo */}
-      <div className="mb-6 grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+      {/* Main Chart (Moment 1) + Allocation Donut */}
+      <div className="mb-6 grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
         <div className="min-w-0">
           {mainChart === 'fluxo' && (
             <AreaChart
-              title="Previsão de fluxo de caixa (30 dias)"
-              subtitle={`Previsto em 30d: ${money(projection.endingBalance)} · menor saldo ${money(projection.minBalance)}`}
+              title="Previsão de fluxo de caixa"
+              subtitle={`Previsto em 30 dias: ${money(projection.endingBalance)} · menor saldo ${money(projection.minBalance)}`}
               unit={symbolOf(displayCurrency())}
-              height={280}
+              height={292}
               aside={chartSwitch}
-              tone="#fbbf24"
+              tone="var(--brand)"
+              deltaContext="em 30 dias"
               points={projection.points.map((pt) => ({
                 label: shortDay(pt.day),
                 value: conv(pt.balance),
@@ -185,13 +167,14 @@ export default function Summary({ f, year, month, onPay }: { f: Finance; year: n
           )}
           {mainChart === 'patrimonio' && (
             <AreaChart
-              title="Evolução do patrimônio (6 meses)"
-              subtitle="Saldo consolidado das contas ao final de cada mês"
+              title="Evolução do patrimônio"
+              subtitle="Saldo consolidado ao final de cada mês"
               unit={symbolOf(displayCurrency())}
               minZero={false}
-              height={280}
+              height={292}
               aside={chartSwitch}
-              tone="#2dd4bf"
+              tone="var(--positive)"
+              deltaContext="em 6 meses"
               points={worthCurve.map((p) => ({
                 label: `${monthName(p.month).slice(0, 3)}/${String(p.year).slice(2)}`,
                 value: conv(p.value),
@@ -204,7 +187,7 @@ export default function Summary({ f, year, month, onPay }: { f: Finance; year: n
               title="Dia a dia"
               subtitle="Saídas registradas em cada dia do mês; hoje em destaque"
               unit={symbolOf(displayCurrency())}
-              height={280}
+              height={292}
               highlightLast={false}
               aside={chartSwitch}
               highlight={today.startsWith(key) ? Number(today.slice(8, 10)) - 1 : -1}
@@ -219,7 +202,7 @@ export default function Summary({ f, year, month, onPay }: { f: Finance; year: n
           centerLabel={effectiveDonut === 'contas' ? 'Contas' : 'Saídas'}
           format={money}
           maxSlices={6}
-          size={144}
+          size={136}
           aside={donutSwitch}
           emptyText={effectiveDonut === 'contas' ? 'Cadastre contas na aba Contas' : 'As categorias aparecem quando houver saídas no mês'}
           rows={effectiveDonut === 'contas'
@@ -228,41 +211,43 @@ export default function Summary({ f, year, month, onPay }: { f: Finance; year: n
         />
       </div>
 
-      {/* Visual Fintech Bank Cards Strip */}
+      {/* Physical Matte Carbon / Titanium Bank Cards (Moment 2) */}
       {accountRows.length > 0 && (
         <section className="mb-6" aria-label="Suas contas">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-[15px] font-semibold">Carteiras e contas</h2>
-            <span className="text-xs text-fg3">{accountRows.length} {accountRows.length === 1 ? 'conta' : 'contas'}</span>
+            <h2 className="text-[15px] leading-6 font-medium text-fg">Carteiras e contas</h2>
+            <span className="figure text-xs text-fg3">{accountRows.length} {accountRows.length === 1 ? 'conta' : 'contas'}</span>
           </div>
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {accountRows.map(({ bank: b, balance }, idx) => {
               const share = positiveSum > 0 && balance > 0 ? Math.round((balance / positiveSum) * 100) : 0;
-              const bg = b.color
-                ? `linear-gradient(135deg, ${b.color} 0%, #151936 140%)`
-                : BANK_CARD_GRADIENTS[idx % BANK_CARD_GRADIENTS.length];
               return (
                 <li
                   key={b.id}
-                  className="relative flex min-h-[152px] min-w-0 flex-col justify-between overflow-hidden rounded-[22px] p-5 text-white shadow-lg transition-transform duration-200 hover:-translate-y-0.5"
-                  style={{ background: bg }}
+                  className="relative flex min-h-[156px] min-w-0 flex-col justify-between overflow-hidden rounded-[14px] p-5 text-[#ededed]"
+                  style={{
+                    background: CARD_FINISHES[idx % CARD_FINISHES.length],
+                    boxShadow: 'inset 0 1px 0 rgb(255 255 255 / 0.14), 0 0 0 1px rgb(255 255 255 / 0.08)',
+                  }}
                 >
-                  <div className="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-white/10" aria-hidden="true" />
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-sm font-semibold tracking-tight">{b.name}</span>
-                    <span className="rounded-full bg-black/25 px-2.5 py-0.5 font-mono text-[11px] font-semibold backdrop-blur">
+                    <span className="inline-flex min-w-0 items-center gap-2 text-sm font-medium text-[#ededed]">
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: b.color || 'var(--brand)' }} aria-hidden="true" />
+                      <span className="truncate">{b.name}</span>
+                    </span>
+                    <span className="rounded-[4px] border border-white/12 bg-white/6 px-2 py-0.5 font-mono text-[11px] leading-4 text-[#a1a1a6]">
                       {b.currency ?? 'BRL'}
                     </span>
                   </div>
-                  <div className="my-2 flex items-center justify-between gap-3">
-                    <ChipIcon />
-                    <Figure value={money(balance)} className="truncate text-[24px] leading-7 font-bold" />
+                  <div className="my-3 flex items-center justify-between gap-4">
+                    <MetallicChip />
+                    <Figure value={money(balance)} className="truncate text-[24px] leading-none font-medium text-[#ededed]" />
                   </div>
-                  <div className="flex items-center gap-2.5">
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/25">
-                      <div className="h-full rounded-full bg-white/90" style={{ width: `${share}%` }} />
+                  <div className="flex items-center gap-3">
+                    <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
+                      <div className="h-full rounded-full" style={{ width: `${share}%`, background: b.color || '#ededed' }} />
                     </div>
-                    <span className="figure text-xs font-medium text-white/90">{share}% do total</span>
+                    <span className="figure text-xs text-[#a1a1a6]">{share}% do total</span>
                   </div>
                 </li>
               );
