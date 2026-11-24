@@ -1,36 +1,48 @@
 import { useCallback, useEffect, useState } from "react";
 import { useI18n, type MessageKey } from "@/i18n";
 import { supabase } from "@/lib/supabase";
-import { breakdownLabelKey, detailMetric, formatMetric, orderedMetrics, reportBlocks } from "@/lib/management";
-import { formatDateTime, operationalDay } from "@/lib/time";
+import { breakdownLabelKey, detailMetric, formatMetric, orderedMetrics, periodRange, reportBlocks, type PeriodKind } from "@/lib/management";
+import { addDays, formatCivilDate, formatDateTime, operationalDay } from "@/lib/time";
+import { useAuth } from "@/auth/AuthProvider";
 import { useLatestRequest } from "@/lib/useLatestRequest";
 import { Dialog } from "@/components/Dialog";
-import { LodgeTabs, useDefaultLodge } from "@/components/LodgeTabs";
+import { Tabs } from "@/components/Tabs";
 import { Skeleton } from "@/components/Skeleton";
 
-type Detail = { ref_id: string; label: string; at: string | null; extra: string | null };
+type Detail = { ref_id: string; label: string; at: string | null; extra: string | null; lodge_id: string | null };
+type Report = Record<string, unknown>;
 
 /** Resumo mensal por Lodge (s.15): cada número abre os registros que o formam. */
 export function Reports() {
   const { t, locale } = useI18n();
+  const { lodges } = useAuth();
   const latest = useLatestRequest();
-  const defaultLodge = useDefaultLodge();
-  const [lodge, setLodge] = useState(defaultLodge);
-  const [month, setMonth] = useState(() => operationalDay(new Date()).slice(0, 7));
-  const [report, setReport] = useState<Record<string, unknown> | null>(null);
+  // Beta 4.4: período livre (dia, semana, quinzena, mês, intervalo) e casa (uma ou as duas).
+  const [kind, setKind] = useState<PeriodKind>("month");
+  const [anchor, setAnchor] = useState(() => operationalDay(new Date()));
+  const [custom, setCustom] = useState(() => ({ from: addDays(operationalDay(new Date()), -6), to: operationalDay(new Date()) }));
+  const [house, setHouse] = useState("both");
+  const [report, setReport] = useState<Report | null>(null);
+  const [perHouse, setPerHouse] = useState<Record<string, Report>>({});
   const [detail, setDetail] = useState<{ title: string; rows: Detail[] | null } | null>(null);
-
-  useEffect(() => {
-    if (!lodge && defaultLodge) setLodge(defaultLodge);
-  }, [defaultLodge, lodge]);
+  const range = periodRange(kind, anchor, custom);
+  const selected = house === "both" ? lodges.map((l) => l.id) : [house];
+  const key = selected.join(",");
 
   const load = useCallback(async () => {
-    if (!lodge) return;
+    if (!key) return;
     const isLatest = latest();
     setReport(null);
-    const { data } = await supabase.rpc("report_monthly", { p_lodge: lodge, p_month: `${month}-01` });
-    if (isLatest()) setReport((data ?? {}) as Record<string, unknown>);
-  }, [lodge, month, latest]);
+    const ids = key.split(",");
+    const calls = [supabase.rpc("report_period", { p_lodges: ids, p_from: range.from, p_to: range.to })];
+    if (ids.length > 1) for (const id of ids) calls.push(supabase.rpc("report_period", { p_lodges: [id], p_from: range.from, p_to: range.to }));
+    const results = await Promise.all(calls);
+    if (!isLatest()) return;
+    setReport((results[0].data ?? {}) as Report);
+    const split: Record<string, Report> = {};
+    if (ids.length > 1) ids.forEach((id, i) => (split[id] = (results[i + 1].data ?? {}) as Report));
+    setPerHouse(split);
+  }, [key, range.from, range.to, latest]);
 
   useEffect(() => {
     void load();
@@ -38,10 +50,20 @@ export function Reports() {
 
   async function openDetail(metric: string, title: string) {
     setDetail({ title, rows: null });
-    const { data } = await supabase.rpc("report_details", { p_lodge: lodge, p_month: `${month}-01`, p_metric: metric });
+    const { data } = await supabase.rpc("report_details_period", { p_lodges: key.split(","), p_from: range.from, p_to: range.to, p_metric: metric });
     setDetail({ title, rows: (data ?? []) as Detail[] });
   }
 
+  const short = (id: string | null) => lodges.find((l) => l.id === id)?.short_name ?? "";
+  const split = (block: string, k: string) => {
+    const ids = Object.keys(perHouse);
+    if (ids.length < 2) return null;
+    const parts = ids.map((id) => {
+      const v = (perHouse[id]?.[block] as Record<string, unknown> | null | undefined)?.[k];
+      return typeof v === "number" || typeof v === "string" ? `${short(id)} ${format(k, v)}` : null;
+    }).filter(Boolean);
+    return parts.length ? <small className="report-split mono">{parts.join(" · ")}</small> : null;
+  };
   const label = (key: string) => t(`reports.m_${key}` as MessageKey);
   const format = (key: string, v: number | string) => formatMetric(key, v, locale);
 
@@ -52,12 +74,33 @@ export function Reports() {
           <span className="eyebrow">{t("reports.eyebrow")}</span>
           <h1>{t("reports.title")}</h1>
         </div>
-        <div className="inline no-print">
-          <label className="inline">{t("reports.month")}<input type="month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} /></label>
-          <button onClick={() => window.print()}>{t("reports.print")}</button>
-        </div>
+        <button className="no-print" onClick={() => window.print()}>{t("reports.print")}</button>
       </header>
-      <LodgeTabs value={lodge} onChange={setLodge} />
+      <div className="toolbar no-print">
+        <Tabs
+          label={t("reports.period")}
+          value={kind}
+          onChange={(v) => setKind(v as PeriodKind)}
+          items={(["day", "week", "fortnight", "month", "custom"] as PeriodKind[]).map((k) => ({ value: k, label: t(`reports.p_${k}` as MessageKey) }))}
+        />
+        {kind === "custom" ? (
+          <>
+            <label className="inline">{t("vacations.from")}<input type="date" value={custom.from} onChange={(e) => e.target.value && setCustom({ ...custom, from: e.target.value })} /></label>
+            <label className="inline">{t("vacations.until")}<input type="date" value={custom.to} min={custom.from} onChange={(e) => e.target.value && setCustom({ ...custom, to: e.target.value })} /></label>
+          </>
+        ) : (
+          <label className="inline">{t("reports.reference")}<input type="date" value={anchor} onChange={(e) => e.target.value && setAnchor(e.target.value)} /></label>
+        )}
+      </div>
+      <div className="toolbar">
+        <Tabs
+          label={t("residents.lodge")}
+          value={house}
+          onChange={setHouse}
+          items={[...lodges.map((l) => ({ value: l.id, label: l.name })), { value: "both", label: t("reports.bothHouses") }]}
+        />
+        <span className="eyebrow">{formatCivilDate(range.from, locale)} → {formatCivilDate(addDays(range.to, -1), locale)}</span>
+      </div>
       {report === null ? (
         <div className="report-grid">{[0, 1, 2, 3].map((i) => <div key={i} className="card"><Skeleton rows={3} label={t("app.loading")} /></div>)}</div>
       ) : (
@@ -77,6 +120,7 @@ export function Reports() {
                         ) : (
                           <span>{format(k, v)}</span>
                         )}
+                        {split(b.key, k)}
                       </dd>
                     </div>
                   );
@@ -106,6 +150,7 @@ export function Reports() {
                 {detail.rows.map((r) => (
                   <tr key={r.ref_id}>
                     <td className="cell-main">{r.label}</td>
+                    <td><span className="chip">{short(r.lodge_id)}</span></td>
                     <td className="nowrap">{r.at ? formatDateTime(r.at, locale) : ""}</td>
                     <td className="muted">{r.extra}</td>
                   </tr>

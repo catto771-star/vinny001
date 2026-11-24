@@ -88,3 +88,15 @@ describe("quem pode assumir cada função na Rota (mesma regra do banco)", () =>
     expect(rotaRolesFn("manager")).toEqual(["manager", "owner", "developer"]);
   });
 });
+
+describe("Beta: período do relatório", () => {
+  it("dia, semana (segunda a domingo), quinzena (as duas últimas semanas), mês e intervalo livre (fim incluído)", async () => {
+    const { periodRange } = await import("./management");
+    expect(periodRange("day", "2026-11-24")).toEqual({ from: "2026-11-24", to: "2026-11-25" });
+    expect(periodRange("week", "2026-11-26")).toEqual({ from: "2026-11-23", to: "2026-11-30" });
+    expect(periodRange("fortnight", "2026-11-26")).toEqual({ from: "2026-11-16", to: "2026-11-30" });
+    expect(periodRange("month", "2026-12-10")).toEqual({ from: "2026-12-01", to: "2027-01-01" });
+    expect(periodRange("custom", "2026-11-24", { from: "2026-11-01", to: "2026-11-10" })).toEqual({ from: "2026-11-01", to: "2026-11-11" });
+    expect(periodRange("custom", "2026-11-24", { from: "2026-11-10", to: "2026-11-01" })).toEqual({ from: "2026-11-10", to: "2026-11-11" });
+  });
+});

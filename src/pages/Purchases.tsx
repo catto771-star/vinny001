@@ -1,45 +1,112 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ExternalLink, Plus } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { supabase } from "@/lib/supabase";
 import { errorKey } from "@/lib/errors";
-import { formatEUR, lineTotal } from "@/lib/management";
-import { formatCivilDate, operationalDay } from "@/lib/time";
+import { formatEUR } from "@/lib/management";
+import { formatCivilDate, operationalDay, addDays } from "@/lib/time";
+import { useLatestRequest } from "@/lib/useLatestRequest";
 import { Dialog, DialogCancel } from "@/components/Dialog";
 import { Notice } from "@/components/Notice";
 import { Skeleton } from "@/components/Skeleton";
+import { Tabs } from "@/components/Tabs";
 import { useToast } from "@/components/Toast";
 
-type Product = { id: string; name: string; unit: string };
-type Purchase = { id: string; supplier: string; purchased_on: string; created_at: string };
-type Priced = { line_id: string; product_name: string; quantity: string; unit_price: string; line_total: string; purchase_total: string; document_ref: string | null };
-type Line = { productId: string; newName: string; quantity: string; unitPrice: string };
+export type ShopItem = { id: string; sort_order: number; category: string; name: string; default_qty: number; default_action: "buy" | "dont_buy"; tesco_url: string | null; image_path: string | null; version: number };
+export type ShopOrder = { id: string; delivery_date: string; notes: string | null; status: "draft" | "placed"; created_at: string };
+export type ShopLine = { id: string; item_id: string; standard_qty: number; action: LineAction; delta: number; final_qty: number; unit_price: string | null };
+export type LineAction = "standard" | "more" | "less" | "dont";
 
-const num = (s: string) => Number(s.replace(",", "."));
+/** Quantidade final do pedido (mesma regra do banco). */
+export function finalQty(standard: number, action: LineAction, delta: number): number {
+  switch (action) {
+    case "standard": return standard;
+    case "more": return standard + Math.max(0, delta);
+    case "less": return Math.max(0, standard - Math.max(0, delta));
+    case "dont": return 0;
+  }
+}
 
-/** Compras (s.8): preços e documentos só para Manager/Owner/Developer; sem estoque nem pagamento. */
+/** Preço digitado: vazio = sem preço; aceita vírgula. Inválido = undefined. */
+export function parsePrice(text: string): number | null | undefined {
+  const s = text.trim().replace(",", ".");
+  if (s === "") return null;
+  if (!/^\d{1,5}(\.\d{1,2})?$/.test(s)) return undefined;
+  return Number(s);
+}
+
+const ACTIONS: { value: LineAction; label: "purchases.buyStandard" | "purchases.buyMore" | "purchases.buyLess" | "purchases.dontBuy" }[] = [
+  { value: "standard", label: "purchases.buyStandard" },
+  { value: "more", label: "purchases.buyMore" },
+  { value: "less", label: "purchases.buyLess" },
+  { value: "dont", label: "purchases.dontBuy" },
+];
+
+/** Purchases (escopo Beta 4.1): a planilha do Tesco como lista fixa, um pedido por entrega para as duas casas. */
 export function Purchases() {
   const { t, locale } = useI18n();
   const toast = useToast();
-  const [purchases, setPurchases] = useState<Purchase[] | null>(null);
-  const [open, setOpen] = useState<string | null>(null);
-  const [priced, setPriced] = useState<Record<string, Priced[]>>({});
-  const [adding, setAdding] = useState(false);
+  const latest = useLatestRequest();
+  const [tab, setTab] = useState<"order" | "list">("order");
+  const [items, setItems] = useState<ShopItem[] | null>(null);
+  const [orders, setOrders] = useState<ShopOrder[]>([]);
+  const [orderId, setOrderId] = useState("");
+  const [lines, setLines] = useState<ShopLine[] | null>(null);
+  const [editing, setEditing] = useState<ShopItem | "new" | null>(null);
+  const [creating, setCreating] = useState(false);
 
-  const load = useCallback(async () => {
-    const { data } = await supabase.from("purchases").select("id, supplier, purchased_on, created_at").order("purchased_on", { ascending: false }).limit(100);
-    setPurchases((data ?? []) as Purchase[]);
+  const loadBase = useCallback(async () => {
+    const [{ data: it }, { data: or }] = await Promise.all([
+      supabase.from("shop_items").select("id, sort_order, category, name, default_qty, default_action, tesco_url, image_path, version").eq("active", true).order("sort_order"),
+      supabase.from("shop_orders").select("id, delivery_date, notes, status, created_at").order("delivery_date", { ascending: false }).limit(30),
+    ]);
+    setItems((it ?? []) as ShopItem[]);
+    const list = (or ?? []) as ShopOrder[];
+    setOrders(list);
+    setOrderId((cur) => (list.some((o) => o.id === cur) ? cur : list[0]?.id ?? ""));
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const loadLines = useCallback(async () => {
+    if (!orderId) return setLines([]);
+    const isLatest = latest();
+    setLines(null);
+    const { data } = await supabase.from("shop_order_lines").select("id, item_id, standard_qty, action, delta, final_qty, unit_price").eq("order_id", orderId);
+    if (isLatest()) setLines((data ?? []) as ShopLine[]);
+  }, [orderId, latest]);
 
-  async function expand(id: string) {
-    setOpen((o) => (o === id ? null : id));
-    if (priced[id]) return;
-    const { data } = await supabase.rpc("purchase_prices", { p_purchase: id });
-    setPriced((p) => ({ ...p, [id]: (data ?? []) as Priced[] }));
+  useEffect(() => void loadBase(), [loadBase]);
+  useEffect(() => void loadLines(), [loadLines]);
+
+  const order = orders.find((o) => o.id === orderId);
+  const byItem = useMemo(() => new Map((lines ?? []).map((l) => [l.item_id, l])), [lines]);
+  const categories = useMemo(() => [...new Set((items ?? []).map((i) => i.category))], [items]);
+
+  async function saveLine(line: ShopLine, patch: Partial<Pick<ShopLine, "action" | "delta" | "unit_price">>) {
+    const next = { ...line, ...patch };
+    next.final_qty = finalQty(next.standard_qty, next.action, next.delta);
+    setLines((ls) => ls?.map((l) => (l.id === line.id ? next : l)) ?? null);
+    const { error } = await supabase.rpc("set_shop_line", {
+      p_line: line.id, p_action: next.action, p_delta: next.delta, p_unit_price: next.unit_price === null || next.unit_price === "" ? null : Number(next.unit_price),
+    });
+    if (error) {
+      toast.error(t(errorKey(error)));
+      void loadLines();
+    }
   }
+
+  async function saveOrder(patch: { notes?: string; placed?: boolean; delivery?: string }) {
+    if (!order) return;
+    const { error } = await supabase.rpc("set_shop_order", {
+      p_order: order.id, p_delivery: patch.delivery ?? order.delivery_date, p_notes: patch.notes ?? order.notes ?? "", p_placed: patch.placed ?? order.status === "placed",
+    });
+    if (error) return toast.error(t(errorKey(error)));
+    if (patch.placed) toast.success(t("purchases.placedOk"));
+    void loadBase();
+  }
+
+  const total = (lines ?? []).reduce((sum, l) => sum + (l.unit_price !== null && l.unit_price !== "" ? l.final_qty * Number(l.unit_price) : 0), 0);
+  const missingPrice = (lines ?? []).filter((l) => l.final_qty > 0 && (l.unit_price === null || l.unit_price === "")).length;
+  const toBuy = (lines ?? []).filter((l) => l.final_qty > 0).length;
 
   return (
     <section className="page">
@@ -48,49 +115,101 @@ export function Purchases() {
           <span className="eyebrow">{t("purchases.eyebrow")}</span>
           <h1>{t("purchases.title")}</h1>
         </div>
-        <button className="primary" onClick={() => setAdding(true)}>{t("purchases.new")}</button>
+        <button className="primary" onClick={() => setCreating(true)}><Plus size={16} aria-hidden="true" /> {t("purchases.newOrder")}</button>
       </header>
-      {purchases === null ? (
-        <div className="card"><Skeleton rows={5} label={t("app.loading")} /></div>
-      ) : purchases.length === 0 ? (
-        <div className="card empty-state"><p className="muted">{t("purchases.empty")}</p></div>
+      <Tabs label={t("purchases.title")} value={tab} onChange={(v) => setTab(v as "order" | "list")} items={[{ value: "order", label: t("purchases.orderTab") }, { value: "list", label: t("purchases.listTab") }]} />
+
+      {items === null ? (
+        <div className="card"><Skeleton rows={6} label={t("app.loading")} /></div>
+      ) : tab === "list" ? (
+        <>
+          <p className="hint">{t("purchases.listHint")}</p>
+          <div className="shop-grid">
+            {items.map((i) => (
+              <article key={i.id} className="shop-card">
+                <ItemPicture item={i} />
+                <div className="shop-main">
+                  <strong>{i.name}</strong>
+                  <span className="muted small-text">{i.category}</span>
+                  <span className="mono">{i.default_action === "buy" ? t("purchases.standardQty", { n: i.default_qty }) : t("purchases.dontBuy")}</span>
+                  <div className="inline">
+                    {i.tesco_url && <a href={i.tesco_url} target="_blank" rel="noreferrer noopener" className="small-text">{t("purchases.openTesco")} <ExternalLink size={13} aria-hidden="true" /></a>}
+                    <button className="small" onClick={() => setEditing(i)}>{t("app.edit")}</button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+          <button onClick={() => setEditing("new")}>+ {t("purchases.addItem")}</button>
+        </>
+      ) : orders.length === 0 ? (
+        <div className="card empty-state"><p>{t("purchases.noOrders")}</p></div>
       ) : (
-        <ul className="ticket-list">
-          {purchases.map((p) => (
-            <li key={p.id}>
-              <button type="button" className="ticket" onClick={() => void expand(p.id)} aria-expanded={open === p.id}>
-                <span className="ticket-prio">{formatCivilDate(p.purchased_on, locale)}</span>
-                <span className="ticket-main"><strong>{p.supplier}</strong>{priced[p.id] && <span className="muted">{t("purchases.lines", { n: priced[p.id].length })}</span>}</span>
-                <span className="ticket-side">{priced[p.id]?.[0] && <strong>{formatEUR(priced[p.id][0].purchase_total, locale)}</strong>}</span>
-              </button>
-              {open === p.id && priced[p.id] && (
-                <table className="table table-cards nested">
-                  <tbody>
-                    {priced[p.id].map((l) => (
-                      <tr key={l.line_id}>
-                        <td className="cell-main">{l.product_name}</td>
-                        <td>{Number(l.quantity)} × {formatEUR(l.unit_price, locale)}</td>
-                        <td><strong>{formatEUR(l.line_total, locale)}</strong></td>
-                      </tr>
-                    ))}
-                    {priced[p.id][0]?.document_ref && (
-                      <tr><td colSpan={3} className="muted">{t("purchases.document")}: {priced[p.id][0].document_ref}</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              )}
-            </li>
-          ))}
-        </ul>
+        <>
+          <div className="toolbar">
+            <label className="inline">
+              {t("purchases.order")}
+              <select value={orderId} onChange={(e) => setOrderId(e.target.value)}>
+                {orders.map((o) => <option key={o.id} value={o.id}>{formatCivilDate(o.delivery_date, locale)}{o.status === "placed" ? ` · ${t("purchases.placed")}` : ""}</option>)}
+              </select>
+            </label>
+            {order && (
+              <label className="inline">
+                {t("purchases.delivery")}
+                <input type="date" value={order.delivery_date} onChange={(e) => e.target.value && void saveOrder({ delivery: e.target.value })} />
+              </label>
+            )}
+          </div>
+
+          <div className="shop-summary card">
+            <div><span className="big-number">{toBuy}</span><span className="muted"> {t("purchases.itemsToBuy")}</span></div>
+            <div><span className="big-number mono">{formatEUR(total, locale)}</span><span className="muted"> {t("purchases.estimatedTotal")}</span></div>
+            {missingPrice > 0 && <span className="muted small-text">{t("purchases.missingPrice", { n: missingPrice })}</span>}
+            {order && order.status === "draft" && <button className="primary" onClick={() => void saveOrder({ placed: true })}>{t("purchases.markPlaced")}</button>}
+            {order && order.status === "placed" && <button onClick={() => void saveOrder({ placed: false })}>{t("purchases.reopen")}</button>}
+          </div>
+
+          {lines === null ? (
+            <div className="card"><Skeleton rows={6} label={t("app.loading")} /></div>
+          ) : (
+            categories.map((cat) => (
+              <section key={cat}>
+                <h2 className="section-title">{cat}</h2>
+                <div className="shop-lines">
+                  {items.filter((i) => i.category === cat).map((i) => {
+                    const l = byItem.get(i.id);
+                    if (!l) return null;
+                    return <OrderLine key={l.id} item={i} line={l} onSave={(p) => void saveLine(l, p)} />;
+                  })}
+                </div>
+              </section>
+            ))
+          )}
+
+          {order && <OrderNotes key={order.id} initial={order.notes ?? ""} onSave={(notes) => void saveOrder({ notes })} />}
+        </>
       )}
-      {adding && (
-        <PurchaseDialog
-          onClose={() => setAdding(false)}
+
+      {creating && (
+        <NewOrderDialog
+          onClose={() => setCreating(false)}
+          onDone={(id) => {
+            setCreating(false);
+            setTab("order");
+            setOrderId(id);
+            void loadBase();
+          }}
+        />
+      )}
+      {editing && (
+        <ItemDialog
+          item={editing === "new" ? null : editing}
+          categories={categories}
+          onClose={() => setEditing(null)}
           onDone={() => {
-            setAdding(false);
-            toast.success(t("purchases.saved"));
-            setPriced({});
-            void load();
+            setEditing(null);
+            toast.success(t("purchases.itemSaved"));
+            void loadBase();
           }}
         />
       )}
@@ -98,90 +217,117 @@ export function Purchases() {
   );
 }
 
-function PurchaseDialog({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+function ItemPicture({ item }: { item: ShopItem }) {
+  return item.image_path ? <img className="shop-img" src={item.image_path} alt="" width={64} height={64} loading="lazy" /> : <span className="shop-img shop-img-empty" aria-hidden="true" />;
+}
+
+function OrderLine({ item, line, onSave }: { item: ShopItem; line: ShopLine; onSave: (p: Partial<Pick<ShopLine, "action" | "delta" | "unit_price">>) => void }) {
   const { t, locale } = useI18n();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [supplier, setSupplier] = useState("");
-  const [date, setDate] = useState(operationalDay(new Date()));
-  const [doc, setDoc] = useState("");
-  const [lines, setLines] = useState<Line[]>([{ productId: "", newName: "", quantity: "", unitPrice: "" }]);
+  const [delta, setDelta] = useState(String(line.delta || ""));
+  const [price, setPrice] = useState(line.unit_price === null ? "" : String(line.unit_price));
+  const parsed = parsePrice(price);
+  const subtotal = typeof parsed === "number" ? parsed * line.final_qty : null;
+  return (
+    <article className={`shop-line${line.final_qty === 0 ? " is-skipped" : ""}`} aria-label={item.name}>
+      <ItemPicture item={item} />
+      <div className="shop-main">
+        <strong>{item.name}</strong>
+        <span className="muted small-text">
+          {t("purchases.standardQty", { n: line.standard_qty })}
+          {item.tesco_url && <> · <a href={item.tesco_url} target="_blank" rel="noreferrer noopener">Tesco.ie <ExternalLink size={12} aria-hidden="true" /></a></>}
+        </span>
+      </div>
+      <div className="shop-actions" role="group" aria-label={t("purchases.action")}>
+        {ACTIONS.map((a) => (
+          <button key={a.value} type="button" className={`chip${line.action === a.value ? " is-on" : ""}`} aria-pressed={line.action === a.value} onClick={() => onSave({ action: a.value, delta: a.value === "more" || a.value === "less" ? Number(delta) || 1 : 0 })}>
+            {t(a.label)}
+          </button>
+        ))}
+        {(line.action === "more" || line.action === "less") && (
+          <input className="shop-delta" inputMode="numeric" aria-label={t("purchases.howMany")} value={delta}
+            onChange={(e) => setDelta(e.target.value.replace(/\D/g, "").slice(0, 3))}
+            onBlur={() => Number(delta) !== line.delta && onSave({ delta: Number(delta) || 0 })} />
+        )}
+      </div>
+      <div className="shop-qty"><span className="muted small-text">{t("purchases.finalQty")}</span><strong className="mono">{line.final_qty}</strong></div>
+      <label className="shop-price">
+        <span className="muted small-text">{t("purchases.unitPrice")}</span>
+        <input inputMode="decimal" placeholder="—" value={price} aria-invalid={parsed === undefined}
+          onChange={(e) => setPrice(e.target.value)}
+          onBlur={() => parsed !== undefined && String(parsed ?? "") !== String(line.unit_price === null ? "" : Number(line.unit_price)) && onSave({ unit_price: parsed === null ? null : String(parsed) })} />
+      </label>
+      <div className="shop-qty"><span className="muted small-text">{t("purchases.subtotal")}</span><span className="mono">{subtotal === null ? "—" : formatEUR(subtotal, locale)}</span></div>
+    </article>
+  );
+}
+
+function OrderNotes({ initial, onSave }: { initial: string; onSave: (notes: string) => void }) {
+  const { t } = useI18n();
+  const [notes, setNotes] = useState(initial);
+  return (
+    <label className="form card">
+      {t("purchases.notes")}
+      <textarea rows={3} value={notes} placeholder={t("purchases.notesHint")} onChange={(e) => setNotes(e.target.value)} onBlur={() => notes !== initial && onSave(notes)} />
+    </label>
+  );
+}
+
+function NewOrderDialog({ onClose, onDone }: { onClose: () => void; onDone: (id: string) => void }) {
+  const { t } = useI18n();
+  const [date, setDate] = useState(() => addDays(operationalDay(new Date()), 1));
+  const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  async function submit() {
+    const { data, error: err } = await supabase.rpc("create_shop_order", { p_delivery: date, p_notes: notes });
+    if (err) return setError(t(errorKey(err)));
+    onDone(data as string);
+  }
+  return (
+    <Dialog title={t("purchases.newOrder")} onClose={onClose} footer={<><DialogCancel>{t("app.cancel")}</DialogCancel><button className="primary" disabled={!date} onClick={() => void submit()}>{t("purchases.create")}</button></>}>
+      <div className="form">
+        <label>{t("purchases.delivery")}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} autoFocus /></label>
+        <label>{t("purchases.notes")} <small>({t("app.optional")})</small><textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
+        <p className="hint">{t("purchases.newOrderHint")}</p>
+        <Notice kind="error">{error}</Notice>
+      </div>
+    </Dialog>
+  );
+}
 
-  useEffect(() => {
-    void supabase.from("products").select("id, name, unit").eq("active", true).order("name").then(({ data }) => setProducts((data ?? []) as Product[]));
-  }, []);
-
-  const valid = supplier.trim() && lines.every((l) => (l.productId || l.newName.trim()) && num(l.quantity) > 0 && num(l.unitPrice) >= 0 && l.unitPrice !== "");
-  const total = lines.reduce((s, l) => s + (num(l.quantity) > 0 && l.unitPrice ? lineTotal(num(l.quantity), num(l.unitPrice)) : 0), 0);
-  const set = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, k) => (k === i ? { ...l, ...patch } : l)));
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    const payload = [];
-    for (const l of lines) {
-      let id = l.productId;
-      if (!id) {
-        const { data, error: err } = await supabase.rpc("upsert_product", { p_id: null, p_name: l.newName, p_unit: "un", p_category: null });
-        if (err) {
-          setBusy(false);
-          return setError(t(errorKey(err)));
-        }
-        id = data as string;
-      }
-      payload.push({ product_id: id, quantity: num(l.quantity), unit_price: num(l.unitPrice) });
-    }
-    const { error: err } = await supabase.rpc("create_purchase", { p_supplier: supplier, p_on: date, p_document: doc, p_lines: payload });
-    setBusy(false);
+function ItemDialog({ item, categories, onClose, onDone }: { item: ShopItem | null; categories: string[]; onClose: () => void; onDone: () => void }) {
+  const { t } = useI18n();
+  const [name, setName] = useState(item?.name ?? "");
+  const [category, setCategory] = useState(item?.category ?? categories[0] ?? "");
+  const [qty, setQty] = useState(String(item?.default_qty ?? 1));
+  const [action, setAction] = useState<"buy" | "dont_buy">(item?.default_action ?? "buy");
+  const [url, setUrl] = useState(item?.tesco_url ?? "");
+  const [error, setError] = useState<string | null>(null);
+  async function submit() {
+    const { error: err } = await supabase.rpc("update_shop_item", {
+      p_id: item?.id ?? null, p_name: name, p_category: category, p_default_qty: Number(qty), p_default_action: action, p_tesco_url: url,
+    });
     if (err) return setError(t(errorKey(err)));
     onDone();
   }
-
   return (
-    <Dialog
-      wide
-      title={t("purchases.new")}
-      onClose={onClose}
-      footer={
-        <>
-          <span className="progress-text" style={{ marginRight: "auto" }}>{t("purchases.total")}: {formatEUR(total, locale)}</span>
-          <DialogCancel>{t("app.cancel")}</DialogCancel>
-          <button type="submit" form="purchase-form" className="primary" disabled={!valid || busy}>{t("app.save")}</button>
-        </>
-      }
-    >
-      <form id="purchase-form" className="form" onSubmit={submit}>
+    <Dialog title={item ? t("app.edit") : t("purchases.addItem")} onClose={onClose} footer={<><DialogCancel>{t("app.cancel")}</DialogCancel><button className="primary" disabled={!name.trim() || !/^\d{1,3}$/.test(qty)} onClick={() => void submit()}>{t("app.save")}</button></>}>
+      <div className="form">
         <div className="form-grid">
-          <label>{t("purchases.supplier")}<input required value={supplier} onChange={(e) => setSupplier(e.target.value)} autoFocus /></label>
-          <label>{t("purchases.date")}<input type="date" required value={date} onChange={(e) => setDate(e.target.value)} /></label>
-          <label>{t("purchases.document")} <small>({t("app.optional")})</small><input value={doc} onChange={(e) => setDoc(e.target.value)} /></label>
+          <label>{t("purchases.product")}<input value={name} onChange={(e) => setName(e.target.value)} autoFocus /></label>
+          <label>{t("purchases.category")}<input list="shop-categories" value={category} onChange={(e) => setCategory(e.target.value)} /></label>
+          <label>{t("purchases.defaultQty")}<input inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value)} /></label>
+          <label>
+            {t("purchases.defaultAction")}
+            <select value={action} onChange={(e) => setAction(e.target.value as "buy" | "dont_buy")}>
+              <option value="buy">{t("purchases.buyStandard")}</option>
+              <option value="dont_buy">{t("purchases.dontBuy")}</option>
+            </select>
+          </label>
         </div>
-        {lines.map((l, i) => (
-          <div key={i} className="line-row">
-            <label>
-              {t("purchases.product")}
-              <select value={l.productId} onChange={(e) => set(i, { productId: e.target.value })}>
-                <option value="">{t("purchases.newProduct")}…</option>
-                {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-              {!l.productId && <input placeholder={t("purchases.newProduct")} value={l.newName} onChange={(e) => set(i, { newName: e.target.value })} />}
-            </label>
-            <label>{t("purchases.quantity")}<input inputMode="decimal" value={l.quantity} onChange={(e) => set(i, { quantity: e.target.value })} /></label>
-            <label>{t("purchases.unitPrice")}<input inputMode="decimal" value={l.unitPrice} onChange={(e) => set(i, { unitPrice: e.target.value })} /></label>
-            <span className="line-total">
-              <small className="muted">{t("purchases.lineTotal")}</small>
-              <strong>{num(l.quantity) > 0 && l.unitPrice ? formatEUR(lineTotal(num(l.quantity), num(l.unitPrice)), locale) : "—"}</strong>
-            </span>
-          </div>
-        ))}
-        <button type="button" className="ghost" onClick={() => setLines((ls) => [...ls, { productId: "", newName: "", quantity: "", unitPrice: "" }])}>
-          + {t("purchases.addLine")}
-        </button>
-        <p className="hint">{t("purchases.roundingHint")}</p>
+        <label>{t("purchases.tescoLink")}<input type="url" value={url} placeholder="https://www.tesco.ie/…" onChange={(e) => setUrl(e.target.value)} /></label>
+        <datalist id="shop-categories">{categories.map((c) => <option key={c} value={c} />)}</datalist>
         <Notice kind="error">{error}</Notice>
-      </form>
+      </div>
     </Dialog>
   );
 }

@@ -234,7 +234,8 @@ input[type="checkbox"], input[type="radio"] { width: 20px; min-height: 20px; hei
 .post-chip { display: inline-flex; align-items: center; gap: 0.5rem; white-space: nowrap; min-height: 32px; padding: 0 0.75rem; border: 1px solid var(--line-strong); border-radius: var(--radius); font-size: 0.8125rem; font-weight: 500; background: var(--surface); color: var(--ink-2); }
 .post-chip.is-on { background: var(--surface); border-color: var(--line-strong); color: var(--ink); }
 .post-chip .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--ok); }
-.user-name { color: var(--ink-3); font-size: 0.875rem; }
+.user-name { color: var(--ink-3); font-size: 0.875rem; max-width: 18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar-right .link-button { white-space: nowrap; }
 .hide-mobile { display: none !important; }
 
 .sidebar { display: none; }
@@ -735,3 +736,37 @@ button.chip.is-on { background: var(--ink); border-color: var(--ink); color: #ff
 .split-box { border: 1px solid var(--line); border-radius: var(--radius); padding: 0.75rem 1rem 1rem; display: grid; gap: 0.75rem; margin: 0; }
 .split-box legend { padding: 0 0.25rem; font-weight: 500; }
 th.num, td.num { text-align: right; }
+
+/* Purchases — lista do Tesco (Beta) */
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+.shop-card, .shop-line { display: flex; gap: 0.75rem; align-items: center; padding: 0.75rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.shop-img { width: 4rem; height: 4rem; object-fit: contain; flex: none; border-radius: var(--radius-sm); background: #fff; }
+.shop-img-empty { display: inline-block; background: var(--surface-2); }
+.shop-main { display: grid; gap: 0.125rem; min-width: 0; flex: 1 1 10rem; }
+.shop-lines { display: grid; gap: 0.5rem; margin-bottom: 1.25rem; }
+.shop-line { flex-wrap: wrap; }
+.shop-line.is-skipped { background: var(--surface-2); }
+.shop-line.is-skipped .shop-img { opacity: 0.45; }
+.shop-actions { display: flex; flex-wrap: wrap; gap: 0.375rem; align-items: center; }
+.shop-delta { width: 4rem; }
+.shop-qty { display: grid; justify-items: end; min-width: 4.5rem; }
+.shop-price { display: grid; gap: 0.125rem; width: 7rem; }
+.shop-summary { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center; margin-bottom: 1rem; }
+
+/* Holidays — calendário anual (Beta): amarelo em análise, laranja aprovado, vermelho bloqueado */
+:root { --hol-review: #f6df7a; --hol-approved: #f0a24a; --hol-locked: #d9534f; }
+.holiday-legend { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; font-size: 0.875rem; color: var(--ink-2); }
+.holiday-legend span { display: inline-flex; align-items: center; gap: 0.375rem; }
+.holiday-swatch { width: 0.875rem; height: 0.875rem; border-radius: 3px; display: inline-block; }
+.holiday-swatch.is-under_review, .holiday-day.is-under_review, .holiday-tag.is-under_review { background: var(--hol-review); color: #3d3000; }
+.holiday-swatch.is-approved, .holiday-day.is-approved, .holiday-tag.is-approved { background: var(--hol-approved); color: #3a1d00; }
+.holiday-swatch.is-locked, .holiday-day.is-locked { background: var(--hol-locked); color: #fff; }
+.holiday-year { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0.75rem; }
+.holiday-month { padding: 0.875rem; }
+.holiday-month h2 { margin: 0 0 0.5rem; font-size: 0.9375rem; font-weight: 600; text-transform: capitalize; }
+.holiday-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.holiday-wd { text-align: center; font-size: 0.75rem; color: var(--ink-3); font-family: var(--font-mono); }
+.holiday-day { min-height: 1.875rem; padding: 0; border: none; border-radius: 4px; background: transparent; font-family: var(--font-mono); font-size: 0.8125rem; color: var(--ink-2); }
+.holiday-day:disabled { cursor: default; opacity: 1; }
+.holiday-day:not(:disabled):hover { outline: 2px solid var(--ink); }
+.report-split { display: block; color: var(--ink-3); font-size: 0.75rem; margin-top: 0.125rem; }

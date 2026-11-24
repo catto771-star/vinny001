@@ -72,6 +72,14 @@ Espaçamento na grade de 4 px (raiz 16 px; `0.25rem` = 4 px).
 - **Contagens no menu**: número em mono, vermelho contido sobre fundo claro, sem bolha cheia.
 - **Régua do dia** (`components/ShiftRuler.tsx`) e **quadro de camas** (`components/BedBoard.tsx`).
 
+## Casa ativa (Beta)
+
+- Sem a marca DS Lodge: o símbolo das duas casas (telhado, três pessoas e mão, sem o texto) fica no menu e no login;
+  o nome da casa ativa aparece só no cabeçalho.
+- Cabeçalho e menu em tom claro da cor da casa: Amiens ocre (`#BC833C`), Connolly azul (`#507089` / `#072E4B`).
+  O texto continua escuro (contraste AA); a cor pura só aparece em faixas (diálogos, item ativo do menu, seletor de casa).
+- O seletor de casa no topo troca a casa na hora (Float), sem sair do sistema.
+
 ## Ícones
 
 `lucide-react`, 16 px no menu (18 px nos demais), traço padrão, cor do texto apagado;

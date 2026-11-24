@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   BedDouble, ClipboardCheck, Eye, History, House, LayoutGrid, NotebookPen, Plane, ScrollText,
-  Bell, CalendarDays, ChartColumn, PackageOpen, ShieldAlert, ShoppingCart, Timer, TreePalm, Shirt, Thermometer, Truck, UserX, Users, UtensilsCrossed, Wrench,
+  Bell, CalendarDays, ChartColumn, ShieldAlert, ShoppingCart, Timer, TreePalm, Shirt, Thermometer, Truck, UserX, Users, UtensilsCrossed, Wrench,
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthProvider";
@@ -60,10 +60,9 @@ export const GROUPS: Group[] = [
     label: "nav.groupManagement",
     items: [
       { to: "/rota", label: "nav.rota", icon: CalendarDays, managementOnly: true },
-      { to: "/distribution", label: "nav.distribution", icon: PackageOpen },
       { to: "/purchases", label: "nav.purchases", icon: ShoppingCart, managementOnly: true },
       { to: "/hours", label: "nav.hours", icon: Timer, managementOnly: true },
-      { to: "/vacations", label: "nav.vacations", icon: TreePalm, managementOnly: true },
+      { to: "/vacations", label: "nav.vacations", icon: TreePalm },
       { to: "/reports", label: "nav.reports", icon: ChartColumn, managementOnly: true },
       { to: "/users", label: "nav.users", icon: ScrollText, managementOnly: true },
       { to: "/audit", label: "nav.audit", icon: History, managementOnly: true },

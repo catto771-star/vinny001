@@ -235,6 +235,9 @@ begin
               v_mgr, least(public.slot_instant(v_d, '09:00') - interval '14 days', p_now - interval '4 days'));
     end if;
   end loop;
+  -- Beta: o Roster publicado guarda o horário previsto (horas previstas × trabalhadas).
+  update public.rota_shifts set planned_starts_at = starts_at, planned_ends_at = ends_at
+   where created_by = v_mgr and status = 'published' and planned_starts_at is null;
   insert into public.notifications (kind, audience, payload, created_at)
   values ('coverage_below_minimum', 'management',
           jsonb_build_object('demo', true, 'gaps', demo.gap_count(v_today + 1, v_today + 13),

@@ -110,3 +110,31 @@ export function rotaRoles(fn: RotaFunction): StaffRole[] {
     case "manager": return ["manager", "owner", "developer"];
   }
 }
+
+/** Beta 4.4: período do relatório. Devolve [from, to) em dias operacionais (to exclusivo). */
+export type PeriodKind = "day" | "week" | "fortnight" | "month" | "custom";
+export function periodRange(kind: PeriodKind, anchor: string, custom?: { from: string; to: string }): { from: string; to: string } {
+  switch (kind) {
+    case "day":
+      return { from: anchor, to: addDays(anchor, 1) };
+    case "week": {
+      const s = weekStart(anchor);
+      return { from: s, to: addDays(s, 7) };
+    }
+    case "fortnight": {
+      const s = addDays(weekStart(anchor), -7);
+      return { from: s, to: addDays(s, 14) };
+    }
+    case "month": {
+      const first = `${anchor.slice(0, 7)}-01`;
+      const [y, m] = first.split("-").map(Number);
+      const next = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, "0")}-01`;
+      return { from: first, to: next };
+    }
+    case "custom": {
+      const from = custom?.from ?? anchor;
+      const to = custom?.to && custom.to >= from ? custom.to : from;
+      return { from, to: addDays(to, 1) };
+    }
+  }
+}

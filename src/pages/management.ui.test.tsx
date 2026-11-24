@@ -33,8 +33,6 @@ vi.mock("@/auth/AuthProvider", () => ({
 }));
 
 import { I18nProvider } from "@/i18n";
-import { Purchases } from "./Purchases";
-import { Distribution } from "./Distribution";
 import { Rota } from "./Rota";
 import { Hours } from "./Hours";
 import { Vacations } from "./Vacations";
@@ -54,48 +52,6 @@ afterEach(() => {
   rpc.mockClear();
 });
 const wrap = (ui: React.ReactNode) => render(<I18nProvider><MemoryRouter>{ui}</MemoryRouter></I18nProvider>);
-
-describe("Compras", () => {
-  it("total da linha arredonda ao centavo (meio centavo para cima) e produto novo é criado antes da compra", async () => {
-    rpcResult.upsert_product = "p-new";
-    wrap(<Purchases />);
-    fireEvent.click(await screen.findByRole("button", { name: "Record purchase" }));
-    const dialog = await screen.findByRole("dialog");
-    fireEvent.change(within(dialog).getByLabelText("Supplier"), { target: { value: "Musgrave" } });
-    fireEvent.change(within(dialog).getByPlaceholderText("New product name"), { target: { value: "Milk 2L" } });
-    fireEvent.change(within(dialog).getByLabelText("Qty"), { target: { value: "3" } });
-    fireEvent.change(within(dialog).getByLabelText("Unit price (€)"), { target: { value: "1,335" } });
-    expect(within(dialog).getAllByText(/4\.01/).length).toBeGreaterThan(0);
-    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(rpc).toHaveBeenCalledWith("create_purchase", expect.objectContaining({
-      p_supplier: "Musgrave", p_lines: [{ product_id: "p-new", quantity: 3, unit_price: 1.335 }],
-    })));
-    expect(rpc.mock.calls.findIndex((c) => c[0] === "upsert_product")).toBeLessThan(rpc.mock.calls.findIndex((c) => c[0] === "create_purchase"));
-  });
-});
-
-describe("Distribuição", () => {
-  it("aloca a quantidade restante para o Lodge escolhido; transferência exige Lodges diferentes", async () => {
-    tables.products = [{ id: "p1", name: "Milk 2L", unit: "un" }];
-    tables.purchase_lines = [{ id: "l1", purchase_id: "pu", product_id: "p1", quantity: "10", purchases: { supplier: "Musgrave", purchased_on: "2026-11-19" } }];
-    tables.product_movements = [{ id: "m1", kind: "allocation", product_id: "p1", purchase_line_id: "l1", from_lodge_id: null, to_lodge_id: "a", quantity: "4", note: null, created_by: "me", created_at: "2026-11-19T10:00:00Z" }];
-    wrap(<Distribution />);
-    expect(await screen.findByText("6 to allocate")).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("To"), { target: { value: "c" } });
-    fireEvent.change(screen.getByLabelText("Qty"), { target: { value: "6" } });
-    fireEvent.click(screen.getByRole("button", { name: "Allocate" }));
-    await waitFor(() => expect(rpc).toHaveBeenCalledWith("allocate_purchase_line", { p_line: "l1", p_lodge: "c", p_quantity: 6 }));
-
-    fireEvent.click(screen.getByRole("tab", { name: "Transfer between Lodges" }));
-    const transfer = screen.getByRole("button", { name: "Transfer" }) as HTMLButtonElement;
-    fireEvent.change(screen.getByLabelText("Product"), { target: { value: "p1" } });
-    fireEvent.change(screen.getByLabelText("Qty"), { target: { value: "2" } });
-    fireEvent.change(screen.getByLabelText("To"), { target: { value: "a" } });
-    expect(transfer.disabled).toBe(true);
-    fireEvent.change(screen.getByLabelText("To"), { target: { value: "c" } });
-    expect(transfer.disabled).toBe(false);
-  });
-});
 
 describe("Rota", () => {
   it("equipe vê só a escala, sem publicar, adicionar nem buracos de cobertura", async () => {
@@ -189,7 +145,31 @@ describe("Férias", () => {
   });
 });
 
-describe("Relatório mensal", () => {
+describe("Holidays — calendário anual (Beta)", () => {
+  it("equipe vê o status do dia sem nomes e não edita; Admin abre o dia, vê o nome e aprova", async () => {
+    management = false;
+    rpcResult.holiday_calendar = [
+      { day: "2026-03-03", status: "under_review", people: null },
+      { day: "2026-12-24", status: "locked", people: null },
+    ];
+    wrap(<Vacations />);
+    const day = await screen.findByRole("button", { name: /03\/03\/2026 · Under review/ });
+    expect((day as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole("button", { name: /24\/12\/2026 · Locked dates/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Register holidays" })).toBeNull();
+    cleanup();
+    management = true;
+    rpcResult.holiday_calendar = [{ day: "2026-03-03", status: "under_review", people: { names: [{ name: "Ana Porter", status: "under_review", vacation_id: "v9" }], lock_note: null } }];
+    wrap(<Vacations />);
+    fireEvent.click(await screen.findByRole("button", { name: /03\/03\/2026 · Under review/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Ana Porter")).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Approve" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("set_vacation_status", { p_id: "v9", p_status: "approved" }));
+  });
+});
+
+describe("Reports (Beta: período e casa)", () => {
   const report = {
     order: ["occupancy", "dinner", "laundry", "hours"],
     occupancy: { beds_total: 44, occupied: 40, admissions: 3 },
@@ -198,15 +178,30 @@ describe("Relatório mensal", () => {
     hours: { planned_minutes: 1440, effective_minutes: 1500 },
   };
   it("blocos na ordem, sem Dinner quando o Lodge não tem; número abre os registros", async () => {
-    rpcResult.report_monthly = report;
-    rpcResult.report_details = [{ ref_id: "x", label: "Ana X — bed 4/1", at: "2026-11-03T15:00:00Z", extra: null }];
+    rpcResult.report_period = report;
+    rpcResult.report_details_period = [{ ref_id: "x", label: "Ana X — bed 4/1", at: "2026-11-03T15:00:00Z", extra: null, lodge_id: "a" }];
     wrap(<Reports />);
     const headings = (await screen.findAllByRole("heading", { level: 2 })).map((h) => h.textContent);
     expect(headings).toEqual(["Bed occupancy", "Laundry", "Hours"]);
     expect(screen.getByText("24 h 00")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "3" }));
-    await waitFor(() => expect(rpc).toHaveBeenCalledWith("report_details", expect.objectContaining({ p_metric: "occupancy.admissions" })));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("report_details_period", expect.objectContaining({ p_metric: "occupancy.admissions" })));
     expect(await screen.findByText("Ana X — bed 4/1")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "44" })).toBeNull();
+  });
+
+  it("semana e casa: pede o período certo e só a casa escolhida; nas duas casas mostra o número de cada uma", async () => {
+    rpcResult.report_period = report;
+    wrap(<Reports />);
+    await screen.findAllByRole("heading", { level: 2 });
+    expect(screen.getAllByText(/Amiens 3 · Connolly 3/).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("tab", { name: "Week" }));
+    await waitFor(() => {
+      const call = rpc.mock.calls.filter((c) => c[0] === "report_period").at(-1)![1] as { p_from: string; p_to: string };
+      expect(new Date(`${call.p_from}T12:00:00Z`).getUTCDay()).toBe(1);
+      expect((new Date(call.p_to).getTime() - new Date(call.p_from).getTime()) / 86_400_000).toBe(7);
+    });
+    fireEvent.click(screen.getByRole("tab", { name: "Amiens St." }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("report_period", expect.objectContaining({ p_lodges: ["a"] })));
   });
 });

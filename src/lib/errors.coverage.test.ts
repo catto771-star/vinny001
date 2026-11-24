@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { errorKey } from "./errors";
 
 const INTERNAL = new Set([
-  "invalid_priority", "invalid_status", "invalid_warning_type", "invalid_slot", "invalid_round_slot", "invalid_quantities",
+  "invalid_priority", "invalid_warning_type", "invalid_slot", "invalid_round_slot", "invalid_quantities",
   "invalid_performer", "audit_log_is_immutable", "not_required", "password_session_required",
 ]);
 

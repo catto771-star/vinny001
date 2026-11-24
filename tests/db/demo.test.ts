@@ -146,7 +146,7 @@ describe("demo.seed", () => {
     expect(a.laundry).toBeNull();
     expect(a.hours!.planned_minutes).toBeGreaterThan(0);
     expect(a.hours!.effective_minutes).toBeGreaterThan(0);
-    expect(a.tasks!.done).toBeGreaterThan(a.tasks!.not_done * 5);
+    expect(a.tasks).toBeUndefined(); // Beta: Daily Tasks voltaram para o papel
     expect(a.rounds_checks!.checks_pending).toBeLessThanOrEqual(2);
     for (const [lodge, r] of [[amiens, a], [connolly, c]] as const) {
       for (const [block, metric] of [["occupancy", "admissions"], ["occupancy", "outs"], ["maintenance", "opened"], ["warnings", "verbal"], ["no_shows", "total"]]) {

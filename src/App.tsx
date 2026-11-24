@@ -27,7 +27,6 @@ import { ResidentProfile } from "@/pages/ResidentProfile";
 import { Residents } from "@/pages/Residents";
 import { Today } from "@/pages/Today";
 import { Users } from "@/pages/Users";
-import { Distribution } from "@/pages/Distribution";
 import { Hours } from "@/pages/Hours";
 import { Purchases } from "@/pages/Purchases";
 import { Reports } from "@/pages/Reports";
@@ -95,10 +94,9 @@ function Gate() {
         <Route path="laundry" element={<Laundry />} />
         <Route path="notifications" element={<Notifications />} />
         {isManagement && <Route path="rota" element={<Rota />} />}
-        <Route path="distribution" element={<Distribution />} />
         {isManagement && <Route path="purchases" element={<Purchases />} />}
         {isManagement && <Route path="hours" element={<Hours />} />}
-        {isManagement && <Route path="vacations" element={<Vacations />} />}
+        <Route path="vacations" element={<Vacations />} />
         {isManagement && <Route path="reports" element={<Reports />} />}
         {isManagement && <Route path="users" element={<Users />} />}
         {isManagement && <Route path="audit" element={<Audit />} />}

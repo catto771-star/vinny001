@@ -175,7 +175,7 @@ function IntervalDialog({ item, staffId, onClose, onDone }: { item?: LogItem; st
           )}
         </div>
         <label>
-          {item ? t("hours.reason") : t("distribution.note")} {!item && <small>({t("app.optional")})</small>}
+          {item ? t("hours.reason") : t("hours.note")} {!item && <small>({t("app.optional")})</small>}
           <input value={reason} onChange={(e) => setReason(e.target.value)} required={!!item} />
         </label>
         <Notice kind="error">{error}</Notice>
