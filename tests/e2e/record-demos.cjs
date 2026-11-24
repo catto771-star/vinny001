@@ -680,7 +680,7 @@ scene("13", "gestao-rota-ferias-horas", "Gestão: Rota semanal, férias com conf
     const d = u.dialog();
     await u.glide(d.getByLabel("Pessoa"));
     await d.getByLabel("Pessoa").selectOption({ index: 3 + i });
-    await d.getByLabel("De").fill(from); await d.getByLabel("Até").fill(to);
+    await d.locator("input[type=date]").nth(0).fill(from); await d.locator("input[type=date]").nth(1).fill(to);
     await u.type(d.getByLabel("Observação").or(d.getByLabel("Note")).first(), "Férias anuais").catch(() => {});
     await u.click(d.getByRole("button", { name: "Salvar" }), 900);
     await u.wait(1400);
@@ -698,7 +698,7 @@ scene("13", "gestao-rota-ferias-horas", "Gestão: Rota semanal, férias com conf
     await u.click(d.getByRole("button", { name: "Salvar" }), 900);
     await u.toast("Horas atualizadas (com histórico).");
   }
-  await u.click(page.locator("tbody tr").nth(1).getByRole("button", { name: /Lançar horas/ }), 900);
+  await u.click(page.getByRole("button", { name: /Lançar horas/ }).first(), 900);
   const d = u.dialog();
   await u.type(d.getByLabel(/Motivo|Observação/).first(), "Turno de limpeza extra");
   await u.click(d.getByRole("button", { name: "Salvar" }), 900);

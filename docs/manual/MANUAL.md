@@ -126,6 +126,9 @@ Regras gerais:
 
 ## 4. Hoje
 
+![Hoje](img/01-hoje.png)
+
+
 **Para que serve:** é a tela inicial. Mostra o que importa **agora**.
 
 O que aparece:
@@ -144,6 +147,9 @@ O que aparece:
 ---
 
 ## 5. Tarefas do turno
+
+![Tarefas do turno](img/02-tarefas.png)
+
 
 **Para que serve:** a lista de tarefas do turno, **do modelo de cada Lodge**, nos 3 idiomas.
 
@@ -169,6 +175,13 @@ O que aparece:
 ---
 
 ## 6. Residentes
+
+![Residentes](img/03-residentes.png)
+
+![Residentes](img/03b-admitir-residente.png)
+
+![Residentes](img/04-perfil-residente.png)
+
 
 **Para que serve:** o cadastro de todos os residentes, atuais e antigos.
 
@@ -214,6 +227,9 @@ No perfil você vê: dados, a estadia atual, **Warnings** e **ocorrências** do 
 ---
 
 ## 7. Folha do dia (Room Check)
+
+![Folha do dia (Room Check)](img/05-folha-do-dia.png)
+
 
 **Para que serve:** lançar os **checks de 12:00, 18:00 e 22:00**: de cada cama, quem foi visto.
 
@@ -261,6 +277,9 @@ Se você marcar **Visto** alguém que tem ausência ativa, o sistema pergunta **
 
 ## 8. Seen
 
+![Seen](img/06-seen.png)
+
+
 **Para que serve:** ver, de cada residente, se foi **visto no turno Day** e **no turno Night**, e **por qual origem** (check, visto manual, check-in ou Dinner).
 
 **Registrar um visto manual** (“Vi este residente”)
@@ -277,6 +296,9 @@ Um visto manual vale como **evidência de presença** no turno e **evita No Show
 ---
 
 ## 9. Ausências
+
+![Ausências](img/07-ausencias.png)
+
 
 **Para que serve:** registrar quando o residente avisa que vai sair.
 
@@ -300,6 +322,11 @@ Enquanto a ausência está ativa, **a cama continua do residente e não haverá 
 ---
 
 ## 10. No Shows
+
+![No Shows](img/08-no-shows.png)
+
+![No Shows](img/27-no-shows-gestao.png)
+
 
 **Para que serve:** a lista final do dia que terminou: quem **não teve nenhuma evidência de presença**.
 
@@ -326,6 +353,9 @@ Enquanto a ausência está ativa, **a cama continua do residente e não haverá 
 
 ## 11. Warnings
 
+![Warnings](img/09-warnings.png)
+
+
 **Para que serve:** registrar advertências: **Verbal**, **Written** e **Final Written (FW)**.
 
 **Registrar um Warning**
@@ -344,6 +374,9 @@ Enquanto a ausência está ativa, **a cama continua do residente e não haverá 
 
 ## 12. Mapa de camas
 
+![Mapa de camas](img/10-mapa-de-camas.png)
+
+
 **Para que serve:** ver todas as camas de cada Lodge, quarto por quarto.
 
 - Cada cama mostra o residente (ou **Cama livre**).
@@ -361,6 +394,9 @@ Camas fora de uso **não aparecem** na lista de camas livres para admissão.
 ---
 
 ## 13. Handover (Livro Ata)
+
+![Handover (Livro Ata)](img/11-handover.png)
+
 
 **Para que serve:** o **diário oficial** dos Lodges. Tudo o que acontece no turno é anotado aqui.
 
@@ -398,6 +434,9 @@ As abas **Tudo, Anotações, Rondas, Manutenção, Warnings** e **Laundry** filt
 
 ## 14. Manutenção
 
+![Manutenção](img/12-manutencao.png)
+
+
 **Para que serve:** chamados de conserto. Qualquer Porter abre; a gestão acompanha.
 
 ### Abrir um chamado
@@ -423,6 +462,9 @@ Quando o prazo passa, a gestão vê um aviso **“Prazo vencido — qual é o st
 
 ## 15. Fridge / Temperatura
 
+![Fridge / Temperatura](img/13-fridge.png)
+
+
 **Para que serve:** registrar a temperatura da geladeira. **Só a geladeira é medida.**
 
 1. Abra **Fridge / Temperatura**.
@@ -441,6 +483,9 @@ A tela mostra a **última leitura** e o histórico.
 
 ## 16. Food Delivery
 
+![Food Delivery](img/14-food-delivery.png)
+
+
 **Para que serve:** registrar as **entregas de fornecedores** (só no Lodge que tem cozinha, o Amiens).
 
 1. Abra **Food Delivery** e clique em **Registrar entrega**.
@@ -455,6 +500,9 @@ A tela mostra a **última leitura** e o histórico.
 ---
 
 ## 17. Dinner
+
+![Dinner](img/15-dinner.png)
+
 
 **Para que serve:** marcar quem jantou. O Dinner é servido **das 18h às 22h**, só no Lodge com cozinha (Amiens).
 
@@ -476,6 +524,9 @@ Antes das 18h os botões ficam bloqueados (“O Dinner começa às 18h.”).
 
 ## 18. Laundry
 
+![Laundry](img/16-laundry.png)
+
+
 **Para que serve:** controlar as **4 máquinas** da lavanderia (**A·Wash, A·Dry, B·Wash, B·Dry**), só no Connolly. **Não há reservas.**
 
 1. Abra **Laundry**.
@@ -491,6 +542,9 @@ Uma máquina em uso **não pode ser iniciada de novo**.
 ---
 
 ## 19. Notificações (gestão)
+
+![Notificações (gestão)](img/19-notificacoes.png)
+
 
 **Para que serve:** os avisos que o sistema envia à gestão:
 - **Geladeira fora da faixa**
@@ -510,6 +564,11 @@ Uma máquina em uso **não pode ser iniciada de novo**.
 ---
 
 ## 20. Rota
+
+![Rota](img/20-rota-gestao.png)
+
+![Rota](img/17-rota-equipe.png)
+
 
 **Para que serve:** a escala semanal (**Day, Night, Float, Cleaners e Manager**).
 
@@ -540,6 +599,9 @@ Você vê **a escala publicada**. Rascunhos não aparecem.
 
 ## 21. Distribuição
 
+![Distribuição](img/18-distribuicao.png)
+
+
 **Para que serve:** repartir as **compras** entre os Lodges e **transferir produtos** de um Lodge para o outro. **Aqui ninguém vê preços.**
 
 ### Alocar uma compra
@@ -561,6 +623,9 @@ A aba **Histórico** lista todas as alocações e transferências, com quem fez 
 
 ## 22. Compras (gestão)
 
+![Compras (gestão)](img/21-compras.png)
+
+
 **Para que serve:** registrar as compras dos fornecedores. **Preços e notas só a gestão vê.**
 
 1. Abra **Compras** e clique em **Registrar compra**.
@@ -576,6 +641,9 @@ Para ver as linhas e os preços de uma compra, clique nela na lista.
 ---
 
 ## 23. Horas (gestão)
+
+![Horas (gestão)](img/22-horas.png)
+
 
 **Para que serve:** comparar as **horas planejadas** (Rota) com as **efetivas** (posto assumido). **Não é folha de pagamento.**
 
@@ -599,6 +667,9 @@ Para ver as linhas e os preços de uma compra, clique nela na lista.
 
 ## 24. Férias (gestão)
 
+![Férias (gestão)](img/23-ferias.png)
+
+
 **Para que serve:** registrar as férias da equipe.
 
 1. Abra **Férias** e clique em **Registrar férias**.
@@ -614,6 +685,9 @@ Para desfazer, use **Cancelar férias** na linha.
 ---
 
 ## 25. Relatórios (gestão)
+
+![Relatórios (gestão)](img/24-relatorios.png)
+
 
 **Para que serve:** o **resumo mensal por Lodge**.
 
@@ -631,6 +705,9 @@ Observações:
 ---
 
 ## 26. Usuários (gestão)
+
+![Usuários (gestão)](img/25-usuarios.png)
+
 
 **Para que serve:** criar e administrar quem usa o sistema. **Só a gestão** faz isso.
 
@@ -655,6 +732,9 @@ Clique em **Redefinir senha** na linha da pessoa. Uma nova senha provisória é 
 
 ## 27. Auditoria (gestão)
 
+![Auditoria (gestão)](img/26-auditoria.png)
+
+
 **Para que serve:** ver **tudo o que mudou** no sistema.
 
 - Aba **Alterações:** cada linha mostra **quando, quem, o quê e o registro**, com o **antes e o depois**.
@@ -667,6 +747,9 @@ O histórico **não pode ser apagado nem editado**.
 ---
 
 ## 28. No celular
+
+![No celular](img/28-celular-hoje.png)
+
 
 O sistema funciona no celular, com a mesma lógica:
 - A **barra de baixo** dá acesso a **Hoje, Folha, Handover e Tarefas**.
