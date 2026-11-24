@@ -97,7 +97,6 @@ export function EmailCode() {
             {t("auth.resendCode")}
             {cooldown > 0 ? ` (${cooldown})` : ""}
           </button>
-          <p className="hint">{t("auth.linkAlternative")}</p>
           <p className="hint">{t("auth.checkSpam")}</p>
         </form>
       ) : (

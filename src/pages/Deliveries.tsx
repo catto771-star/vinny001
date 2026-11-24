@@ -9,7 +9,8 @@ import { staffName } from "@/lib/types";
 import { useLatestRequest } from "@/lib/useLatestRequest";
 import { useStaffList } from "@/lib/useStaffList";
 import { Dialog, DialogCancel } from "@/components/Dialog";
-import { LodgeTabs, useDefaultLodge } from "@/components/LodgeTabs";
+import { LodgeTabs } from "@/components/LodgeTabs";
+import { useLodgeState } from "@/lib/activeLodge";
 import { Notice } from "@/components/Notice";
 import { Skeleton } from "@/components/Skeleton";
 import { useToast } from "@/components/Toast";
@@ -23,7 +24,7 @@ export function Deliveries() {
   const { canWriteLodge, serverOffsetMs } = useAuth();
   const toast = useToast();
   const staffList = useStaffList();
-  const [lodgeId, setLodgeId] = useState(useDefaultLodge(kitchen));
+  const [lodgeId, setLodgeId] = useLodgeState(kitchen);
   const [rows, setRows] = useState<Delivery[] | null>(null);
   const [adding, setAdding] = useState(false);
   const begin = useLatestRequest();

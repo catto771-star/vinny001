@@ -27,24 +27,24 @@ describe("validade", () => {
 });
 
 describe("notificações", () => {
-  const t = (k: Parameters<typeof translate>[1], v?: Record<string, string | number>) => translate("pt-PT", k, v);
+  const t = (k: Parameters<typeof translate>[1], v?: Record<string, string | number>) => translate("en-IE", k, v);
   it("geladeira fora da faixa", () => {
     expect(notificationText({ kind: "fridge_out_of_range", lodge_id: "a", payload: { temperature: 7.5, min: 0, max: 5 } }, t, () => "Amiens")).toBe(
-      "Geladeira de Amiens a 7.5 °C (faixa 0–5 °C)",
+      "Amiens fridge at 7.5 °C (range 0–5 °C)",
     );
   });
   it("No Show no mês e tipo desconhecido", () => {
     expect(notificationText({ kind: "no_show_monthly_limit", lodge_id: "a", payload: { first_name: "Ana", last_name: "X", month_count: 3 } }, t, () => "Amiens")).toBe(
-      "Ana X chegou a 3 No Shows no mês (Amiens)",
+      "Ana X reached 3 No Shows this month (Amiens)",
     );
-    expect(notificationText({ kind: "x", lodge_id: null, payload: {} }, t, () => "")).toBe("Aviso");
+    expect(notificationText({ kind: "x", lodge_id: null, payload: {} }, t, () => "")).toBe("Notice");
   });
   it("cobertura da Rota abaixo do mínimo e férias em conflito (Fase 3)", () => {
     expect(notificationText({ kind: "coverage_below_minimum", lodge_id: null, payload: { gaps: 4 } }, t, () => "")).toBe(
-      "Rota publicada com 4 turno(s) abaixo da cobertura mínima",
+      "Rota published with 4 shift(s) below the minimum cover",
     );
     expect(notificationText({ kind: "vacation_conflict", lodge_id: null, payload: { name: "Ana X", conflicts: 2 } }, t, () => "")).toBe(
-      "Férias de Ana X em conflito com 2 turno(s) da Rota",
+      "Holidays of Ana X clash with 2 rota shift(s)",
     );
   });
 });

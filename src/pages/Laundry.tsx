@@ -9,7 +9,8 @@ import { residentName } from "@/lib/types";
 import { useLatestRequest } from "@/lib/useLatestRequest";
 import { useOccupancy } from "@/lib/useOccupancy";
 import { Dialog, DialogCancel } from "@/components/Dialog";
-import { LodgeTabs, useDefaultLodge } from "@/components/LodgeTabs";
+import { LodgeTabs } from "@/components/LodgeTabs";
+import { useLodgeState } from "@/lib/activeLodge";
 import { Notice } from "@/components/Notice";
 import { Skeleton } from "@/components/Skeleton";
 import { useToast } from "@/components/Toast";
@@ -22,7 +23,7 @@ export function Laundry() {
   const { t, locale } = useI18n();
   const { canWriteLodge } = useAuth();
   const toast = useToast();
-  const [lodgeId, setLodgeId] = useState(useDefaultLodge(hasLaundry));
+  const [lodgeId, setLodgeId] = useLodgeState(hasLaundry);
   const { beds } = useOccupancy(lodgeId || undefined);
   const [machines, setMachines] = useState<Machine[] | null>(null);
   const [starting, setStarting] = useState<Machine | null>(null);

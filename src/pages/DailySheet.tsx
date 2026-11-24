@@ -12,7 +12,8 @@ import { residentName, staffName } from "@/lib/types";
 import { useStaffList } from "@/lib/useStaffList";
 import { AnticipateDialog } from "@/components/AnticipateDialog";
 import { DateTimeInput } from "@/components/DateTimeInput";
-import { LodgeTabs, useDefaultLodge } from "@/components/LodgeTabs";
+import { LodgeTabs } from "@/components/LodgeTabs";
+import { useLodgeState } from "@/lib/activeLodge";
 import { Notice } from "@/components/Notice";
 import { Skeleton } from "@/components/Skeleton";
 import { Tabs } from "@/components/Tabs";
@@ -39,7 +40,7 @@ export function DailySheet() {
   const { t, locale } = useI18n();
   const { canWriteLodge, serverOffsetMs, lodges } = useAuth();
   const staffList = useStaffList();
-  const [lodgeId, setLodgeId] = useState(useDefaultLodge());
+  const [lodgeId, setLodgeId] = useLodgeState();
   const [day, setDay] = useState(() => operationalDay(new Date(Date.now() + serverOffsetMs)));
   const [slots, setSlots] = useState<string[]>([]);
   const [slot, setSlot] = useState<string | null>(null);

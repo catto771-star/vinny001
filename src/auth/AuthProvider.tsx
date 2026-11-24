@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { isLocale, useI18n } from "@/i18n";
+import { useI18n } from "@/i18n";
 import { isManagementRole, type DutyPost, type Lodge, type Staff } from "@/lib/types";
 
 /**
@@ -40,7 +40,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 const ACTIVITY_EVENTS = ["mousedown", "keydown", "touchstart", "wheel"] as const;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { setLocale, t } = useI18n();
+  const { t } = useI18n();
   const [session, setSession] = useState<Session | null>(null);
   const [stage, setStage] = useState<AuthStage>("loading");
   const [staff, setStaff] = useState<Staff | null>(null);
@@ -87,7 +87,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const staffRow = me as Staff;
       setStaff(staffRow);
-      if (isLocale(staffRow.locale)) setLocale(staffRow.locale);
 
       if (staffRow.must_change_password) {
         setStage("change_password");
@@ -118,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (seq !== loadSeq.current) return;
       setStage("ready");
     },
-    [refreshPost, setLocale],
+    [refreshPost],
   );
 
   useEffect(() => {

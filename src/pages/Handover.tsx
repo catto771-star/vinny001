@@ -13,7 +13,8 @@ import { useOccupancy } from "@/lib/useOccupancy";
 import { useStaffList } from "@/lib/useStaffList";
 import { DateTimeField } from "@/components/DateTimeField";
 import { Dialog, DialogCancel } from "@/components/Dialog";
-import { LodgeTabs, useDefaultLodge } from "@/components/LodgeTabs";
+import { LodgeTabs } from "@/components/LodgeTabs";
+import { useLodgeState } from "@/lib/activeLodge";
 import { MaintenanceDialog } from "@/components/MaintenanceDialog";
 import { Notice } from "@/components/Notice";
 import { Skeleton } from "@/components/Skeleton";
@@ -66,7 +67,7 @@ export function Handover() {
   const { canWriteLodge, isManagement, staff: me, serverOffsetMs } = useAuth();
   const toast = useToast();
   const staffList = useStaffList();
-  const [lodgeId, setLodgeId] = useState(useDefaultLodge());
+  const [lodgeId, setLodgeId] = useLodgeState();
   const { beds } = useOccupancy(lodgeId);
   const [day, setDay] = useState(() => operationalDay(new Date(Date.now() + serverOffsetMs)));
   const [filter, setFilter] = useState<Filter>("all");

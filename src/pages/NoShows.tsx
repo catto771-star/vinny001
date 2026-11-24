@@ -10,7 +10,8 @@ import { roomLabel } from "@/lib/rooms";
 import { formatCivilDate } from "@/lib/time";
 import { residentName } from "@/lib/types";
 import { Dialog, DialogCancel } from "@/components/Dialog";
-import { LodgeTabs, useDefaultLodge } from "@/components/LodgeTabs";
+import { LodgeTabs } from "@/components/LodgeTabs";
+import { useLodgeState } from "@/lib/activeLodge";
 import { Notice } from "@/components/Notice";
 import { Skeleton } from "@/components/Skeleton";
 import { useToast } from "@/components/Toast";
@@ -49,7 +50,7 @@ export type Review = {
 export function NoShows() {
   const { t, locale } = useI18n();
   const { canWriteLodge, isManagement, serverOffsetMs } = useAuth();
-  const [lodgeId, setLodgeId] = useState(useDefaultLodge());
+  const [lodgeId, setLodgeId] = useLodgeState();
   const [day, setDay] = useState(() => noShowReviewDay(new Date(Date.now() + serverOffsetMs)));
   const [review, setReview] = useState<Review | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());

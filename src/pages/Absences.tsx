@@ -11,7 +11,8 @@ import { residentName } from "@/lib/types";
 import { useOccupancy } from "@/lib/useOccupancy";
 import { DateTimeInput } from "@/components/DateTimeInput";
 import { Dialog, DialogCancel } from "@/components/Dialog";
-import { LodgeTabs, useDefaultLodge } from "@/components/LodgeTabs";
+import { LodgeTabs } from "@/components/LodgeTabs";
+import { useLodgeState } from "@/lib/activeLodge";
 import { Notice } from "@/components/Notice";
 import { Skeleton } from "@/components/Skeleton";
 import { useToast } from "@/components/Toast";
@@ -36,7 +37,7 @@ export function absenceState(a: Pick<AbsenceRow, "ended_at" | "expected_return_a
 export function Absences() {
   const { t, locale } = useI18n();
   const { canWriteLodge, serverOffsetMs } = useAuth();
-  const [lodgeId, setLodgeId] = useState(useDefaultLodge());
+  const [lodgeId, setLodgeId] = useLodgeState();
   const { beds } = useOccupancy(lodgeId);
   const [rows, setRows] = useState<AbsenceRow[]>([]);
   const [registering, setRegistering] = useState(false);

@@ -14,7 +14,7 @@ import { supabase } from "@/lib/supabase";
 import { MaintenanceReminder } from "@/pages/Maintenance";
 import { Clock } from "./Clock";
 import { Dialog } from "./Dialog";
-import { LanguageSelect } from "./LanguageSelect";
+import { ActiveLodgeProvider, houseOf, useActiveLodge } from "@/lib/activeLodge";
 
 type Item = { to: string; label: MessageKey; icon: LucideIcon; managementOnly?: boolean };
 type Group = { label: MessageKey; items: Item[]; phase?: number };
@@ -89,7 +89,49 @@ const BOTTOM: Item[] = [
 ];
 
 export function Layout() {
+  return (
+    <ActiveLodgeProvider>
+      <Shell />
+    </ActiveLodgeProvider>
+  );
+}
+
+/** Logo (símbolo das duas casas, sem texto) e nome da casa ativa. */
+export function HouseMark({ name }: { name?: string }) {
+  return (
+    <span className="brand">
+      <img className="brand-logo" src="/logo.png" alt="" width={36} height={27} />
+      {name && <span className="brand-house">{name}</span>}
+    </span>
+  );
+}
+
+/** Troca a casa ativa na hora (Float): muda a cor do cabeçalho e a casa em que as telas lançam. */
+export function HouseSwitch() {
+  const { lodges } = useAuth();
+  const { activeId, setActiveId } = useActiveLodge();
+  const { t } = useI18n();
+  if (lodges.length < 2) return null;
+  return (
+    <div className="house-switch" role="group" aria-label={t("residents.lodge")}>
+      {lodges.map((l) => (
+        <button
+          key={l.id}
+          type="button"
+          className={`house-option house-${houseOf(l)}${l.id === activeId ? " is-active" : ""}`}
+          aria-pressed={l.id === activeId}
+          onClick={() => setActiveId(l.id)}
+        >
+          {l.short_name}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Shell() {
   const { staff, post, lodges, isManagement, serverOffsetMs, signOut } = useAuth();
+  const { lodge: activeLodge } = useActiveLodge();
   const { t, locale } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
@@ -148,18 +190,15 @@ export function Layout() {
   return (
     <div className="shell">
       <nav className="sidebar" aria-label="Menu">
-        <div className="brand">
-          <span className="brand-mark" aria-hidden="true">DS</span>
-          {t("app.name")}
-        </div>
+        <HouseMark name={activeLodge?.name} />
         {navList}
       </nav>
 
       <header className={`topbar${scrolled ? " is-scrolled" : ""}`}>
-        <span className="brand hide-desktop">
-          <span className="brand-mark" aria-hidden="true">DS</span>
-        </span>
+        <span className="hide-desktop"><HouseMark name={activeLodge?.short_name} /></span>
+        <span className="hide-mobile topbar-house">{activeLodge?.name}</span>
         <Clock offsetMs={serverOffsetMs} />
+        <HouseSwitch />
         <div className="topbar-right">
           <button type="button" className={`post-chip${post ? " is-on" : ""}`} onClick={() => navigate("/post")}>
             {post && <span className="dot" aria-hidden="true" />}
@@ -172,7 +211,6 @@ export function Layout() {
             </span>
             <span className="hide-desktop">{post ? (post.function === "float" ? "Float" : lodgeName(post.lodge_id)) : t("post.noPost")}</span>
           </button>
-          <span className="hide-mobile"><LanguageSelect persist /></span>
           <span className="user-name hide-mobile">
             {staffName(staff)} · {staff ? t(`users.roles.${staff.role}`) : ""}
           </span>
@@ -209,7 +247,6 @@ export function Layout() {
           <div className="drawer-list">
             {navList}
             <div className="inline">
-              <LanguageSelect persist />
               <button type="button" className="link-button" onClick={() => void signOut()}>
                 {t("auth.signOut")} · {staffName(staff)}
               </button>

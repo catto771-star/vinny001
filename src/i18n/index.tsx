@@ -1,13 +1,12 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import enIE, { type Messages } from "./en-IE";
-import ptPT from "./pt-PT";
-import plPL from "./pl-PL";
 
-export const LOCALES = ["pt-PT", "en-IE", "pl-PL"] as const;
+// Beta: o sistema funciona só em inglês (escopo final, item 1). A estrutura de tradução fica.
+export const LOCALES = ["en-IE"] as const;
 export type Locale = (typeof LOCALES)[number];
 export const FALLBACK_LOCALE: Locale = "en-IE";
 
-export const catalogues: Record<Locale, Messages> = { "pt-PT": ptPT, "en-IE": enIE, "pl-PL": plPL };
+export const catalogues: Record<Locale, Messages> = { "en-IE": enIE };
 
 type Paths<T, Prefix extends string = ""> = {
   [K in keyof T & string]: T[K] extends string ? `${Prefix}${K}` : Paths<T[K], `${Prefix}${K}.`>;
@@ -52,8 +51,7 @@ const STORAGE_KEY = "dslodge.locale";
 
 export function initialLocale(): Locale {
   try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (isLocale(stored)) return stored;
+    window.localStorage.removeItem(STORAGE_KEY); // escolha antiga de idioma não vale mais
   } catch {
     /* armazenamento indisponível */
   }

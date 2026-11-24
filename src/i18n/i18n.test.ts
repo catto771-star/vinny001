@@ -40,8 +40,15 @@ describe("Idiomas (s.15.1)", () => {
     expect(all).not.toMatch(/\b(canceled|organization|color|recognized)\b/i);
   });
 
-  it("Chave ausente cai para o inglês da Irlanda e interpola variáveis", () => {
-    expect(translate("pt-PT", "today.since", { time: "07:00" })).toBe("desde 07:00");
-    expect(translate("pl-PL", "missing.key" as never)).toBe("missing.key");
+  it("Beta: só inglês; chave ausente devolve a própria chave e interpola variáveis", () => {
+    expect(LOCALES).toEqual(["en-IE"]);
+    expect(translate("en-IE", "today.since", { time: "07:00" })).toBe("since 07:00");
+    expect(translate("en-IE", "missing.key" as never)).toBe("missing.key");
+  });
+
+  it("Beta: nenhum texto menciona a marca antiga nem fica em português", () => {
+    const all = [...reference.values()].join(" \n ");
+    expect(all).not.toMatch(/DS Lodge/);
+    expect(all).not.toMatch(/\b(não|você|está|turno|senha|código|ação|Português|Polski)\b/i);
   });
 });

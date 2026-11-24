@@ -10,7 +10,8 @@ import { useLatestRequest } from "@/lib/useLatestRequest";
 import { useStaffList } from "@/lib/useStaffList";
 import { DateTimeInput } from "@/components/DateTimeInput";
 import { Dialog, DialogCancel } from "@/components/Dialog";
-import { LodgeTabs, useDefaultLodge } from "@/components/LodgeTabs";
+import { LodgeTabs } from "@/components/LodgeTabs";
+import { useLodgeState } from "@/lib/activeLodge";
 import { Notice } from "@/components/Notice";
 import { Skeleton } from "@/components/Skeleton";
 import { Tabs } from "@/components/Tabs";
@@ -44,7 +45,7 @@ export function Tasks() {
   const toast = useToast();
   const staffList = useStaffList();
   const now = new Date(Date.now() + serverOffsetMs);
-  const [lodgeId, setLodgeId] = useState(useDefaultLodge());
+  const [lodgeId, setLodgeId] = useLodgeState();
   const [day, setDay] = useState(() => operationalDay(now));
   const [shift, setShift] = useState<"day" | "night">(() => shiftOf(now));
   const [tasks, setTasks] = useState<ShiftTask[] | null>(null);

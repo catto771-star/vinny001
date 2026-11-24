@@ -10,7 +10,8 @@ import { useLatestRequest } from "@/lib/useLatestRequest";
 import { useOccupancy } from "@/lib/useOccupancy";
 import { useStaffList } from "@/lib/useStaffList";
 import { Dialog, DialogCancel } from "@/components/Dialog";
-import { LodgeTabs, useDefaultLodge } from "@/components/LodgeTabs";
+import { LodgeTabs } from "@/components/LodgeTabs";
+import { useLodgeState } from "@/lib/activeLodge";
 import { Skeleton } from "@/components/Skeleton";
 import { useToast } from "@/components/Toast";
 import { WARNING_LABEL, WarningDialog, type WarningType } from "@/components/WarningDialog";
@@ -33,7 +34,7 @@ export function Warnings() {
   const { canWriteLodge, isManagement } = useAuth();
   const toast = useToast();
   const staffList = useStaffList();
-  const [lodgeId, setLodgeId] = useState(useDefaultLodge());
+  const [lodgeId, setLodgeId] = useLodgeState();
   const { beds } = useOccupancy(lodgeId);
   const [rows, setRows] = useState<WarningRow[] | null>(null);
   const [recording, setRecording] = useState(false);

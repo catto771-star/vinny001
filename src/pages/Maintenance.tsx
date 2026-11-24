@@ -9,7 +9,8 @@ import { useLatestRequest } from "@/lib/useLatestRequest";
 import { useStaffList } from "@/lib/useStaffList";
 import { DateTimeInput } from "@/components/DateTimeInput";
 import { Dialog, DialogCancel } from "@/components/Dialog";
-import { LodgeTabs, useDefaultLodge } from "@/components/LodgeTabs";
+import { LodgeTabs } from "@/components/LodgeTabs";
+import { useLodgeState } from "@/lib/activeLodge";
 import { MaintenanceDialog, PRIORITY_LABEL, type Priority } from "@/components/MaintenanceDialog";
 import { Notice } from "@/components/Notice";
 import { Skeleton } from "@/components/Skeleton";
@@ -45,7 +46,7 @@ export function Maintenance() {
   const { t, locale } = useI18n();
   const { canWriteLodge } = useAuth();
   const toast = useToast();
-  const [lodgeId, setLodgeId] = useState(useDefaultLodge());
+  const [lodgeId, setLodgeId] = useLodgeState();
   const [tab, setTab] = useState<"open" | "resolved">("open");
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
   const [creating, setCreating] = useState(false);

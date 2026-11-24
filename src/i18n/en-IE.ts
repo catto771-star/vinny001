@@ -6,7 +6,7 @@
  */
 const enIE = {
   app: {
-    name: "DS Lodge",
+    name: "47/48 Amiens & Connolly Lodge",
     loading: "Loading…",
     save: "Save",
     saving: "Saving…",
@@ -65,7 +65,7 @@ const enIE = {
     staleVersion: "Someone else changed this record. Reload it before saving.",
     sessionEnded: "Your session has ended. Please sign in again.",
     accountInactive: "This account is inactive. Ask the Manager.",
-    notStaff: "This account is not registered in DS Lodge.",
+    notStaff: "This account is not registered in the system.",
     bedTaken: "This bed is already occupied.",
     residentHasStay: "This resident already has an open stay.",
     bedOutOfService: "This bed is out of service.",
@@ -106,7 +106,6 @@ const enIE = {
     mfaVerify: "Verify",
     mfaInvalid: "Code not accepted. Check it or send a new code.",
     tooManyCodes: "Too many codes requested. Wait a few minutes and try again.",
-    linkAlternative: "If the email has a “Sign in” link instead of a code, just click the link — it opens DS Lodge already verified.",
     checkSpam: "If it does not arrive, check the spam folder.",
     idleSignedOut: "You were signed out after {minutes} minutes without activity.",
   },
@@ -167,7 +166,6 @@ const enIE = {
     shortHandover: "Handover",
     shortTasks: "Tasks",
     menu: "Menu",
-    language: "Language",
   },
   today: {
     title: "Today",
@@ -737,7 +735,6 @@ const enIE = {
     displayName: "Short name",
     email: "Email",
     role: "Profile",
-    language: "Language",
     homeLodge: "Main Lodge",
     status: "Status",
     active: "Active",
@@ -785,11 +782,6 @@ const enIE = {
     },
     openedProfileOf: "opened the profile of {name}",
     system: "System",
-  },
-  lang: {
-    "pt-PT": "Português",
-    "en-IE": "English (Ireland)",
-    "pl-PL": "Polski",
   },
 } as const;
 

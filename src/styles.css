@@ -194,9 +194,10 @@ input[type="checkbox"], input[type="radio"] { width: 20px; min-height: 20px; hei
 .auth-top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
 .auth-card { align-self: center; justify-self: center; width: 100%; max-width: 400px; margin: 4vh 0; }
 .auth-card h1 { margin: 0.25rem 0 1.5rem; font-size: 1.5rem; }
-.brand { font-weight: 600; color: var(--ink); display: inline-flex; align-items: center; gap: 0.5rem; }
-.brand-mark { width: 24px; height: 24px; border-radius: var(--radius-sm); background: var(--ink); color: #fff; display: grid; place-items: center; font-family: var(--font-mono); font-size: 0.8125rem; font-weight: 500; }
-.brand-large { font-size: 1rem; }
+.brand { font-weight: 600; color: var(--house-ink); display: inline-flex; align-items: center; gap: 0.625rem; }
+.brand-logo { width: 2.25rem; height: auto; flex: none; }
+.brand-house { font-size: 0.9375rem; line-height: 1.2; }
+.auth-logo { display: block; width: 7.5rem; height: auto; margin: 0 0 1rem; }
 .auth-card .form button.primary { min-height: 44px; }
 
 /* ---------- Relógio ---------- */
@@ -206,20 +207,34 @@ input[type="checkbox"], input[type="radio"] { width: 20px; min-height: 20px; hei
 .clock-date { color: var(--ink-3); font-size: 0.875rem; font-family: var(--font-mono); }
 .clock-time { font-family: var(--font-mono); font-weight: 500; font-size: 0.9375rem; }
 
+/* ---------- Casa ativa (escopo Beta): cabeçalho e menu na cor da casa, em tom claro ----------
+   Amiens: ocre #BC833C da silhueta central da logo. Connolly: azul #507089 com petróleo #072E4B.
+   O texto continua escuro sobre o tom claro (contraste AA); a cor pura só aparece em faixas e na casa selecionada. */
+:root { --house: #707070; --house-ink: var(--ink); --house-soft: var(--paper); --house-line: var(--line); }
+:root[data-house="amiens"] { --house: #bc833c; --house-ink: #5c3d12; --house-soft: #f7eddf; --house-line: #e6d2b5; }
+:root[data-house="connolly"] { --house: #507089; --house-ink: #072e4b; --house-soft: #e7eef4; --house-line: #c9d7e3; }
+.topbar-house { font-weight: 600; color: var(--house-ink); white-space: nowrap; }
+.house-switch { display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--radius); background: color-mix(in srgb, var(--house) 14%, var(--surface)); border: 1px solid var(--house-line); }
+.house-option { min-height: 30px; padding: 0 0.75rem; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--ink-2); font-size: 0.8125rem; font-weight: 500; }
+.house-option.is-active { background: var(--surface); color: var(--ink); box-shadow: inset 3px 0 0 var(--opt); }
+.house-option.house-amiens { --opt: #bc833c; }
+.house-option.house-connolly { --opt: #507089; }
+/* Faixa da casa no topo de diálogos e formulários: lembra onde se está lançando */
+
+
 /* ---------- Estrutura ---------- */
 .shell { min-height: 100vh; }
 .topbar {
   position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 1rem;
   min-height: 3.5rem; padding: 0.5rem 1rem; padding-top: calc(0.5rem + env(safe-area-inset-top));
-  background: var(--paper); border-bottom: 1px solid transparent; transition: border-color var(--base);
+  background: var(--house-soft); border-bottom: 1px solid var(--house-line); transition: background-color var(--base);
 }
-.topbar.is-scrolled { border-bottom-color: var(--line); }
+.topbar.is-scrolled { border-bottom-color: var(--house-line); }
 .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; }
 .post-chip { white-space: nowrap; min-height: 32px; font-size: 0.8125rem; background: var(--surface); border-color: var(--line-strong); color: var(--ink-2); }
 .post-chip.is-on { background: var(--surface); border-color: var(--line-strong); color: var(--ink); }
 .post-chip .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--ok); }
 .user-name { color: var(--ink-3); font-size: 0.875rem; }
-.lang-select select { width: auto; min-height: 32px; padding: 0 2rem 0 0.75rem; border-radius: var(--radius); font-size: 0.875rem; background-color: transparent; border-color: var(--line-strong); }
 .hide-mobile { display: none !important; }
 
 .sidebar { display: none; }
@@ -254,23 +269,23 @@ input[type="checkbox"], input[type="radio"] { width: 20px; min-height: 20px; hei
   .sidebar {
     display: flex; flex-direction: column; grid-row: 1 / span 2; grid-column: 1;
     position: sticky; top: 0; height: 100vh; padding: 1rem 0.75rem 1.5rem; overflow-y: auto;
-    border-right: 1px solid var(--line); background: var(--surface);
+    border-right: 1px solid var(--house-line); background: var(--house-soft); transition: background-color var(--base);
   }
   .sidebar .brand { min-height: 2.5rem; padding: 0 0.5rem; margin-bottom: 0.5rem; }
   .content { grid-column: 2; padding: 1.5rem 2rem 4rem; margin: 0 auto; width: 100%; max-width: 104rem; }
   .bottom-nav { display: none; }
 }
 .nav-group { margin-top: 1.5rem; display: grid; gap: 2px; }
-.nav-group-label { padding: 0 0.5rem 0.5rem; font-size: 0.8125rem; }
+.nav-group-label { padding: 0 0.5rem 0.5rem; font-size: 0.8125rem;  color: var(--ink-2); }
 .nav-item {
   position: relative; display: flex; align-items: center; gap: 0.625rem; min-height: 34px; padding: 0 0.5rem;
   border-radius: var(--radius-sm); color: var(--ink-2); font-size: 0.875rem; font-weight: 400; line-height: 1.25; text-decoration: none;
   transition: background-color var(--fast) var(--ease-out), color var(--fast) var(--ease-out);
 }
 .nav-item svg { flex: none; width: 1.0625rem; height: 1.0625rem; color: var(--ink-3); transition: color var(--fast); }
-.nav-item:hover { background: var(--surface-2); color: var(--ink); text-decoration: none; }
-.nav-item.active { color: var(--ink); background: var(--surface-2); font-weight: 500; }
-.nav-item.active svg { color: var(--accent); }
+.nav-item:hover { background: color-mix(in srgb, var(--surface) 60%, transparent); color: var(--ink); text-decoration: none; }
+.nav-item.active { color: var(--ink); background: var(--surface); font-weight: 500; box-shadow: inset 3px 0 0 var(--house); }
+.nav-item.active svg { color: var(--house-ink); }
 .nav-item-disabled { color: var(--ink-3); font-size: 0.8125rem; padding: 0 0.5rem; }
 /* Contagem de pendências: número em mono, vermelho contido, sem bolha cheia */
 .nav-badge { margin-left: auto; min-width: 20px; height: 18px; padding: 0 4px; border-radius: 4px; background: var(--danger-soft); color: var(--danger); font-family: var(--font-mono); font-size: 0.75rem; font-weight: 500; display: grid; place-items: center; }
@@ -372,6 +387,8 @@ input[type="checkbox"], input[type="radio"] { width: 20px; min-height: 20px; hei
   animation: dialog-in var(--slow) var(--ease-out);
 }
 .dialog-wide { width: min(780px, calc(100vw - 24px)); }
+/* Faixa da casa no topo do diálogo: lembra em que casa se está lançando */
+.dialog-header { box-shadow: inset 0 4px 0 var(--house); }
 .dialog::backdrop { background: rgb(23 23 23 / 32%); animation: fade-in var(--base) var(--ease-out); }
 .dialog.is-closing { animation: dialog-out var(--base) var(--ease-out) forwards; }
 .dialog.is-closing::backdrop { animation: fade-out var(--base) var(--ease-out) forwards; }

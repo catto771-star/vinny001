@@ -10,7 +10,8 @@ import { residentName, staffName } from "@/lib/types";
 import { useLatestRequest } from "@/lib/useLatestRequest";
 import { useStaffList } from "@/lib/useStaffList";
 import { Dialog, DialogCancel } from "@/components/Dialog";
-import { LodgeTabs, useDefaultLodge } from "@/components/LodgeTabs";
+import { LodgeTabs } from "@/components/LodgeTabs";
+import { useLodgeState } from "@/lib/activeLodge";
 import { Notice } from "@/components/Notice";
 import { Skeleton } from "@/components/Skeleton";
 import { useToast } from "@/components/Toast";
@@ -29,7 +30,7 @@ export function Dinner() {
   const toast = useToast();
   const staffList = useStaffList();
   const now = new Date(Date.now() + serverOffsetMs);
-  const [lodgeId, setLodgeId] = useState(useDefaultLodge(kitchen));
+  const [lodgeId, setLodgeId] = useLodgeState(kitchen);
   const [day, setDay] = useState(() => operationalDay(now));
   const [rows, setRows] = useState<DinnerRow[] | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);

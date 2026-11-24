@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "@/auth/AuthProvider";
-import { LOCALES, useI18n, type Locale } from "@/i18n";
+import { useI18n } from "@/i18n";
 import { supabase } from "@/lib/supabase";
 import { errorKey } from "@/lib/errors";
 import { generateTemporaryPassword } from "@/lib/password";
@@ -104,7 +104,6 @@ export function Users() {
             <th>{t("users.role")}</th>
             <th>{t("users.email")}</th>
             <th>{t("users.homeLodge")}</th>
-            <th>{t("users.language")}</th>
             <th>{t("users.status")}</th>
             <th>{t("app.actions")}</th>
           </tr>
@@ -119,7 +118,6 @@ export function Users() {
               <td>{t(`users.roles.${s.role}`)}</td>
               <td>{s.user_id ? s.email : <span className="muted">{t("users.noLogin")}</span>}</td>
               <td>{lodgeName(s.home_lodge_id)}</td>
-              <td>{t(`lang.${s.locale}`)}</td>
               <td>{s.active ? t("users.active") : `${t("users.inactive")} ${s.deactivated_at ? formatDate(s.deactivated_at, locale) : ""}`}</td>
               <td className="actions">
                 {s.role !== "developer" && s.id !== me?.id && (
@@ -194,7 +192,7 @@ function StaffForm({
   const [displayName, setDisplayName] = useState(existing?.display_name ?? "");
   const [email, setEmail] = useState(existing?.email ?? "");
   const [role, setRole] = useState<StaffRole>(existing?.role ?? "porter");
-  const [locale, setLocale] = useState<Locale>(existing?.locale ?? "pt-PT");
+  const locale = "en-IE";
   const [homeLodge, setHomeLodge] = useState(existing?.home_lodge_id ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -263,12 +261,6 @@ function StaffForm({
           {!existing && needsLogin && (
             <label>{t("users.email")}<input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
           )}
-          <label>
-            {t("users.language")}
-            <select value={locale} onChange={(e) => setLocale(e.target.value as Locale)}>
-              {LOCALES.map((l) => <option key={l} value={l}>{t(`lang.${l}`)}</option>)}
-            </select>
-          </label>
           <label>
             {t("users.homeLodge")}
             <select value={homeLodge} onChange={(e) => setHomeLodge(e.target.value)}>

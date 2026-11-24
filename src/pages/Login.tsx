@@ -4,7 +4,6 @@ import { useI18n } from "@/i18n";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { errorKey } from "@/lib/errors";
 import { Clock } from "@/components/Clock";
-import { LanguageSelect } from "@/components/LanguageSelect";
 import { Notice } from "@/components/Notice";
 
 export function Login() {
@@ -57,13 +56,9 @@ export function AuthCard({ title, children }: { title: string; children: React.R
     <div className="auth-page">
       <div className="auth-top">
         <Clock />
-        <LanguageSelect persist={false} />
       </div>
       <div className="auth-card">
-        <div className="brand brand-large">
-          <span className="brand-mark" aria-hidden="true">DS</span>
-          {t("app.name")}
-        </div>
+        <img className="auth-logo" src="/logo.png" alt={t("app.name")} width={120} height={89} />
         <h1>{title}</h1>
         {children}
       </div>

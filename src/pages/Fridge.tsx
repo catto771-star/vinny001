@@ -8,7 +8,8 @@ import { formatDateTime } from "@/lib/time";
 import { staffName } from "@/lib/types";
 import { useLatestRequest } from "@/lib/useLatestRequest";
 import { useStaffList } from "@/lib/useStaffList";
-import { LodgeTabs, useDefaultLodge } from "@/components/LodgeTabs";
+import { LodgeTabs } from "@/components/LodgeTabs";
+import { useLodgeState } from "@/lib/activeLodge";
 import { Notice } from "@/components/Notice";
 import { Skeleton } from "@/components/Skeleton";
 import { useToast } from "@/components/Toast";
@@ -21,7 +22,7 @@ export function Fridge() {
   const { canWriteLodge } = useAuth();
   const toast = useToast();
   const staffList = useStaffList();
-  const [lodgeId, setLodgeId] = useState(useDefaultLodge());
+  const [lodgeId, setLodgeId] = useLodgeState();
   const [readings, setReadings] = useState<Reading[] | null>(null);
   const [range, setRange] = useState({ min: 0, max: 5 });
   const [value, setValue] = useState("");
