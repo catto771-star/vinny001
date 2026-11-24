@@ -49,7 +49,7 @@ describe("Código por e-mail", () => {
   it("não mostra QR Code e não envia nada sozinho ao abrir", async () => {
     renderPage();
     await new Promise((r) => setTimeout(r, 30));
-    expect(document.querySelector("img")).toBeNull();
+    expect(document.querySelector("img:not(.auth-logo)")).toBeNull();
     expect(signInWithOtp).not.toHaveBeenCalled();
     expect(screen.getByText(/c\*+@gmail\.com/)).toBeTruthy();
   });
