@@ -284,7 +284,14 @@ scene("04", "folha-do-dia", "Folha do dia (Room Check): lançar o check pelo tec
   const tabs = await page.getByRole("tab", { name: /Check \d\d:\d\d/ }).allTextContents();
   const due = [];
   for (const t of tabs) if (/por lançar|pendente/i.test(t)) due.push(t.match(/\d\d:\d\d/)[0]);
-  const slots = due.length ? due.slice(0, 2) : ["12:00"];
+  let slots = due.length ? due.slice(0, 2) : ["12:00"];
+  if (!due.length) {
+    await u.say("Ainda não há check vencido hoje: vamos lançar o de anteontem, que ficou pendente", 2200);
+    await u.glide(page.locator('input[type="date"]'));
+    await page.locator('input[type="date"]').fill(addDays(TODAY, -2));
+    await u.wait(1500);
+    slots = ["12:00"];
+  }
   for (const slot of slots) {
     await u.say(`Check ${slot}`, 1000);
     await u.click(page.getByRole("tab", { name: new RegExp(`Check ${slot}`) }), 900);
@@ -643,7 +650,7 @@ scene("13", "gestao-rota-ferias-horas", "Gestão: Rota semanal, férias com conf
     if (!(await gap.count())) break;
     const text = (await gap.textContent()) ?? "";
     await u.say(`Buraco: ${text.replace(/\s+/g, " ").trim()}`, 1800);
-    await u.click(page.locator(".rota-day", { has: gap }).getByRole("button", { name: /Adicionar turno/ }), 900);
+    await u.click(page.locator(".rota-day:has(.rota-gap)").first().getByRole("button", { name: /Adicionar turno/ }), 900);
     const d = u.dialog();
     if (/Float/.test(text)) await u.click(d.getByRole("button", { name: "Float", exact: true }), 600);
     else {
@@ -722,7 +729,7 @@ scene("14", "gestao-compras-relatorios", "Gestão: compras, distribuição entre
     if (!(await item.count())) break;
     await u.glide(item.locator("select"));
     await item.locator("select").selectOption({ index: i % 2 });
-    await u.type(item.locator("input"), String(i === 0 ? 10 : 6));
+    await u.type(item.locator("input"), (await item.locator("input").getAttribute("placeholder")) ?? "1");
     await u.click(item.getByRole("button", { name: "Alocar" }), 800);
     await u.toast("Registrado.");
   }
@@ -808,10 +815,16 @@ scene("16", "celular", "No celular: Hoje, Folha do dia, Handover e tarefas com a
 const PREP = {
   check: async () => sql(`
     with l as (select id from public.lodges where code = 'AMIENS'),
+         r as (select id from public.room_check_runs where operational_day = public.operational_day(now()) - 2 and slot = '12:00' and lodge_id = (select id from l))
+    , d1 as (delete from public.room_check_marks where run_id in (select id from r))
+    , d2 as (delete from public.handover_entries where kind = 'round' and round_slot = '12:00' and operational_day = public.operational_day(now()) - 2 and lodge_id = (select id from l))
+    delete from public.room_check_runs where id in (select id from r)`)
+    .then(() => sql(`
+    with l as (select id from public.lodges where code = 'AMIENS'),
          r as (select id from public.room_check_runs where operational_day = public.operational_day(now()) and slot = '12:00' and lodge_id = (select id from l))
     , d1 as (delete from public.room_check_marks where run_id in (select id from r))
     , d2 as (delete from public.handover_entries where kind = 'round' and round_slot = '12:00' and operational_day = public.operational_day(now()) and lodge_id = (select id from l))
-    delete from public.room_check_runs where id in (select id from r)`),
+    delete from public.room_check_runs where id in (select id from r)`)),
   rounds: async () => sql(`
     delete from public.handover_entries where kind = 'round' and operational_day = public.operational_day(now())
       and round_slot in ('14:00', '16:00') and lodge_id = (select id from public.lodges where code = 'AMIENS')`),
