@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Telas da Fase 1 (2ª parte): Handover, tarefas e manutenção.
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -34,7 +34,6 @@ vi.mock("@/auth/AuthProvider", () => ({
 
 import { I18nProvider } from "@/i18n";
 import { groupRounds, Handover, type Entry } from "./Handover";
-import { Tasks } from "./Tasks";
 import { TicketDialog, type Ticket } from "./Maintenance";
 import { MaintenanceDialog } from "@/components/MaintenanceDialog";
 
@@ -119,28 +118,6 @@ describe("Handover", () => {
     fireEvent.click(screen.getByLabelText("Now"));
     fireEvent.change(document.querySelector('.composer input[type="datetime-local"]') as HTMLInputElement, { target: { value: "2026-01-10T10:00" } });
     expect(screen.queryByText("This fact belongs to a shift that has ended — choose a reason.")).toBeNull();
-  });
-});
-
-describe("Daily Tasks", () => {
-  it("assinar chama sign_task com o turno e o dia exibidos", async () => {
-    rpcResult.shift_tasks = [{ kind: "template", task_id: "t1", title: { "en-IE": "Fridge temperature" }, suggested_time: "10:00", staff_id: null, due_at: null, signatures: [] }];
-    rpcResult.pending_tasks = [];
-    wrap(<Tasks />);
-    const row = (await screen.findByText("Fridge temperature")).closest("li")!;
-    fireEvent.click(within(row).getByRole("button", { name: "Sign" }));
-    await waitFor(() => expect(rpc).toHaveBeenCalledWith("sign_task", expect.objectContaining({ p_kind: "template", p_task: "t1", p_lodge: "a" })));
-  });
-
-  it("B50: mostra quem assinou, a função e a hora", async () => {
-    rpcResult.shift_tasks = [{
-      kind: "template", task_id: "t1", title: { "en-IE": "Fridge temperature" }, suggested_time: null, staff_id: null, due_at: null,
-      signatures: [{ staff_id: "me", duty_function: "office", signed_at: "2026-11-20T10:05:00Z" }, { staff_id: "x", duty_function: "float", signed_at: "2026-11-20T10:07:00Z" }],
-    }];
-    rpcResult.pending_tasks = [];
-    wrap(<Tasks />);
-    expect(await screen.findByText("Me · Office · 10:05")).toBeTruthy();
-    expect(screen.getByText(/Float · 10:07/)).toBeTruthy();
   });
 });
 

@@ -22,6 +22,7 @@ const RULES: Array<[RegExp, MessageKey]> = [
   [/dinner_already_closed|dinner_closed/, "errors.dinnerClosed"],
   [/dinner_not_finished/, "errors.dinnerNotFinished"],
   [/dinner_not_started/, "errors.dinnerNotStarted"],
+  [/fridge_not_found/, "errors.fridgeNotFound"],
   [/invalid_temperature/, "errors.invalidTemperature"],
   [/temperature_required/, "errors.temperatureRequired"],
   [/machine_busy/, "errors.machineBusy"],

@@ -10,7 +10,6 @@ import { useOnDuty } from "@/lib/useOnDuty";
 import { useOccupancy } from "@/lib/useOccupancy";
 import { PresenceAlertCard } from "@/components/PresenceAlertCard";
 import { PendingTile } from "@/components/PendingTile";
-import { TaskAlerts } from "@/components/TaskAlerts";
 
 export function Today() {
   const { t, locale } = useI18n();
@@ -118,7 +117,6 @@ export function Today() {
           <BedBoard key={l.id} lodge={l} beds={beds.filter((b) => b.lodge_id === l.id)} />
         ))}
       </div>
-      {post && <TaskAlerts />}
     </section>
   );
 }

@@ -30,7 +30,7 @@ describe("notificações", () => {
   const t = (k: Parameters<typeof translate>[1], v?: Record<string, string | number>) => translate("en-IE", k, v);
   it("geladeira fora da faixa", () => {
     expect(notificationText({ kind: "fridge_out_of_range", lodge_id: "a", payload: { temperature: 7.5, min: 0, max: 5 } }, t, () => "Amiens")).toBe(
-      "Amiens fridge at 7.5 °C (range 0–5 °C)",
+      "Amiens · Fridge at 7.5 °C (range 0–5 °C)",
     );
   });
   it("No Show no mês e tipo desconhecido", () => {

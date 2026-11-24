@@ -6,7 +6,6 @@ import { usePendingCounts, type PendingCounts } from "@/lib/pending";
 const ROWS: Array<{ key: keyof PendingCounts; label: MessageKey; to: string }> = [
   { key: "checks", label: "pending.checks", to: "/sheet" },
   { key: "rounds", label: "pending.rounds", to: "/handover" },
-  { key: "tasks", label: "pending.tasks", to: "/tasks" },
   { key: "no_shows", label: "pending.noShows", to: "/no-shows" },
   { key: "absences", label: "pending.absences", to: "/absences" },
   { key: "maintenance", label: "pending.maintenance", to: "/maintenance" },

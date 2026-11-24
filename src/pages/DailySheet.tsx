@@ -227,6 +227,7 @@ export function DailySheet() {
               <span className="sheet-number">{t("sheet.sheetNumber", { n: run.sheet_number })}</span> · {lodge?.name} ·{" "}
               {run.status === "launched" ? <span className="ok-text">{t("sheet.launched")}</span> : <span className="warn-text">{t("sheet.pending")}</span>}
             </div>
+            <span className="muted mono">{t("sheet.plannedAt", { time: run.slot })}</span>
             <label className="inline">
               {t("sheet.checkedAt")}
               {canWrite ? (

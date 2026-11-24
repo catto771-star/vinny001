@@ -23,7 +23,7 @@ describe("Pendências na tela inicial", () => {
     counts = { tasks: 3, maintenance: 1, absences: 0, checks: 2, rounds: 0, no_shows: 0 };
     renderTile();
     expect(screen.getByText("2 check(s) to enter").closest("a")?.getAttribute("href")).toBe("/sheet");
-    expect(screen.getByText("3 task(s) pending").closest("a")?.getAttribute("href")).toBe("/tasks");
+    expect(screen.queryByText(/task/)).toBeNull(); // Beta: Daily Tasks voltaram para o papel
     expect(screen.getByText("1 maintenance request(s) open")).toBeTruthy();
     expect(screen.queryByText(/absence/)).toBeNull();
   });

@@ -141,7 +141,7 @@ export function Handover() {
           <span className="eyebrow">{t("handover.rounds")}</span>
           <div className="rounds-list">
             {roundSlots.map((slot) => {
-              const due = slotInstant(day, slot).getTime() <= Date.now() + serverOffsetMs + 15 * 60_000;
+              const due = slotInstant(day, slot).getTime() <= Date.now() + serverOffsetMs + 60 * 60_000; // até 60 min antes (Beta)
               const done = doneRounds.has(slot);
               const forgotten = !done && slotInstant(day, slot).getTime() + 30 * 60_000 <= Date.now() + serverOffsetMs;
               return (
@@ -209,7 +209,7 @@ export function Handover() {
                 <div className="timeline-body">
                   <span className="muted small-text">
                     {t("handover.roundDone")} · {t("handover.roundsGrouped", { n: item.entries.length })} ·{" "}
-                    {item.entries.map((e) => `${e.round_slot} (${nameOf(e.author_id)})`).reverse().join(" · ")}
+                    {item.entries.map((e) => `${e.round_slot} (${t("handover.roundActual", { time: formatTime(e.occurred_at, locale) })}, ${nameOf(e.author_id)})`).reverse().join(" · ")}
                   </span>
                 </div>
               </li>

@@ -15,7 +15,7 @@ import { Notice } from "@/components/Notice";
 import { Skeleton } from "@/components/Skeleton";
 import { useToast } from "@/components/Toast";
 
-type Delivery = { id: string; product: string; supplier: string; batch: string; expiry_date: string; temperature: string; note: string | null; received_by: string; received_at: string };
+type Delivery = { id: string; product: string; supplier: string; batch: string; expiry_date: string; temperature: string | null; note: string | null; received_by: string; received_at: string };
 const kitchen = (l: { has_dinner: boolean }) => l.has_dinner;
 
 /** Food Delivery (s.8): produto, fornecedor, lote, validade e temperatura obrigatórios; sem alerta. */
@@ -85,7 +85,7 @@ export function Deliveries() {
                   {formatCivilDate(d.expiry_date, locale)}
                   {expiresSoon(d.expiry_date, today) && <span className="tag">{t("deliveries.expiresSoon")}</span>}
                 </td>
-                <td>{Number(d.temperature).toFixed(1)}</td>
+                <td>{d.temperature === null ? "—" : Number(d.temperature).toFixed(1)}</td>
                 <td className="nowrap">{formatDateTime(d.received_at, locale)} · {staffName(staffList.find((s) => s.id === d.received_by))}</td>
               </tr>
             ))}
@@ -112,7 +112,7 @@ function DeliveryDialog({ lodgeId, onClose, onDone }: { lodgeId: string; onClose
   const [f, setF] = useState({ product: "", supplier: "", batch: "", expiry: "", temperature: "", note: "" });
   const [error, setError] = useState<string | null>(null);
   const temp = parseTemperature(f.temperature);
-  const valid = f.product.trim() && f.supplier.trim() && f.batch.trim() && f.expiry && temp !== null;
+  const valid = f.product.trim() && f.supplier.trim() && f.batch.trim() && f.expiry && (f.temperature.trim() === "" || temp !== null);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
 
   async function submit(e: FormEvent) {
@@ -141,7 +141,7 @@ function DeliveryDialog({ lodgeId, onClose, onDone }: { lodgeId: string; onClose
           <label>{t("deliveries.supplier")}<input required value={f.supplier} onChange={set("supplier")} /></label>
           <label>{t("deliveries.batch")}<input required value={f.batch} onChange={set("batch")} /></label>
           <label>{t("deliveries.expiry")}<input type="date" required value={f.expiry} onChange={set("expiry")} /></label>
-          <label>{t("deliveries.temperature")}<input inputMode="decimal" required value={f.temperature} onChange={set("temperature")} placeholder="4,0" /></label>
+          <label>{t("deliveries.temperature")} <small>({t("app.optional")})</small><input inputMode="decimal" value={f.temperature} onChange={set("temperature")} placeholder="4.0" /><small className="hint">{t("deliveries.temperatureHint")}</small></label>
         </div>
         <p className="hint">{t("deliveries.tempHint")}</p>
         <Notice kind="error">{error}</Notice>

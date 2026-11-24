@@ -79,6 +79,7 @@ language plpgsql
 set search_path = public
 as $$
 declare
+  v_fridge record;
   v_today date := public.operational_day(p_now);
   v_first date := public.operational_day(p_now) - 30;
   v_last_rota date := public.operational_day(p_now) + 20;
@@ -481,19 +482,24 @@ begin
         if (v_lodge = v_amiens and v_d = v_first + 9 and v_slot = '09:40') then v_temp := 6.8; end if;
         if (v_lodge = v_connolly and v_d = v_first + 17 and v_slot = '21:10') then v_temp := 7.4; end if;
         if (v_lodge = v_amiens and v_d = v_today - 4 and v_slot = '21:10') then v_temp := -0.6; end if;
-        v_out := v_temp < 0 or v_temp > 5;
-        insert into public.fridge_readings (lodge_id, temperature, range_min, range_max, out_of_range, note, recorded_by, recorded_at)
-        values (v_lodge, v_temp, 0, 5, v_out,
-                case when v_temp = 6.8 then 'Door left open after the delivery — closed, re-check in 30 min'
-                     when v_temp = 7.4 then 'Fridge very full — reorganised shelves'
-                     when v_temp = -0.6 then 'Thermostat turned down by mistake — adjusted' end,
-                v_staff, v_at)
-        returning id into v_id;
-        if v_out then
-          insert into public.notifications (kind, audience, lodge_id, payload, created_at)
-          values ('fridge_out_of_range', 'management', v_lodge,
-                  jsonb_build_object('demo', true, 'reading_id', v_id, 'temperature', v_temp, 'min', 0, 'max', 5), v_at);
-        end if;
+        -- Uma leitura por geladeira da casa (Beta: Amiens 1, Connolly 4); o valor especial vai na primeira.
+        for v_fridge in select f.id, f.name, f.sort_order from public.fridges f where f.lodge_id = v_lodge and f.active order by f.sort_order loop
+          if v_fridge.sort_order > 1 then v_temp := round((2.2 + random() * 2.4)::numeric, 1); end if;
+          v_out := v_temp < 0 or v_temp > 5;
+          insert into public.fridge_readings (lodge_id, fridge_id, temperature, range_min, range_max, out_of_range, note, recorded_by, recorded_at)
+          values (v_lodge, v_fridge.id, v_temp, 0, 5, v_out,
+                  case when v_temp = 6.8 then 'Door left open after the delivery — closed, re-check in 30 min'
+                       when v_temp = 7.4 then 'Fridge very full — reorganised shelves'
+                       when v_temp = -0.6 then 'Thermostat turned down by mistake — adjusted' end,
+                  v_staff, v_at + make_interval(mins => v_fridge.sort_order - 1))
+          returning id into v_id;
+          if v_out then
+            insert into public.notifications (kind, audience, lodge_id, payload, created_at)
+            values ('fridge_out_of_range', 'management', v_lodge,
+                    jsonb_build_object('demo', true, 'reading_id', v_id, 'temperature', v_temp, 'min', 0, 'max', 5,
+                                       'fridge_id', v_fridge.id, 'fridge_name', v_fridge.name), v_at);
+          end if;
+        end loop;
         insert into public.task_signatures (lodge_id, operational_day, shift, template_id, staff_id, duty_function, signed_at)
         select v_lodge, v_d, public.shift_of(v_at), t.id, v_staff,
                coalesce((select function::text from public.duty_posts where staff_id = v_staff and started_at <= v_at and coalesce(ended_at, 'infinity') > v_at limit 1), 'office'), v_at

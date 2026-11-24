@@ -98,10 +98,10 @@ describe("Food Delivery (Amiens)", () => {
       [amiens, product, temp],
     );
 
-  it("produto, fornecedor, lote, validade e temperatura são obrigatórios", async () => {
+  it("produto, fornecedor, lote e validade são obrigatórios; temperatura é opcional (Beta: itens secos)", async () => {
     await db.as(officeA);
     expect(await deliver("8.0", null)).toMatch(/fields_required/);
-    expect(await deliver(null)).toMatch(/fields_required/);
+    expect(await deliver(null)).toBeNull();
     expect(await deliver("8.0")).toBeNull();
   });
 
@@ -221,7 +221,7 @@ describe("Laundry (Connolly)", () => {
     ]);
   });
 
-  it("iniciar cria uso aberto + anotação no Handover; máquina ocupada não inicia de novo; finalizar libera sem nova anotação", async () => {
+  it("iniciar cria uso aberto + anotação no Handover; máquina ocupada não inicia de novo; finalizar libera e anota o fim (Beta)", async () => {
     const c = await admit("CONNOLLY", "Caio");
     const wash = await machine("A-WASH");
     await db.as(officeC);
@@ -234,7 +234,7 @@ describe("Laundry (Connolly)", () => {
     await db.as(officeC);
     await db.query("select public.finish_laundry($1)", [use]);
     await db.asSuperuser();
-    expect(await entries()).toBe(1);
+    expect(await entries()).toBe(2);
     expect((await db.one("select finished_by from public.laundry_uses where id = $1", [use])).finished_by).toBe(officeC.staffId);
     await db.as(officeC);
     expect(await db.error("select public.start_laundry($1, null)", [wash])).toBeNull();

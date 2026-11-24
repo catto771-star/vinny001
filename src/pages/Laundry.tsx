@@ -11,6 +11,7 @@ import { useOccupancy } from "@/lib/useOccupancy";
 import { Dialog, DialogCancel } from "@/components/Dialog";
 import { LodgeTabs } from "@/components/LodgeTabs";
 import { useLodgeState } from "@/lib/activeLodge";
+import { ResidentPicker } from "@/components/ResidentPicker";
 import { Notice } from "@/components/Notice";
 import { Skeleton } from "@/components/Skeleton";
 import { useToast } from "@/components/Toast";
@@ -117,15 +118,16 @@ function StartMachine({ machine, residents, onClose, onDone }: { machine: Machin
         </>
       }
     >
-      <label className="form">
-        {t("laundry.forResident")}
-        <select value={stayId} onChange={(e) => setStayId(e.target.value)} autoFocus>
-          <option value="">{t("laundry.noResident")}</option>
-          {residents.filter((b) => b.stay_id).map((b) => (
-            <option key={b.stay_id!} value={b.stay_id!}>{roomLabel(t, b.room_kind, b.room_code)} · {b.bed_number} — {residentName(b)}</option>
-          ))}
-        </select>
-      </label>
+      <div className="form">
+        <strong>{t("laundry.forResident")}</strong>
+        <ResidentPicker
+          autoFocus
+          value={stayId}
+          onChange={setStayId}
+          emptyLabel={t("laundry.noResident")}
+          options={residents.filter((b) => b.stay_id).map((b) => ({ id: b.stay_id!, label: `${roomLabel(t, b.room_kind, b.room_code)} · ${b.bed_number} — ${residentName(b)}` }))}
+        />
+      </div>
       <Notice kind="error">{error}</Notice>
     </Dialog>
   );

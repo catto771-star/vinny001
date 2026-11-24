@@ -36,7 +36,7 @@ export function notificationText(
   const p = n.payload as Record<string, string | number>;
   switch (n.kind) {
     case "fridge_out_of_range":
-      return t("notifications.fridge_out_of_range", { lodge: lodgeName(n.lodge_id), temperature: p.temperature, min: p.min, max: p.max });
+      return t("notifications.fridge_out_of_range", { lodge: lodgeName(n.lodge_id), fridge: String(p.fridge_name ?? "Fridge"), temperature: p.temperature, min: p.min, max: p.max });
     case "maintenance_opened":
       return t("notifications.maintenance_opened", { lodge: lodgeName(n.lodge_id), location: p.location });
     case "no_show_monthly_limit":

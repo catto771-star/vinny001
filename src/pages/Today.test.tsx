@@ -15,7 +15,6 @@ vi.mock("@/lib/useOccupancy", async (orig) => ({
 vi.mock("@/lib/supabase", () => ({ supabaseConfigured: true, supabase: {} }));
 vi.mock("@/components/PresenceAlertCard", () => ({ PresenceAlertCard: () => null }));
 vi.mock("@/components/PendingTile", () => ({ PendingTile: () => null }));
-vi.mock("@/components/TaskAlerts", () => ({ TaskAlerts: () => null }));
 vi.mock("@/components/ShiftRuler", () => ({ ShiftRuler: () => null }));
 vi.mock("@/lib/useNextCheck", () => ({ useNextCheck: () => ({ slot: "12:00", pendingCount: 1, loading: false }) }));
 vi.mock("@/auth/AuthProvider", () => ({

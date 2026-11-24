@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
-  BedDouble, CalendarCheck, ClipboardCheck, Eye, History, House, LayoutGrid, ListChecks, NotebookPen, Plane, ScrollText,
+  BedDouble, ClipboardCheck, Eye, History, House, LayoutGrid, NotebookPen, Plane, ScrollText,
   Bell, CalendarDays, ChartColumn, PackageOpen, ShieldAlert, ShoppingCart, Timer, TreePalm, Shirt, Thermometer, Truck, UserX, Users, UtensilsCrossed, Wrench,
   type LucideIcon,
 } from "lucide-react";
@@ -25,7 +25,6 @@ export const GROUPS: Group[] = [
     label: "nav.groupToday",
     items: [
       { to: "/", label: "nav.today", icon: House },
-      { to: "/tasks", label: "nav.tasks", icon: ListChecks },
       { to: "/notifications", label: "nav.notifications", icon: Bell, managementOnly: true },
     ],
   },
@@ -77,7 +76,7 @@ export const BOTTOM_LABELS: Record<string, MessageKey> = {
   "/": "nav.today",
   "/sheet": "nav.shortSheet",
   "/handover": "nav.shortHandover",
-  "/tasks": "nav.shortTasks",
+  "/residents": "nav.residents",
 };
 
 // Atalhos da barra inferior (celular): o que a recepção mais usa.
@@ -85,7 +84,7 @@ const BOTTOM: Item[] = [
   { to: "/", label: "nav.today", icon: House },
   { to: "/sheet", label: "nav.sheet", icon: ClipboardCheck },
   { to: "/handover", label: "nav.handover", icon: NotebookPen },
-  { to: "/tasks", label: "nav.tasks", icon: CalendarCheck },
+  { to: "/residents", label: "nav.residents", icon: Users },
 ];
 
 export function Layout() {

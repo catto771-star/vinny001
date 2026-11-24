@@ -58,6 +58,7 @@ const wrap = (ui: React.ReactNode) => render(<I18nProvider><MemoryRouter>{ui}</M
 describe("Fridge", () => {
   it("em branco não salva; aceita vírgula; fora da faixa avisa na hora", async () => {
     rpcResult.param_value = { min: 0, max: 5 };
+    tables.fridges = [{ id: "f1", lodge_id: "a", name: "Kitchen fridge", sort_order: 1 }];
     wrap(<Fridge />);
     const input = await screen.findByLabelText("Temperature (°C)");
     const save = screen.getByRole("button", { name: "Record temperature" }) as HTMLButtonElement;
@@ -67,7 +68,20 @@ describe("Fridge", () => {
     fireEvent.change(input, { target: { value: "3,5" } });
     expect(save.disabled).toBe(false);
     fireEvent.click(save);
-    await waitFor(() => expect(rpc).toHaveBeenCalledWith("record_fridge_temperature", { p_lodge: "a", p_temperature: 3.5, p_note: "" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("record_fridge_reading", { p_fridge: "f1", p_temperature: 3.5, p_note: "" }));
+  });
+
+  it("Beta: casa com várias geladeiras mostra uma aba por geladeira e grava na escolhida", async () => {
+    rpcResult.param_value = { min: 0, max: 5 };
+    tables.fridges = [1, 2, 3, 4].map((n) => ({ id: `c${n}`, lodge_id: "a", name: `Fridge ${n}`, sort_order: n }));
+    tables.fridge_readings = [{ id: "r1", fridge_id: "c3", temperature: "7.5", range_min: "0", range_max: "5", out_of_range: true, note: null, recorded_by: "me", recorded_at: "2026-11-20T10:00:00Z" }];
+    wrap(<Fridge />);
+    fireEvent.click(await screen.findByRole("tab", { name: /Fridge 3/ }));
+    fireEvent.change(screen.getByLabelText("Temperature (°C)"), { target: { value: "4" } });
+    fireEvent.click(screen.getByRole("button", { name: "Record temperature" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("record_fridge_reading", { p_fridge: "c3", p_temperature: 4, p_note: "" }));
+    delete tables.fridges;
+    delete tables.fridge_readings;
   });
 });
 
@@ -81,6 +95,30 @@ describe("Dinner", () => {
     fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: "2026-11-01" } });
     const group = await screen.findByRole("group", { name: "Ana X" });
     fireEvent.click(within(group).getByRole("button", { name: "Yes" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("mark_dinner", { p_lodge: "a", p_day: "2026-11-01", p_stay: "s1", p_served: true }));
+  });
+
+  it("Beta: antes das 18h pede confirmação e só então registra", async () => {
+    rpcResult.dinner_sheet = [row];
+    rpcResult.dinner_summary = [{ service_id: null, leftovers: null, packaged: null, close_note: null, closed_at: null, closed_by: null, served_count: 0, not_served_count: 0, residents_count: 1 }];
+    wrap(<Dinner />);
+    fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: "2099-01-01" } });
+    const group = await screen.findByRole("group", { name: "Ana X" });
+    fireEvent.click(within(group).getByRole("button", { name: "Yes" }));
+    expect(await screen.findByText(/Record the meal for Ana X now/)).toBeTruthy();
+    expect(rpc).not.toHaveBeenCalledWith("mark_dinner", expect.anything());
+    fireEvent.click(screen.getByRole("button", { name: "Record now" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("mark_dinner", { p_lodge: "a", p_day: "2099-01-01", p_stay: "s1", p_served: true }));
+  });
+
+  it("Beta: escolher quem pegou a refeição com @ marca 'Yes'", async () => {
+    rpcResult.dinner_sheet = [row];
+    rpcResult.dinner_summary = [{ service_id: null, leftovers: null, packaged: null, close_note: null, closed_at: null, closed_by: null, served_count: 0, not_served_count: 0, residents_count: 1 }];
+    wrap(<Dinner />);
+    fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: "2026-11-01" } });
+    await screen.findByRole("group", { name: "Ana X" });
+    fireEvent.change(screen.getByPlaceholderText(/Type @/), { target: { value: "@ana" } });
+    fireEvent.click(within(screen.getByRole("listbox")).getByRole("option", { name: /Ana X/ }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("mark_dinner", { p_lodge: "a", p_day: "2026-11-01", p_stay: "s1", p_served: true }));
   });
 
@@ -125,9 +163,9 @@ describe("Laundry", () => {
 describe("Notificações", () => {
   it("clicar marca como lida (não resolve o item)", async () => {
     management = true;
-    rpcResult.my_notifications = [{ id: 7, kind: "fridge_out_of_range", lodge_id: "a", resident_id: null, payload: { temperature: 7.5, min: 0, max: 5 }, created_at: "2026-11-20T10:00:00Z", read: false }];
+    rpcResult.my_notifications = [{ id: 7, kind: "fridge_out_of_range", lodge_id: "a", resident_id: null, payload: { temperature: 7.5, min: 0, max: 5, fridge_name: "Kitchen fridge" }, created_at: "2026-11-20T10:00:00Z", read: false }];
     wrap(<Notifications />);
-    const item = await screen.findByText("Amiens fridge at 7.5 °C (range 0–5 °C)");
+    const item = await screen.findByText("Amiens · Kitchen fridge at 7.5 °C (range 0–5 °C)");
     fireEvent.click(item);
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("mark_notification_read", { p_id: 7 }));
   });

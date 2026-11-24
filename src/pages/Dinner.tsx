@@ -12,6 +12,7 @@ import { useStaffList } from "@/lib/useStaffList";
 import { Dialog, DialogCancel } from "@/components/Dialog";
 import { LodgeTabs } from "@/components/LodgeTabs";
 import { useLodgeState } from "@/lib/activeLodge";
+import { ResidentPicker } from "@/components/ResidentPicker";
 import { Notice } from "@/components/Notice";
 import { Skeleton } from "@/components/Skeleton";
 import { useToast } from "@/components/Toast";
@@ -36,9 +37,13 @@ export function Dinner() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [closing, setClosing] = useState(false);
   const begin = useLatestRequest();
-  const started = slotInstant(day, "18:00").getTime() <= now.getTime() + 30 * 60_000;
+  // Beta: liberado a qualquer hora; antes das 18h pede confirmação uma vez.
+  const early = slotInstant(day, "18:00").getTime() > now.getTime();
+  const [earlyOk, setEarlyOk] = useState(false);
+  const [pending, setPending] = useState<{ row: DinnerRow; served: boolean } | null>(null);
+  const [pick, setPick] = useState("");
   const finished = slotInstant(day, "22:00").getTime() <= now.getTime();
-  const canWrite = canWriteLodge(lodgeId) && started && (!summary?.closed_at || isManagement);
+  const canWrite = canWriteLodge(lodgeId) && (!summary?.closed_at || isManagement);
 
   const load = useCallback(async () => {
     if (!lodgeId) return;
@@ -57,7 +62,12 @@ export function Dinner() {
     void load();
   }, [load]);
 
-  async function mark(row: DinnerRow, served: boolean) {
+  function mark(row: DinnerRow, served: boolean) {
+    if (early && !earlyOk) return setPending({ row, served });
+    void save(row, served);
+  }
+
+  async function save(row: DinnerRow, served: boolean) {
     setRows((list) => list?.map((r) => (r.stay_id === row.stay_id ? { ...r, served } : r)) ?? null);
     const { error } = await supabase.rpc("mark_dinner", { p_lodge: lodgeId, p_day: day, p_stay: row.stay_id, p_served: served });
     if (error) {
@@ -97,8 +107,23 @@ export function Dinner() {
           <button className="primary" onClick={() => setClosing(true)}>{summary?.closed_at ? t("dinner.edit") : t("dinner.close")}</button>
         )}
       </div>
-      {!started && <Notice kind="info">{t("dinner.notStarted")}</Notice>}
-      {started && !finished && isManagement && <p className="hint">{t("dinner.closeAfter22")}</p>}
+      {early && <Notice kind="info">{t("dinner.earlyHint")}</Notice>}
+      {!early && !finished && isManagement && <p className="hint">{t("dinner.closeAfter22")}</p>}
+      {canWrite && rows && rows.length > 0 && (
+        <div className="card">
+          <strong>{t("dinner.whoTook")}</strong>
+          <ResidentPicker
+            value={pick}
+            emptyLabel={t("dinner.chooseResident")}
+            options={rows.map((r) => ({ id: r.stay_id, label: `${roomLabel(t, r.room_kind, r.room_code)} · ${r.bed_number} — ${residentName(r)}` }))}
+            onChange={(id) => {
+              setPick("");
+              const row = rows.find((r) => r.stay_id === id);
+              if (row) mark(row, true);
+            }}
+          />
+        </div>
+      )}
       {summary?.closed_at && (
         <Notice kind="success">
           {t("dinner.closed", {
@@ -125,16 +150,40 @@ export function Dinner() {
                 <span className="task-meta"><span className="room-cell">{roomLabel(t, r.room_kind, r.room_code)}</span> · {r.bed_number}</span>
               </div>
               <div className="result-buttons" role="group" aria-label={residentName(r)}>
-                <button type="button" className={`small result-seen${r.served === true ? " selected" : ""}`} aria-pressed={r.served === true} disabled={!canWrite} onClick={() => void mark(r, true)}>
+                <button type="button" className={`small result-seen${r.served === true ? " selected" : ""}`} aria-pressed={r.served === true} disabled={!canWrite} onClick={() => mark(r, true)}>
                   {t("dinner.yes")}
                 </button>
-                <button type="button" className={`small result-not_seen${r.served === false ? " selected" : ""}`} aria-pressed={r.served === false} disabled={!canWrite} onClick={() => void mark(r, false)}>
+                <button type="button" className={`small result-not_seen${r.served === false ? " selected" : ""}`} aria-pressed={r.served === false} disabled={!canWrite} onClick={() => mark(r, false)}>
                   {t("dinner.no")}
                 </button>
               </div>
             </li>
           ))}
         </ul>
+      )}
+
+      {pending && (
+        <Dialog
+          title={t("dinner.earlyTitle")}
+          onClose={() => setPending(null)}
+          footer={
+            <>
+              <DialogCancel>{t("app.cancel")}</DialogCancel>
+              <button
+                className="primary"
+                onClick={() => {
+                  setEarlyOk(true);
+                  void save(pending.row, pending.served);
+                  setPending(null);
+                }}
+              >
+                {t("dinner.earlyConfirm")}
+              </button>
+            </>
+          }
+        >
+          <p>{t("dinner.earlyBody", { name: residentName(pending.row) })}</p>
+        </Dialog>
       )}
 
       {closing && (

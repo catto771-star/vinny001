@@ -13,7 +13,6 @@ import { PrintSheet } from "@/pages/PrintSheet";
 import { Seen } from "@/pages/Seen";
 import { Handover } from "@/pages/Handover";
 import { Maintenance } from "@/pages/Maintenance";
-import { Tasks } from "@/pages/Tasks";
 import { Deliveries } from "@/pages/Deliveries";
 import { Dinner } from "@/pages/Dinner";
 import { Fridge } from "@/pages/Fridge";
@@ -85,7 +84,6 @@ function Gate() {
         <Route path="absences" element={<Absences />} />
         <Route path="no-shows" element={<NoShows />} />
         <Route path="handover" element={<Handover />} />
-        <Route path="tasks" element={<Tasks />} />
         <Route path="maintenance" element={<Maintenance />} />
         <Route path="warnings" element={<Warnings />} />
         <Route path="fridge" element={<Fridge />} />
