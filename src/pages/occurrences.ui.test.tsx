@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 // Telas da Fase 1 (2ª parte): Handover, tarefas e manutenção.
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 let management = false;
+let station = false;
 let post: Record<string, unknown> | null = { id: "p", function: "office", lodge_id: "a", started_at: "2026-11-20T07:00:00Z" };
 const rpcResult: Record<string, unknown> = {};
 const rpc = vi.fn(async (name: string, _args?: unknown) => ({ data: rpcResult[name] ?? null, error: null }));
@@ -25,8 +26,9 @@ vi.mock("@/auth/AuthProvider", () => ({
   useAuth: () => ({
     lodges: [{ id: "a", code: "AMIENS", name: "Amiens St.", short_name: "Amiens" }],
     post,
-    staff: { id: "me", full_name: "Me", display_name: null, role: management ? "manager" : "porter" },
+    staff: { id: "me", full_name: "Me", display_name: null, role: management ? "manager" : station ? "station" : "porter" },
     isManagement: management,
+    isStation: station,
     serverOffsetMs: 0,
     canWriteLodge: () => true,
   }),
@@ -44,6 +46,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   management = false;
+  station = false;
   post = { id: "p", function: "office", lodge_id: "a", started_at: "2026-11-20T07:00:00Z" };
   for (const k of Object.keys(rpcResult)) delete rpcResult[k];
   for (const k of Object.keys(tables)) delete tables[k];
@@ -65,7 +68,7 @@ const wrap = (ui: React.ReactNode) => render(<I18nProvider><MemoryRouter>{ui}</M
 describe("Handover", () => {
   const entry = (id: string, kind: Entry["kind"], at: string): Entry => ({
     id, lodge_id: "a", kind, body: kind === "round" ? "Room Check Done" : "nota", occurred_at: at, operational_day: "2026-11-20",
-    round_slot: kind === "round" ? at.slice(11, 16) : null, author_id: "me", late_reason: null, status: "active", void_reason: null, version: 1,
+    round_slot: kind === "round" ? at.slice(11, 16) : null, author_id: "me", filled_by: null, late_reason: null, status: "active", void_reason: null, version: 1,
   });
 
   it("agrupa rondas seguidas numa linha só (Handover não fica poluído)", () => {
@@ -94,6 +97,29 @@ describe("Handover", () => {
     await waitFor(() =>
       expect(rpc).toHaveBeenCalledWith("add_handover_note", expect.objectContaining({ p_lodge: "a", p_mentions: [{ resident_id: "res1" }], p_late_reason: null })),
     );
+  });
+
+  it("Beta: conta da casa — 'Filled in by' começa com quem está no Roster e vai junto da anotação; dá para trocar", async () => {
+    station = true;
+    post = null;
+    tables.staff = [
+      { id: "me", full_name: "Amiens Reception", display_name: null, role: "station" },
+      { id: "pedro", full_name: "Pedro Almeida", display_name: null, role: "porter" },
+      { id: "ana", full_name: "Ana Lima", display_name: null, role: "porter" },
+    ];
+    tables.rota_shifts = [{ id: "r1", staff_id: "pedro", function: "office", lodge_id: "a", started_at: "2026-11-20T07:00:00Z", ends_at: "2099-01-01T00:00:00Z", staff: { full_name: "Pedro Almeida", display_name: null } }];
+    wrap(<Handover />);
+    const box = await screen.findByPlaceholderText(/Write in the Handover/);
+    fireEvent.change(box, { target: { value: "Bins out" } });
+    const select = (await screen.findByLabelText("Filled in by")) as HTMLSelectElement;
+    await waitFor(() => expect(select.value).toBe("pedro"));
+    expect(within(select).queryByRole("option", { name: /Amiens Reception/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Add to Handover" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("add_handover_note", expect.objectContaining({ p_filled_by: "pedro" })));
+    fireEvent.change(select, { target: { value: "ana" } });
+    fireEvent.change(box, { target: { value: "Covered the desk" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add to Handover" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("add_handover_note", expect.objectContaining({ p_body: "Covered the desk", p_filled_by: "ana" })));
   });
 
   it("B38: fato de turno encerrado → Office precisa escolher motivo; sem motivo o botão fica bloqueado", async () => {

@@ -231,7 +231,7 @@ input[type="checkbox"], input[type="radio"] { width: 20px; min-height: 20px; hei
 }
 .topbar.is-scrolled { border-bottom-color: var(--house-line); }
 .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; }
-.post-chip { white-space: nowrap; min-height: 32px; font-size: 0.8125rem; background: var(--surface); border-color: var(--line-strong); color: var(--ink-2); }
+.post-chip { display: inline-flex; align-items: center; gap: 0.5rem; white-space: nowrap; min-height: 32px; padding: 0 0.75rem; border: 1px solid var(--line-strong); border-radius: var(--radius); font-size: 0.8125rem; font-weight: 500; background: var(--surface); color: var(--ink-2); }
 .post-chip.is-on { background: var(--surface); border-color: var(--line-strong); color: var(--ink); }
 .post-chip .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--ok); }
 .user-name { color: var(--ink-3); font-size: 0.875rem; }
@@ -730,3 +730,8 @@ button.chip.is-on { background: var(--ink); border-color: var(--ink); color: #ff
 .bed-cell.oos { background: repeating-linear-gradient(135deg, rgb(23 23 23 / 25%) 0 2px, transparent 2px 4px); }
 .bed-cell.fw { box-shadow: inset 0 -3px 0 var(--danger); }
 .board-legend .bed-cell { width: 0.75rem; height: 0.875rem; }
+
+/* Roster: turno parcial / cobertura (Beta) */
+.split-box { border: 1px solid var(--line); border-radius: var(--radius); padding: 0.75rem 1rem 1rem; display: grid; gap: 0.75rem; margin: 0; }
+.split-box legend { padding: 0 0.25rem; font-weight: 500; }
+th.num, td.num { text-align: right; }

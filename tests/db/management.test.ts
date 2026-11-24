@@ -199,29 +199,28 @@ describe("Rota", () => {
 });
 
 describe("Horas", () => {
-  it("efetivas vêm do Assumir Posto; B13: Manager prolonga o fim em 2h → horas atualizadas, com histórico", async () => {
-    await db.asSuperuser();
-    const post = (await db.one<{ id: string }>(
-      "insert into public.duty_posts (staff_id, function, lodge_id, started_at, ended_at, end_reason) values ($1, 'office', $2, now() - interval '30 hours', now() - interval '20 hours', 'ended') returning id",
-      [porter2.staffId, amiens],
-    )).id;
+  it("Beta: trabalhadas vêm do Roster; B13: Manager prolonga o fim em 2h → horas atualizadas, previsto mantido, com histórico", async () => {
     await db.as(manager);
+    const id = (await db.one<{ id: string }>(
+      "select public.save_rota_shift(null, $1, $2, 'office', now() - interval '30 hours', now() - interval '20 hours') as id", [porter2.staffId, amiens])).id;
+    await db.query("select public.publish_rota(now() - interval '31 hours', now() - interval '19 hours')");
     const range = "now() - interval '2 days', now() + interval '1 day'";
-    const before = await db.one(`select effective_minutes from public.staff_hours(${range}) where staff_id = $1`, [porter2.staffId]);
-    expect(before.effective_minutes).toBe(600);
-    await db.query("select public.adjust_work_interval($1, null, now() - interval '18 hours', 'Cobriu 2h a mais')", [post]);
-    const after = await db.one(`select effective_minutes from public.staff_hours(${range}) where staff_id = $1`, [porter2.staffId]);
-    expect(after.effective_minutes).toBe(720);
+    const before = await db.one(`select planned_minutes, effective_minutes from public.staff_hours(${range}) where staff_id = $1`, [porter2.staffId]);
+    expect(before).toEqual({ planned_minutes: 600, effective_minutes: 600 });
+    await db.query("select public.save_rota_shift($1, $2, $3, 'office', now() - interval '30 hours', now() - interval '18 hours')", [id, porter2.staffId, amiens]);
+    const after = await db.one(`select planned_minutes, effective_minutes from public.staff_hours(${range}) where staff_id = $1`, [porter2.staffId]);
+    expect(after).toEqual({ planned_minutes: 600, effective_minutes: 720 });
     await db.asSuperuser();
-    const audit = await db.query("select new_data ->> 'adjust_reason' as r from public.audit_log where table_name = 'duty_posts' and record_id = $1 and action = 'UPDATE'", [post]);
-    expect(audit.rows.map((x) => x.r)).toContain("Cobriu 2h a mais");
+    const audit = await db.query("select 1 from public.audit_log where table_name = 'rota_shifts' and record_id = $1 and action = 'UPDATE'", [id]);
+    expect(audit.rowCount).toBeGreaterThan(0);
   });
 
-  it("planejadas vêm da Rota; Cleaners (sem login) têm horas lançadas pelo Manager", async () => {
+  it("previstas vêm do Roster publicado; horas fora da escala são lançadas à parte pelo Manager", async () => {
     const cleaner = await db.createStaff("cleaner", "Cleaner Um", { login: false });
     await db.as(manager);
     await db.query("select public.save_rota_shift(null, $1, $2, 'cleaner', now() - interval '10 hours', now() - interval '6 hours')", [cleaner.staffId, amiens]);
-    await db.query("select public.add_work_interval($1, $2, now() - interval '10 hours', now() - interval '5 hours', 'Ficou 1h a mais')", [cleaner.staffId, amiens]);
+    await db.query("select public.publish_rota(now() - interval '11 hours', now() - interval '5 hours')");
+    await db.query("select public.add_work_interval($1, $2, now() - interval '4 hours', now() - interval '3 hours', 'Ficou 1h a mais')", [cleaner.staffId, amiens]);
     const h = await db.one("select planned_minutes, effective_minutes from public.staff_hours(now() - interval '1 day', now()) where staff_id = $1", [cleaner.staffId]);
     expect(h).toEqual({ planned_minutes: 240, effective_minutes: 300 });
   });

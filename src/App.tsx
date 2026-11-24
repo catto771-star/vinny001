@@ -25,7 +25,6 @@ import { EmailCode } from "@/pages/EmailCode";
 import { AuthCard, Login } from "@/pages/Login";
 import { ResidentProfile } from "@/pages/ResidentProfile";
 import { Residents } from "@/pages/Residents";
-import { TakePost } from "@/pages/TakePost";
 import { Today } from "@/pages/Today";
 import { Users } from "@/pages/Users";
 import { Distribution } from "@/pages/Distribution";
@@ -36,7 +35,7 @@ import { Rota } from "@/pages/Rota";
 import { Vacations } from "@/pages/Vacations";
 
 function Gate() {
-  const { stage, isManagement, staff, post, signOut } = useAuth();
+  const { stage, isManagement, staff, signOut } = useAuth();
   const { t } = useI18n();
 
   switch (stage) {
@@ -65,17 +64,21 @@ function Gate() {
       break;
   }
 
-  // Porter sem posto vai direto para Assumir Posto (s.3, passo 1).
-  const needsPost = staff?.role === "porter" && !post;
+  // Beta: só a conta da casa (Staff) e a gestão (Admin) entram; Porter e Cleaner usam a conta da casa.
+  if (staff?.role === "porter" || staff?.role === "cleaner") {
+    return (
+      <AuthCard title={t("auth.title")}>
+        <Notice kind="info">{t("auth.useHouseAccount")}</Notice>
+        <button className="primary" onClick={() => void signOut()}>{t("auth.signOut")}</button>
+      </AuthCard>
+    );
+  }
 
   return (
     <Routes>
       <Route path="/sheet/print" element={<PrintSheet />} />
-      <Route path="/post" element={<Layout />}>
-        <Route index element={<TakePost />} />
-      </Route>
       <Route element={<Layout />}>
-        <Route index element={needsPost ? <Navigate to="/post" replace /> : <Today />} />
+        <Route index element={<Today />} />
         <Route path="residents" element={<Residents />} />
         <Route path="residents/:id" element={<ResidentProfile />} />
         <Route path="beds" element={<BedMap />} />
@@ -91,7 +94,7 @@ function Gate() {
         <Route path="dinner" element={<Dinner />} />
         <Route path="laundry" element={<Laundry />} />
         <Route path="notifications" element={<Notifications />} />
-        <Route path="rota" element={<Rota />} />
+        {isManagement && <Route path="rota" element={<Rota />} />}
         <Route path="distribution" element={<Distribution />} />
         {isManagement && <Route path="purchases" element={<Purchases />} />}
         {isManagement && <Route path="hours" element={<Hours />} />}

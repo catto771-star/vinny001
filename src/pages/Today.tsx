@@ -6,24 +6,27 @@ import { BedBoard } from "@/components/BedBoard";
 import { ShiftRuler } from "@/components/ShiftRuler";
 import { staffName } from "@/lib/types";
 import { useNextCheck } from "@/lib/useNextCheck";
-import { useOnDuty } from "@/lib/useOnDuty";
+import { onDutyFor, useOnDuty } from "@/lib/useOnDuty";
+import { useActiveLodge } from "@/lib/activeLodge";
 import { useOccupancy } from "@/lib/useOccupancy";
 import { PresenceAlertCard } from "@/components/PresenceAlertCard";
 import { PendingTile } from "@/components/PendingTile";
 
 export function Today() {
   const { t, locale } = useI18n();
-  const { lodges, post, staff, isManagement, serverOffsetMs } = useAuth();
+  const { lodges, post, staff, isManagement, isStation, serverOffsetMs } = useAuth();
   const navigate = useNavigate();
   const { posts, loading: dutyLoading } = useOnDuty();
   const { beds } = useOccupancy();
   const now = new Date(Date.now() + serverOffsetMs);
   const opDay = operationalDay(now);
   const clock = formatClock(now, locale);
-  const actionLodge = post?.function === "office" ? post.lodge_id : null;
+  // Beta: a conta da casa age na casa ativa (o Float troca no topo); quem está trabalhando vem do Roster.
+  const { activeId } = useActiveLodge();
+  const actionLodge = isStation ? activeId || null : post?.function === "office" ? post.lodge_id : null;
   const next = useNextCheck(actionLodge, serverOffsetMs);
   const floatPost = posts.find((p) => p.function === "float");
-  const needsPost = !post && !isManagement;
+  const rostered = isStation ? onDutyFor(posts, actionLodge) : undefined;
 
   const lodgeName = (id: string | null) => lodges.find((l) => l.id === id)?.short_name ?? "";
 
@@ -39,16 +42,18 @@ export function Today() {
           </span>
           <h1>{clock.weekday}</h1>
           <p className="today-meta">
-            {post
+            {isStation
+              ? rostered
+                ? t("today.rosterOnDuty", { name: staffName(rostered.staff), lodge: lodgeName(actionLodge) })
+                : t("today.rosterNobody", { lodge: lodgeName(actionLodge) })
+              : post
               ? post.function === "float"
                 ? t("post.youAreFloat", { time: formatTime(post.started_at, locale) })
                 : t("post.youAre", { function: t("post.office"), lodge: lodgeName(post.lodge_id), time: formatTime(post.started_at, locale) })
               : `${staffName(staff)} · ${staff ? t(`users.roles.${staff.role}`) : ""}`}
           </p>
           <div className="button-row">
-            {needsPost ? (
-              <button className="primary" onClick={() => navigate("/post")}>{t("post.take")}</button>
-            ) : actionLodge && next.slot ? (
+            {actionLodge && next.slot ? (
               <button className="primary" onClick={() => navigate("/sheet")}>{t("today.nextCheck", { slot: next.slot })}</button>
             ) : isManagement && !post ? (
               <button className="primary" onClick={() => navigate("/no-shows")}>{t("nav.noShows")}</button>

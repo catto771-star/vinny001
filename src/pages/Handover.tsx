@@ -11,6 +11,7 @@ import { residentName, staffName } from "@/lib/types";
 import { useLatestRequest } from "@/lib/useLatestRequest";
 import { useOccupancy } from "@/lib/useOccupancy";
 import { useStaffList } from "@/lib/useStaffList";
+import { onDutyFor, useOnDuty } from "@/lib/useOnDuty";
 import { DateTimeField } from "@/components/DateTimeField";
 import { Dialog, DialogCancel } from "@/components/Dialog";
 import { LodgeTabs } from "@/components/LodgeTabs";
@@ -31,6 +32,7 @@ export type Entry = {
   operational_day: string;
   round_slot: string | null;
   author_id: string;
+  filled_by: string | null;
   late_reason: string | null;
   status: "active" | "voided";
   void_reason: string | null;
@@ -40,7 +42,7 @@ type Mention = { entry_id: string; resident_id: string | null; staff_id: string 
 type Filter = "all" | "note" | "round" | "maintenance" | "warning" | "laundry";
 type Suggestion = { kind: "resident" | "staff"; id: string; label: string; hint: string };
 
-const COLUMNS = "id, lodge_id, kind, body, occurred_at, operational_day, round_slot, author_id, late_reason, status, void_reason, version";
+const COLUMNS = "id, lodge_id, kind, body, occurred_at, operational_day, round_slot, author_id, filled_by, late_reason, status, void_reason, version";
 const KIND_LABEL: Record<Entry["kind"], MessageKey> = {
   note: "handover.filterNotes",
   round: "handover.filterRounds",
@@ -209,7 +211,7 @@ export function Handover() {
                 <div className="timeline-body">
                   <span className="muted small-text">
                     {t("handover.roundDone")} · {t("handover.roundsGrouped", { n: item.entries.length })} ·{" "}
-                    {item.entries.map((e) => `${e.round_slot} (${t("handover.roundActual", { time: formatTime(e.occurred_at, locale) })}, ${nameOf(e.author_id)})`).reverse().join(" · ")}
+                    {item.entries.map((e) => `${e.round_slot} (${t("handover.roundActual", { time: formatTime(e.occurred_at, locale) })}, ${nameOf(e.filled_by ?? e.author_id)})`).reverse().join(" · ")}
                   </span>
                 </div>
               </li>
@@ -218,7 +220,7 @@ export function Handover() {
                 <span className="timeline-time">{formatTime(item.occurred_at, locale)}</span>
                 <div className="timeline-body">
                   <div className="timeline-meta">
-                    <strong>{nameOf(item.author_id)}</strong>
+                    <strong>{nameOf(item.filled_by ?? item.author_id)}</strong>
                     {item.kind !== "note" && KIND_LABEL[item.kind] && <span className="tag tag-kind">{t(KIND_LABEL[item.kind])}</span>}
                     {item.late_reason && (
                       <span className="tag">{t("handover.lateTag", { reason: t(`handover.reasons.${item.late_reason}` as MessageKey) })}</span>
@@ -290,6 +292,8 @@ export function Handover() {
   );
 }
 
+const FILLER_ROLES = ["porter", "manager", "owner", "developer"];
+
 function Composer({
   lodgeId,
   residents,
@@ -304,8 +308,14 @@ function Composer({
   onWarning: () => void;
 }) {
   const { t, locale } = useI18n();
-  const { isManagement, serverOffsetMs } = useAuth();
+  const { isManagement, isStation, serverOffsetMs } = useAuth();
   const staffList = useStaffList();
+  const { posts } = useOnDuty();
+  // Beta: quem está preenchendo — começa com a pessoa escalada no Roster; dá para trocar.
+  const rostered = onDutyFor(posts, lodgeId)?.staff_id ?? "";
+  const [filledBy, setFilledBy] = useState<string | null>(null);
+  const fillers = staffList.filter((s) => FILLER_ROLES.includes(s.role));
+  const chosenFiller = filledBy ?? rostered;
   const [body, setBody] = useState("");
   const [occurredAt, setOccurredAt] = useState<Date | null>(null);
   const [reason, setReason] = useState("");
@@ -369,6 +379,7 @@ function Composer({
       p_occurred_at: occurredAt ? occurredAt.toISOString() : null,
       p_mentions: mentions,
       p_late_reason: late ? reason || null : null,
+      p_filled_by: chosenFiller || null,
     });
     setBusy(false);
     if (err) return setError(t(errorKey(err)));
@@ -419,6 +430,14 @@ function Composer({
         </div>
       )}
       <div className="composer-bar">
+        <label className="field">
+          <span>{t("handover.filledBy")}</span>
+          <select value={chosenFiller} onChange={(e) => setFilledBy(e.target.value)} required={isStation}>
+            {!isStation && <option value="">{t("handover.filledByMe")}</option>}
+            {isStation && !chosenFiller && <option value="">{t("handover.filledByChoose")}</option>}
+            {fillers.map((s) => <option key={s.id} value={s.id}>{staffName(s)}{s.id === rostered ? ` · ${t("handover.onRoster")}` : ""}</option>)}
+          </select>
+        </label>
         <DateTimeField label="handover.occurredAt" value={occurredAt} onChange={setOccurredAt} />
         {late && (
           <label className="field">
@@ -434,7 +453,7 @@ function Composer({
         <div className="composer-actions">
           <button type="button" className="ghost" onClick={onMaintenance}>{t("handover.createMaintenance")}</button>
           <button type="button" className="ghost" onClick={onWarning}>{t("handover.recordWarning")}</button>
-          <button type="submit" className="primary" disabled={busy || !body.trim() || (late && !reason)}>{t("handover.post")}</button>
+          <button type="submit" className="primary" disabled={busy || !body.trim() || (late && !reason) || (isStation && !chosenFiller)}>{t("handover.post")}</button>
         </div>
       </div>
       {late && <p className="hint warn-text">{t("handover.lateHint")}</p>}

@@ -136,6 +136,7 @@ describe("Food Delivery sem temperatura (escopo 3)", () => {
     expect((await db.one("select temperature from public.food_deliveries where id = $1", [id])).temperature).toBeNull();
     expect(await db.error("select public.record_food_delivery($1, 'Chicken', 'Musgrave', 'L1', (now() + interval '3 days')::date, 3.5, null)", [amiens])).toBeNull();
     expect(await db.error("select public.record_food_delivery($1, '', 'Tesco', 'n/a', (now() + interval '3 days')::date, null, null)", [amiens])).toMatch(/fields_required/);
+    expect(await db.error("select public.record_food_delivery($1, 'Ice', 'Tesco', 'n/a', (now() + interval '3 days')::date, 123456, null)", [amiens])).toMatch(/invalid_temperature/);
   });
 });
 

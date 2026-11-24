@@ -26,6 +26,8 @@ type AuthContextValue = {
   lodges: Lodge[];
   post: DutyPost | null;
   isManagement: boolean;
+  /** Beta: conta da casa (Staff). */
+  isStation: boolean;
   /** Pode registrar em algum Lodge (gestão ou posto assumido). */
   canWriteLodge: (lodgeId: string) => boolean;
   serverOffsetMs: number;
@@ -165,9 +167,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isManagement = isManagementRole(staff?.role);
 
+  const isStation = staff?.role === "station";
   const canWriteLodge = useCallback(
-    (lodgeId: string) => isManagement || (!!post && (post.function === "float" || post.lodge_id === lodgeId)),
-    [isManagement, post],
+    (lodgeId: string) => isManagement || (isStation && lodges.some((l) => l.id === lodgeId)) || (!!post && (post.function === "float" || post.lodge_id === lodgeId)),
+    [isManagement, isStation, lodges, post],
   );
 
   const value = useMemo<AuthContextValue>(
@@ -178,6 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       lodges,
       post,
       isManagement,
+      isStation,
       canWriteLodge,
       serverOffsetMs,
       notice,
@@ -185,7 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshPost,
       signOut,
     }),
-    [stage, session, staff, lodges, post, isManagement, canWriteLodge, serverOffsetMs, notice, load, refreshPost, signOut],
+    [stage, session, staff, lodges, post, isManagement, isStation, canWriteLodge, serverOffsetMs, notice, load, refreshPost, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

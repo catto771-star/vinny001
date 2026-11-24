@@ -101,7 +101,7 @@ describe("Rota", () => {
   it("equipe vê só a escala, sem publicar, adicionar nem buracos de cobertura", async () => {
     management = false;
     wrap(<Rota />);
-    expect(await screen.findByText("You see the published rota.")).toBeTruthy();
+    expect(await screen.findByText("You see the published Roster.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Publish week/ })).toBeNull();
     expect(screen.queryAllByRole("button", { name: /Add shift/ })).toHaveLength(0);
     expect(rpc).not.toHaveBeenCalledWith("coverage_gaps", expect.anything());
@@ -122,6 +122,27 @@ describe("Rota", () => {
       p_id: null, p_staff: "s1", p_lodge: "a", p_function: "office",
       p_start: "2026-11-20T19:00:00.000Z", p_end: "2026-11-21T07:00:00.000Z",
     }));
+  });
+
+  it("Beta: saída antecipada às 12h coberta por outra pessoa; horas da semana previstas × trabalhadas", async () => {
+    tables.staff = [{ id: "s1", full_name: "Ana Porter", display_name: null, role: "porter" }, { id: "s2", full_name: "Bia Porter", display_name: null, role: "porter" }];
+    const start = new Date();
+    start.setUTCHours(7, 0, 0, 0);
+    const end = new Date(start.getTime() + 12 * 3_600_000);
+    tables.rota_shifts = [{ id: "sh1", staff_id: "s1", lodge_id: "a", function: "office", starts_at: start.toISOString(), ends_at: end.toISOString(), status: "published", planned_starts_at: start.toISOString(), planned_ends_at: end.toISOString() }];
+    rpcResult.staff_hours = [{ staff_id: "s1", full_name: "Ana Porter", role: "porter", planned_minutes: 720, effective_minutes: 300 }];
+    wrap(<Rota />);
+    expect(await screen.findByText("Hours this week")).toBeTruthy();
+    expect(screen.getByText("−7 h 00")).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: /Ana Porter/ }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Left at"), { target: { value: "12:00" } });
+    fireEvent.change(within(dialog).getByLabelText("Covered by"), { target: { value: "s2" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Split shift" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("split_rota_shift", expect.objectContaining({ p_shift: "sh1", p_cover: "s2" })));
+    const call = rpc.mock.calls.find((c) => c[0] === "split_rota_shift")!;
+    expect(new Date((call[1] as { p_at: string }).p_at).getTime()).toBe(start.getTime() + 5 * 3_600_000);
+    delete tables.rota_shifts;
   });
 
   it("Float não tem Lodge e só aceita cargos permitidos", async () => {
@@ -164,7 +185,7 @@ describe("Férias", () => {
     const dialog = await screen.findByRole("dialog");
     fireEvent.change(within(dialog).getByLabelText("Person"), { target: { value: "s1" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
-    expect(await screen.findByText("Conflict: 2 rota shift(s) in this period.")).toBeTruthy();
+    expect(await screen.findByText("Conflict: 2 Roster shift(s) in this period.")).toBeTruthy();
   });
 });
 

@@ -1,6 +1,6 @@
 import type { Locale } from "@/i18n";
 
-export type StaffRole = "porter" | "cleaner" | "manager" | "owner" | "developer";
+export type StaffRole = "station" | "porter" | "cleaner" | "manager" | "owner" | "developer";
 export type DutyFunction = "office" | "float";
 export type StayStatus = "active" | "out_pending" | "ended";
 
@@ -60,6 +60,11 @@ export type BedOccupancy = {
 };
 
 export const MANAGEMENT_ROLES: StaffRole[] = ["manager", "owner", "developer"];
+
+/** Beta: conta da casa (Staff) — login institucional de cada Lodge. */
+export function isStationRole(role: StaffRole | undefined | null): boolean {
+  return role === "station";
+}
 
 export function isManagementRole(role: StaffRole | undefined | null): boolean {
   return !!role && MANAGEMENT_ROLES.includes(role);

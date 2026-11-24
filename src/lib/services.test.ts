@@ -41,10 +41,10 @@ describe("notificações", () => {
   });
   it("cobertura da Rota abaixo do mínimo e férias em conflito (Fase 3)", () => {
     expect(notificationText({ kind: "coverage_below_minimum", lodge_id: null, payload: { gaps: 4 } }, t, () => "")).toBe(
-      "Rota published with 4 shift(s) below the minimum cover",
+      "Roster published with 4 shift(s) below the minimum cover",
     );
     expect(notificationText({ kind: "vacation_conflict", lodge_id: null, payload: { name: "Ana X", conflicts: 2 } }, t, () => "")).toBe(
-      "Holidays of Ana X clash with 2 rota shift(s)",
+      "Holidays of Ana X clash with 2 Roster shift(s)",
     );
   });
 });

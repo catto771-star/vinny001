@@ -16,7 +16,7 @@ type Body =
       full_name: string;
       display_name?: string | null;
       email?: string | null;
-      role: "porter" | "cleaner" | "manager" | "owner";
+      role: "station" | "porter" | "cleaner" | "manager" | "owner";
       locale: "pt-PT" | "en-IE" | "pl-PL";
       home_lodge_id?: string | null;
       password?: string | null;
@@ -56,10 +56,13 @@ Deno.serve(async (req) => {
 
   if (body.action === "create") {
     if (!body.full_name?.trim()) return json(400, { error: "name_required" });
-    if (!["porter", "cleaner", "manager", "owner"].includes(body.role)) return json(400, { error: "invalid_role" });
+    if (!["station", "porter", "cleaner", "manager", "owner"].includes(body.role)) return json(400, { error: "invalid_role" });
+    // Beta: só a conta da casa (Staff) e a gestão (Admin) entram no sistema; Porter e Cleaner não têm login.
+    const withLogin = ["station", "manager", "owner"].includes(body.role);
+    if (body.role === "station" && !body.home_lodge_id) return json(400, { error: "home_lodge_required" });
 
     let userId: string | null = null;
-    if (body.role !== "cleaner") {
+    if (withLogin) {
       const email = body.email?.trim().toLowerCase();
       if (!email) return json(400, { error: "email_required" });
       if (!strongPassword(body.password)) return json(400, { error: "weak_password" });
@@ -74,11 +77,11 @@ Deno.serve(async (req) => {
         user_id: userId,
         full_name: body.full_name.trim(),
         display_name: body.display_name?.trim() || null,
-        email: body.role === "cleaner" ? body.email?.trim() || null : body.email?.trim().toLowerCase(),
+        email: withLogin ? body.email?.trim().toLowerCase() : body.email?.trim() || null,
         role: body.role,
         locale: body.locale,
         home_lodge_id: body.home_lodge_id || null,
-        must_change_password: body.role !== "cleaner",
+        must_change_password: withLogin,
       })
       .select("id")
       .single();

@@ -16,9 +16,21 @@ import { useToast } from "@/components/Toast";
 export type RotaShift = {
   id: string; staff_id: string; lodge_id: string | null; function: RotaFunction;
   starts_at: string; ends_at: string; status: "draft" | "published" | "cancelled";
+  planned_starts_at?: string | null; planned_ends_at?: string | null;
 };
+type Hours = { staff_id: string; full_name: string; planned_minutes: number; effective_minutes: number };
 type Gap = { lodge_id: string | null; lodge_code: string | null; kind: "day" | "night" | "float"; starts_at: string; ends_at: string };
 type Person = { id: string; full_name: string; display_name: string | null; role: StaffRole };
+
+/** 125 → "2 h 05". */
+export function minutesLabel(m: number): string {
+  const h = Math.floor(Math.abs(m) / 60);
+  const mm = Math.abs(m) % 60;
+  return `${h} h ${String(mm).padStart(2, "0")}`;
+}
+export function signedMinutes(m: number): string {
+  return m === 0 ? "0 h 00" : `${m > 0 ? "+" : "−"}${minutesLabel(m)}`;
+}
 
 export const FN_LABEL: Record<RotaFunction, MessageKey> = { office: "rota.office", float: "rota.float", cleaner: "rota.cleaner", manager: "rota.managerFn" };
 
@@ -38,6 +50,7 @@ export function Rota() {
   const [shifts, setShifts] = useState<RotaShift[] | null>(null);
   const [gaps, setGaps] = useState<Gap[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
+  const [hours, setHours] = useState<Hours[]>([]);
   const [editing, setEditing] = useState<{ shift?: RotaShift; day: string } | null>(null);
   const days = useMemo(() => weekDays(start), [start]);
   const from = useMemo(() => dublinWallTimeToDate(start, "00:00"), [start]);
@@ -46,14 +59,16 @@ export function Rota() {
   const load = useCallback(async () => {
     const isLatest = latest();
     setShifts(null);
-    const [{ data: s }, g] = await Promise.all([
-      supabase.from("rota_shifts").select("id, staff_id, lodge_id, function, starts_at, ends_at, status")
+    const [{ data: s }, g, h] = await Promise.all([
+      supabase.from("rota_shifts").select("id, staff_id, lodge_id, function, starts_at, ends_at, status, planned_starts_at, planned_ends_at")
         .neq("status", "cancelled").lt("starts_at", to.toISOString()).gt("ends_at", from.toISOString()).order("starts_at"),
       isManagement ? supabase.rpc("coverage_gaps", { p_from: from.toISOString(), p_to: to.toISOString() }) : Promise.resolve({ data: [] }),
+      isManagement ? supabase.rpc("staff_hours", { p_from: from.toISOString(), p_to: to.toISOString() }) : Promise.resolve({ data: [] }),
     ]);
     if (!isLatest()) return;
     setShifts((s ?? []) as RotaShift[]);
     setGaps(((g as { data: Gap[] | null }).data ?? []) as Gap[]);
+    setHours((((h as { data: Hours[] | null }).data ?? []) as Hours[]).filter((x) => x.planned_minutes > 0 || x.effective_minutes > 0));
   }, [from, to, isManagement, latest]);
 
   useEffect(() => {
@@ -115,6 +130,10 @@ export function Rota() {
                         <span className="rota-time">{formatTime(s.starts_at, locale)}–{formatTime(s.ends_at, locale)}</span>
                         <span className="rota-who">{staffName(person(s.staff_id)) || "—"}</span>
                         <span className="rota-fn">{t(FN_LABEL[s.function])}{s.lodge_id && ` · ${lodgeShort(s.lodge_id)}`}{s.status === "draft" && ` · ${t("rota.draft")}`}</span>
+                        {s.status === "published" && !s.planned_starts_at && <span className="rota-fn">{t("rota.cover")}</span>}
+                        {s.planned_starts_at && s.planned_ends_at && (s.planned_starts_at !== s.starts_at || s.planned_ends_at !== s.ends_at) && (
+                          <span className="rota-fn">{t("rota.plannedWas", { time: `${formatTime(s.planned_starts_at, locale)}–${formatTime(s.planned_ends_at, locale)}` })}</span>
+                        )}
                       </button>
                     </li>
                   ))}
@@ -129,6 +148,28 @@ export function Rota() {
             );
           })}
         </div>
+      )}
+
+      {isManagement && hours.length > 0 && (
+        <>
+          <h2 className="section-title">{t("rota.weekHours")}</h2>
+          <table className="table">
+            <thead>
+              <tr><th>{t("rota.staff")}</th><th className="num">{t("hours.planned")}</th><th className="num">{t("hours.effective")}</th><th className="num">{t("rota.difference")}</th></tr>
+            </thead>
+            <tbody>
+              {hours.map((h) => (
+                <tr key={h.staff_id}>
+                  <td>{h.full_name}</td>
+                  <td className="num mono">{minutesLabel(h.planned_minutes)}</td>
+                  <td className="num mono">{minutesLabel(h.effective_minutes)}</td>
+                  <td className={`num mono${h.effective_minutes < h.planned_minutes ? " warn-text" : ""}`}>{signedMinutes(h.effective_minutes - h.planned_minutes)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="hint">{t("rota.hoursHint")}</p>
+        </>
       )}
 
       {editing && (
@@ -186,6 +227,17 @@ function ShiftDialog({ day, shift, people, onClose, onDone }: { day: string; shi
     onDone(t("rota.saved"));
   }
 
+  const [splitAt, setSplitAt] = useState("12:00");
+  const [cover, setCover] = useState("");
+  async function split() {
+    if (!shift) return;
+    const startDay = civilDay(shift.starts_at);
+    const at = dublinWallTimeToDate(splitAt <= formatTime(shift.starts_at, "en-GB") ? addDays(startDay, 1) : startDay, splitAt);
+    const { error: err } = await supabase.rpc("split_rota_shift", { p_shift: shift.id, p_at: at.toISOString(), p_cover: cover || null });
+    if (err) return setError(t(errorKey(err)));
+    onDone(t("rota.splitDone"));
+  }
+
   async function cancelShift() {
     if (!shift) return;
     const { error: err } = await supabase.rpc("cancel_rota_shift", { p_id: shift.id });
@@ -238,6 +290,23 @@ function ShiftDialog({ day, shift, people, onClose, onDone }: { day: string; shi
           <label>{t("rota.end")}<input type="time" required value={endT} onChange={(e) => setEndT(e.target.value)} /></label>
         </div>
         {endT <= startT && <p className="hint">{t("rota.end")}: {formatCivilDate(addDays(date, 1), locale)}</p>}
+        {shift && (
+          <fieldset className="split-box">
+            <legend>{t("rota.splitTitle")}</legend>
+            <p className="hint">{t("rota.splitHint")}</p>
+            <div className="form-grid">
+              <label>{t("rota.leftAt")}<input type="time" value={splitAt} onChange={(e) => setSplitAt(e.target.value)} /></label>
+              <label>
+                {t("rota.coveredBy")}
+                <select value={cover} onChange={(e) => setCover(e.target.value)}>
+                  <option value="">{t("rota.noCover")}</option>
+                  {eligible.filter((p) => p.id !== shift.staff_id).map((p) => <option key={p.id} value={p.id}>{staffName(p)}</option>)}
+                </select>
+              </label>
+            </div>
+            <button type="button" onClick={() => void split()}>{t("rota.split")}</button>
+          </fieldset>
+        )}
         <Notice kind="error">{error}</Notice>
       </form>
     </Dialog>

@@ -11,7 +11,9 @@ import { Tabs } from "@/components/Tabs";
 import { Notice } from "@/components/Notice";
 import { useToast } from "@/components/Toast";
 
-const CREATABLE_ROLES: StaffRole[] = ["porter", "cleaner", "manager", "owner"];
+// Beta: dois perfis com login — conta da casa (Staff) e gestão (Admin). Porter e Cleaner não entram no sistema.
+const CREATABLE_ROLES: StaffRole[] = ["station", "porter", "cleaner", "manager", "owner"];
+export const LOGIN_ROLES: StaffRole[] = ["station", "manager", "owner", "developer"];
 
 async function callAdmin(body: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke("admin-users", { body });
@@ -196,7 +198,7 @@ function StaffForm({
   const [homeLodge, setHomeLodge] = useState(existing?.home_lodge_id ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const needsLogin = role !== "cleaner";
+  const needsLogin = LOGIN_ROLES.includes(role);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -209,7 +211,7 @@ function StaffForm({
         .update({
           full_name: fullName.trim(),
           display_name: displayName.trim() || null,
-          role: existing.user_id ? (role === "cleaner" ? existing.role : role) : role,
+          role: existing.user_id ? (LOGIN_ROLES.includes(role) ? role : existing.role) : LOGIN_ROLES.includes(role) ? existing.role : role,
           locale,
           home_lodge_id: homeLodge || null,
           version: existing.version,
@@ -252,8 +254,8 @@ function StaffForm({
           <label>{t("users.displayName")} <small>({t("app.optional")})</small><input value={displayName} onChange={(e) => setDisplayName(e.target.value)} /></label>
           <label>
             {t("users.role")}
-            <select value={role} onChange={(e) => setRole(e.target.value as StaffRole)} disabled={!!existing?.user_id && existing.role === "cleaner"}>
-              {CREATABLE_ROLES.filter((r) => !(existing?.user_id && r === "cleaner")).map((r) => (
+            <select value={role} onChange={(e) => setRole(e.target.value as StaffRole)}>
+              {CREATABLE_ROLES.filter((r) => !existing || LOGIN_ROLES.includes(r) === !!existing.user_id).map((r) => (
                 <option key={r} value={r}>{t(`users.roles.${r}`)}</option>
               ))}
             </select>
@@ -263,13 +265,14 @@ function StaffForm({
           )}
           <label>
             {t("users.homeLodge")}
-            <select value={homeLodge} onChange={(e) => setHomeLodge(e.target.value)}>
+            <select value={homeLodge} onChange={(e) => setHomeLodge(e.target.value)} required={role === "station"}>
               <option value="">{t("app.none")}</option>
               {lodges.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
           </label>
         </div>
-        {role === "cleaner" ? <p className="hint">{t("users.cleanerNoLogin")}</p> : !existing && <p className="hint">{t("users.temporaryPasswordHint")}</p>}
+        {role === "station" && <p className="hint">{t("users.stationHint")}</p>}
+        {!needsLogin ? <p className="hint">{t("users.cleanerNoLogin")}</p> : !existing && <p className="hint">{t("users.temporaryPasswordHint")}</p>}
         <Notice kind="error">{error}</Notice>
       </form>
     </Dialog>

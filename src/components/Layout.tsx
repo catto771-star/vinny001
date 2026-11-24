@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   BedDouble, ClipboardCheck, Eye, History, House, LayoutGrid, NotebookPen, Plane, ScrollText,
   Bell, CalendarDays, ChartColumn, PackageOpen, ShieldAlert, ShoppingCart, Timer, TreePalm, Shirt, Thermometer, Truck, UserX, Users, UtensilsCrossed, Wrench,
@@ -7,13 +7,13 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthProvider";
 import { useI18n, type MessageKey } from "@/i18n";
-import { formatTime } from "@/lib/time";
 import { staffName } from "@/lib/types";
 import { BADGE_FOR_PATH, usePendingCounts } from "@/lib/pending";
 import { supabase } from "@/lib/supabase";
 import { MaintenanceReminder } from "@/pages/Maintenance";
 import { Clock } from "./Clock";
 import { Dialog } from "./Dialog";
+import { onDutyFor, useOnDuty } from "@/lib/useOnDuty";
 import { ActiveLodgeProvider, houseOf, useActiveLodge } from "@/lib/activeLodge";
 
 type Item = { to: string; label: MessageKey; icon: LucideIcon; managementOnly?: boolean };
@@ -59,7 +59,7 @@ export const GROUPS: Group[] = [
   {
     label: "nav.groupManagement",
     items: [
-      { to: "/rota", label: "nav.rota", icon: CalendarDays },
+      { to: "/rota", label: "nav.rota", icon: CalendarDays, managementOnly: true },
       { to: "/distribution", label: "nav.distribution", icon: PackageOpen },
       { to: "/purchases", label: "nav.purchases", icon: ShoppingCart, managementOnly: true },
       { to: "/hours", label: "nav.hours", icon: Timer, managementOnly: true },
@@ -128,11 +128,25 @@ export function HouseSwitch() {
   );
 }
 
+/** Quem está trabalhando agora na casa ativa, segundo o Roster (Beta: não há mais "assumir posto"). */
+function OnDutyChip() {
+  const { t } = useI18n();
+  const { activeId } = useActiveLodge();
+  const { posts, loading } = useOnDuty();
+  if (loading) return null;
+  const p = onDutyFor(posts, activeId);
+  return (
+    <span className={`post-chip${p ? " is-on" : ""}`}>
+      {p && <span className="dot" aria-hidden="true" />}
+      {p ? t("post.onRoster", { name: staffName(p.staff) }) : t("post.nobodyOnRoster")}
+    </span>
+  );
+}
+
 function Shell() {
   const { staff, post, lodges, isManagement, serverOffsetMs, signOut } = useAuth();
   const { lodge: activeLodge } = useActiveLodge();
-  const { t, locale } = useI18n();
-  const navigate = useNavigate();
+  const { t } = useI18n();
   const location = useLocation();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -163,7 +177,6 @@ function Shell() {
     return n > 0 ? <span className="nav-badge" aria-label={String(n)}>{n > 99 ? "99+" : n}</span> : null;
   };
 
-  const lodgeName = (id: string | null) => lodges.find((l) => l.id === id)?.short_name ?? "";
   const groups = GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => !i.managementOnly || isManagement) }));
 
   const navList = (
@@ -199,17 +212,7 @@ function Shell() {
         <Clock offsetMs={serverOffsetMs} />
         <HouseSwitch />
         <div className="topbar-right">
-          <button type="button" className={`post-chip${post ? " is-on" : ""}`} onClick={() => navigate("/post")}>
-            {post && <span className="dot" aria-hidden="true" />}
-            <span className="hide-mobile">
-              {post
-                ? post.function === "float"
-                  ? t("post.youAreFloat", { time: formatTime(post.started_at, locale) })
-                  : t("post.youAre", { function: t("post.office"), lodge: lodgeName(post.lodge_id), time: formatTime(post.started_at, locale) })
-                : t("post.noPost")}
-            </span>
-            <span className="hide-desktop">{post ? (post.function === "float" ? "Float" : lodgeName(post.lodge_id)) : t("post.noPost")}</span>
-          </button>
+          <OnDutyChip />
           <span className="user-name hide-mobile">
             {staffName(staff)} · {staff ? t(`users.roles.${staff.role}`) : ""}
           </span>

@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useAuth } from "@/auth/AuthProvider";
 import { useI18n } from "@/i18n";
@@ -12,7 +13,8 @@ import { Skeleton } from "@/components/Skeleton";
 import { useToast } from "@/components/Toast";
 
 type Row = { staff_id: string; full_name: string; role: string; planned_minutes: number; effective_minutes: number };
-type LogItem = { source: "post" | "manual"; id: string; lodge_id: string | null; function: string | null; starts_at: string; ends_at: string | null; note: string | null };
+const SOURCE_LABEL = { post: "hours.post", manual: "hours.manual", roster: "hours.roster", cover: "hours.cover", cancelled: "hours.cancelled" } as const;
+type LogItem = { source: "post" | "manual" | "roster" | "cover" | "cancelled"; id: string; lodge_id: string | null; function: string | null; starts_at: string; ends_at: string | null; note: string | null };
 
 export function monthRange(month: string): { from: Date; to: Date } {
   const first = `${month}-01`;
@@ -106,10 +108,11 @@ export function Hours() {
                         <ul className="log-list">
                           {log.map((l) => (
                             <li key={l.id}>
-                              <span className="tag tag-kind">{l.source === "post" ? t("hours.post") : t("hours.manual")}</span>
+                              <span className="tag tag-kind">{t(SOURCE_LABEL[l.source])}</span>
                               <span>{formatDateTime(l.starts_at, locale)} → {l.ends_at ? formatDateTime(l.ends_at, locale) : t("hours.open")}</span>
                               <span className="muted">{lodgeShort(l.lodge_id)}{l.function && ` · ${l.function}`}{l.note && ` · ${l.note}`}</span>
                               {l.source === "post" && <button className="small" onClick={() => setAdjusting(l)}>{t("hours.adjust")}</button>}
+                              {(l.source === "roster" || l.source === "cover") && <Link className="small" to="/rota">{t("hours.editInRoster")}</Link>}
                             </li>
                           ))}
                         </ul>
