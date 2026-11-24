@@ -1,7 +1,7 @@
 # DS Lodge — Direção de design
 
 Vale para todas as telas. Toda tela nova segue este documento; toda tela alterada é trazida
-para ele. Revisado em 20/11/2026 com uma passada "Unslop" (método de Damir Sokolovsky,
+para ele. Revisado em 20/11/2026 (e de novo em 24/11, tipografia e escala) com passadas "Unslop" (método de Damir Sokolovsky,
 @heydamir, CC BY 4.0), que tirou o visual de sistema gerado por IA.
 
 ## Direção
@@ -49,13 +49,19 @@ para ele. Revisado em 20/11/2026 com uma passada "Unslop" (método de Damir Soko
 
 Espaçamento na grade de 4 px (raiz 16 px; `0.25rem` = 4 px).
 
-## Tipografia
+## Tipografia e escala
 
-- **IBM Plex Sans** (400, 500, 600; latin + latin-ext para pt e pl) em toda a interface.
-- **IBM Plex Mono** (400, 500) para horários, datas no relógio, códigos de quarto/cama,
-  número da folha, contagens e a régua.
-- Títulos de página 28 px/500; títulos de cartão 14–16 px/500; números de destaque 32 px/500,
-  algarismos tabulares. Hierarquia por tamanho e cor, não por peso.
+- **Geist** (400, 500, 600; cobre todos os acentos do português e do polonês) em toda a interface.
+- **Geist Mono** (400, 500) para horários, datas no relógio, códigos de quarto/cama, número da folha,
+  contagens e a régua.
+- **Escala fluida:** o tamanho-raiz cresce com a tela (`clamp(16px, 0.55vw + 8.5px, 19px)`): 16 px em
+  notebook, ~19 px em monitor Full HD. Todas as medidas de layout estão em `rem`, então menu lateral,
+  controles, régua e quadro de camas crescem junto. Texto base 16 px; apoio 14–13 px; nada abaixo de
+  12 px (só rótulos mono da régua e do quadro de camas).
+- **Ocupação da tela:** o conteúdo usa a largura disponível (teto 104 rem, centrado) ao lado de um menu de
+  15,5 rem; o quadro de camas não estica os cartões.
+- Títulos de página 32 px/500; números de destaque 32–36 px/500. Hierarquia por tamanho e cor, não por peso.
+- Barra inferior do celular usa rótulos curtos (uma linha).
 
 ## Componentes
 

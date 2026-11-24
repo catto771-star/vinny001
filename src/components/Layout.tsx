@@ -72,6 +72,14 @@ export const GROUPS: Group[] = [
   },
 ];
 
+// Rótulos curtos da barra inferior (celular): uma linha, sem quebra. O menu lateral mantém os nomes completos.
+export const BOTTOM_LABELS: Record<string, MessageKey> = {
+  "/": "nav.today",
+  "/sheet": "nav.shortSheet",
+  "/handover": "nav.shortHandover",
+  "/tasks": "nav.shortTasks",
+};
+
 // Atalhos da barra inferior (celular): o que a recepção mais usa.
 const BOTTOM: Item[] = [
   { to: "/", label: "nav.today", icon: House },
@@ -185,7 +193,7 @@ export function Layout() {
               <item.icon size={21} strokeWidth={1.8} aria-hidden="true" />
               {badge(item.to)}
             </span>
-            {t(item.label)}
+            {t(BOTTOM_LABELS[item.to] ?? item.label)}
           </NavLink>
         ))}
         <button type="button" onClick={() => setMenuOpen(true)}>

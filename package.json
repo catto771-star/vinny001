@@ -16,8 +16,8 @@
     "demo:clear": "node scripts/demo.mjs clear"
   },
   "dependencies": {
-    "@fontsource/ibm-plex-mono": "^5.1.1",
-    "@fontsource/ibm-plex-sans": "^5.1.1",
+    "@fontsource/geist-mono": "^5.3.0",
+    "@fontsource/geist-sans": "^5.3.0",
     "@supabase/supabase-js": "^2.45.4",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",

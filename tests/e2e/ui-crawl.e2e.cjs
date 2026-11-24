@@ -179,14 +179,16 @@ async function crawl(browser, label, email, password, routes, locales, viewports
         }
         if (!(await page.locator("body").innerText()).trim()) note("tela-vazia", where, "sem texto");
         if (!route.startsWith("/sheet/print") && !text.includes("DS Lodge") && !(await page.locator(".content").count())) note("sem-layout", where, "sem menu/conteúdo");
-        if (vp.mobile) {
+        {
           const overflow = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }));
           if (overflow.sw > overflow.iw + 1) {
             const wide = await page.evaluate(() => [...document.querySelectorAll("body *")].filter((e) => e.getBoundingClientRect().right > window.innerWidth + 1).slice(0, 3).map((e) => `${e.tagName.toLowerCase()}.${String(e.className).split(" ")[0]}`).join(", "));
             note("rolagem-horizontal", where, `${overflow.sw}px > ${overflow.iw}px (${wide})`);
           }
+          if (vp.mobile) {
           const small = await page.evaluate(() => [...document.querySelectorAll("button, a.nav-item, .tab, select, input:not([type=checkbox]):not([type=radio])")].filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.height < 32 && getComputedStyle(e).visibility !== "hidden"; }).length);
           if (small > 0) note("alvo-pequeno", where, `${small} controles com menos de 32 px de altura`);
+          }
         }
       }
       // volta ao padrão para não deixar o idioma da conta mudado
@@ -200,7 +202,8 @@ async function crawl(browser, label, email, password, routes, locales, viewports
 
 (async () => {
   const browser = await chromium.launch();
-  const DESK = { name: "desktop", size: { width: 1440, height: 900 }, mobile: false };
+  const DESK = { name: "desktop", size: { width: 1366, height: 768 }, mobile: false };
+  const FHD = { name: "fullhd", size: { width: 1920, height: 1080 }, mobile: false };
   const PHONE = { name: "celular", size: { width: 390, height: 844 }, mobile: true };
   try {
     const { data: posts } = await admin.from("duty_posts").select("function, staff_id, lodge_id").is("ended_at", null);
@@ -210,9 +213,10 @@ async function crawl(browser, label, email, password, routes, locales, viewports
     const office = emailOf(posts.find((p) => p.function === "office" && p.lodge_id === lodges.find((l) => l.code === "AMIENS")?.id)) ?? "pedro.almeida@demo.ds-lodge.test";
     const float = emailOf(posts.find((p) => p.function === "float")) ?? "tomasz.nowak@demo.ds-lodge.test";
     const parts = (process.env.CRAWL_PARTS ?? "office,float,gestao").split(",");
-    if (parts.includes("office")) await crawl(browser, "Office", office, DEMO_PASSWORD, PORTER_ROUTES, ["pt-PT", "en-IE", "pl-PL"], [DESK, PHONE]);
+    const locs = (process.env.CRAWL_LOCALES ?? "pt-PT,en-IE,pl-PL").split(",");
+    if (parts.includes("office")) await crawl(browser, "Office", office, DEMO_PASSWORD, PORTER_ROUTES, locs, [DESK, FHD, PHONE]);
     if (parts.includes("float")) await crawl(browser, "Float", float, DEMO_PASSWORD, PORTER_ROUTES, ["pt-PT"], [PHONE]);
-    if (parts.includes("gestao")) await crawl(browser, "gestão", OWNER.email, OWNER.password, ROUTES, ["pt-PT", "en-IE", "pl-PL"], [DESK, PHONE]);
+    if (parts.includes("gestao")) await crawl(browser, "gestão", OWNER.email, OWNER.password, ROUTES, locs, [DESK, FHD, PHONE]);
   } catch (error) {
     note("execução", "crawl", error.message.split("\n")[0]);
   } finally {
