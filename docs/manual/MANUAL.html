@@ -1,0 +1,832 @@
+<!doctype html><html lang="pt-PT"><meta charset="utf-8"><title>DS Lodge — Manual de telas</title><style>
+@page{size:A4;margin:18mm 16mm}
+body{font-family:'Geist','Inter','Helvetica Neue',Arial,sans-serif;font-size:10.5pt;line-height:1.5;color:#171717}
+h1{font-size:24pt;font-weight:500;margin:0 0 8pt}
+h2{font-size:16pt;font-weight:500;margin:22pt 0 6pt;padding-top:10pt;border-top:1px solid #ddd;break-after:avoid}
+h3{font-size:12pt;font-weight:600;margin:14pt 0 4pt;break-after:avoid}
+img{max-width:100%;border:1px solid #ddd;border-radius:6px;margin:8pt 0;break-inside:avoid}
+table{border-collapse:collapse;width:100%;margin:8pt 0;font-size:9.5pt}
+th,td{border:1px solid #ccc;padding:4pt 6pt;text-align:left;vertical-align:top}
+th{background:#f1f1f0}
+blockquote{margin:8pt 0;padding:4pt 10pt;border-left:3px solid #2449a8;background:#f7f7f6}
+code{font-family:'Geist Mono',monospace;background:#f1f1f0;padding:0 3pt;border-radius:3px;font-size:9.5pt}
+a{color:#2449a8}
+</style><body><h1 id="ds-lodge-manual-de-telas">DS Lodge — Manual de telas</h1>
+<p>Manual de uso do sistema para a equipe dos Lodges <strong>Amiens St.</strong> e <strong>Connolly</strong>. Cada capítulo explica, tela por tela,
+para que ela serve, quem usa e <strong>como fazer cada coisa, passo a passo</strong>.</p>
+<blockquote>
+<p>Endereço do sistema: <strong>https://ds-lodge.vercel.app</strong>
+Os vídeos de cada fluxo estão numerados (01 a 16) e indicados no fim de cada capítulo.</p>
+</blockquote>
+<hr />
+<h2 id="sumario">Sumário</h2>
+<ol>
+<li><a href="#1-antes-de-começar">Antes de começar</a></li>
+<li><a href="#2-conceitos-que-aparecem-em-todas-as-telas">Conceitos que aparecem em todas as telas</a></li>
+<li><a href="#3-quem-vê-o-quê">Quem vê o quê</a></li>
+<li><a href="#4-hoje">Hoje</a></li>
+<li><a href="#5-tarefas-do-turno">Tarefas do turno</a></li>
+<li><a href="#6-residentes">Residentes</a></li>
+<li><a href="#7-folha-do-dia-room-check">Folha do dia (Room Check)</a></li>
+<li><a href="#8-seen">Seen</a></li>
+<li><a href="#9-ausências">Ausências</a></li>
+<li><a href="#10-no-shows">No Shows</a></li>
+<li><a href="#11-warnings">Warnings</a></li>
+<li><a href="#12-mapa-de-camas">Mapa de camas</a></li>
+<li><a href="#13-handover-livro-ata">Handover (Livro Ata)</a></li>
+<li><a href="#14-manutenção">Manutenção</a></li>
+<li><a href="#15-fridge--temperatura">Fridge / Temperatura</a></li>
+<li><a href="#16-food-delivery">Food Delivery</a></li>
+<li><a href="#17-dinner">Dinner</a></li>
+<li><a href="#18-laundry">Laundry</a></li>
+<li><a href="#19-notificações-gestão">Notificações (gestão)</a></li>
+<li><a href="#20-rota">Rota</a></li>
+<li><a href="#21-distribuição">Distribuição</a></li>
+<li><a href="#22-compras-gestão">Compras (gestão)</a></li>
+<li><a href="#23-horas-gestão">Horas (gestão)</a></li>
+<li><a href="#24-férias-gestão">Férias (gestão)</a></li>
+<li><a href="#25-relatórios-gestão">Relatórios (gestão)</a></li>
+<li><a href="#26-usuários-gestão">Usuários (gestão)</a></li>
+<li><a href="#27-auditoria-gestão">Auditoria (gestão)</a></li>
+<li><a href="#28-no-celular">No celular</a></li>
+<li><a href="#29-rotina-do-turno-em-resumo">Rotina do turno, em resumo</a></li>
+<li><a href="#30-problemas-comuns-e-o-que-significam-as-mensagens">Problemas comuns e o que significam as mensagens</a></li>
+<li><a href="#31-glossário">Glossário</a></li>
+</ol>
+<hr />
+<h2 id="1-antes-de-comecar">1. Antes de começar</h2>
+<h3 id="entrar-no-sistema">Entrar no sistema</h3>
+<ol>
+<li>Abra o endereço do sistema no navegador do computador da recepção.</li>
+<li>Escolha o idioma no canto superior direito (Português, English ou Polski). A escolha fica gravada no seu cadastro.</li>
+<li>Digite o <strong>e-mail</strong> e a <strong>senha</strong> e clique em <strong>Entrar</strong>.</li>
+</ol>
+<blockquote>
+<p>Use sempre a sua própria conta. Nunca entre em nome de outra pessoa: tudo o que você registra fica com o seu nome.</p>
+</blockquote>
+<h3 id="primeiro-acesso">Primeiro acesso</h3>
+<ul>
+<li>A senha que a gestão entregou é <strong>provisória</strong>. O sistema pede uma nova senha na hora.</li>
+<li>A nova senha precisa ter <strong>pelo menos 10 caracteres, com letras e números</strong>.</li>
+<li>Repita a senha e clique em <strong>Salvar</strong>.</li>
+</ul>
+<h3 id="segunda-etapa-da-gestao-manager-owner-e-developer">Segunda etapa da gestão (Manager, Owner e Developer)</h3>
+<p>Quem é da gestão confirma a entrada com um <strong>código enviado por e-mail</strong> (não é preciso aplicativo autenticador).
+1. Depois da senha, clique em <strong>Enviar código</strong>.
+2. Abra o e-mail e clique no link (ou digite o código) para concluir.
+3. Se o e-mail demorar, espere alguns minutos antes de pedir outro; o envio tem limite por hora.</p>
+<p>Porter não tem segunda etapa: entra só com e-mail e senha.</p>
+<h3 id="assumir-o-posto">Assumir o posto</h3>
+<p>Antes de registrar qualquer coisa, o Porter precisa <strong>assumir o posto do turno</strong>.
+1. Na tela <strong>Assumir Posto</strong>, escolha a função: <strong>Office On Duty</strong> (fica em um Lodge) ou <strong>Float</strong> (cobre os dois Lodges).
+2. Se for Office, escolha o <strong>Lodge</strong>.
+3. Clique em <strong>Assumir Posto</strong>.
+4. Se o posto já tiver dono, o sistema mostra <strong>quem é e desde quando</strong>. Só troque se tiver certeza: ao confirmar, o posto da outra pessoa é encerrado.</p>
+<p>Para sair do posto, clique no seu posto (no topo da tela, onde aparece “Você é Office On Duty…”) e depois em <strong>Encerrar meu posto</strong>. <strong>Continuar sem posto</strong> deixa você apenas ver as telas, sem registrar.</p>
+<h3 id="sair-e-inatividade">Sair e inatividade</h3>
+<ul>
+<li>Clique em <strong>Sair</strong> quando terminar.</li>
+<li>Por segurança, se ficar <strong>15 minutos sem usar o sistema</strong>, ele encerra a sessão sozinho. É só entrar de novo.</li>
+</ul>
+<p>🎥 Vídeos: <strong>01</strong> (acesso da gestão) e <strong>02</strong> (assumir o posto).</p>
+<hr />
+<h2 id="2-conceitos-que-aparecem-em-todas-as-telas">2. Conceitos que aparecem em todas as telas</h2>
+<table>
+<thead>
+<tr>
+<th>Termo</th>
+<th>O que é</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Dia operacional</strong></td>
+<td>Vai das <strong>07:00 às 07:00</strong> do dia seguinte. Tudo o que acontece de madrugada pertence ao dia que começou às 07:00.</td>
+</tr>
+<tr>
+<td><strong>Turno Day / Night</strong></td>
+<td>Day: 07:00–19:00. Night: 19:00–07:00.</td>
+</tr>
+<tr>
+<td><strong>Office On Duty</strong></td>
+<td>A pessoa que responde por um Lodge no turno.</td>
+</tr>
+<tr>
+<td><strong>Float</strong></td>
+<td>A pessoa que cobre os dois Lodges (das 12h às 24h).</td>
+</tr>
+<tr>
+<td><strong>Check (Room Check)</strong></td>
+<td>A conferência de todos os residentes, lançada em <strong>12:00, 18:00 e 22:00</strong>.</td>
+</tr>
+<tr>
+<td><strong>Ronda</strong></td>
+<td>O registro de “Room Check Done” no Handover, <strong>de 2 em 2 horas</strong>.</td>
+</tr>
+<tr>
+<td><strong>Seen</strong></td>
+<td>Evidência de que o residente foi visto: por check, por visto manual, por entrada (check-in) ou pelo Dinner.</td>
+</tr>
+<tr>
+<td><strong>Ausência comunicada</strong></td>
+<td>O residente avisou que vai sair. A cama continua dele e não haverá No Show no período.</td>
+</tr>
+<tr>
+<td><strong>No Show</strong></td>
+<td>Residente sem nenhuma evidência de presença no dia, confirmado pela lista final.</td>
+</tr>
+<tr>
+<td><strong>Out</strong></td>
+<td>Saída do residente. Office/Float <strong>decidem</strong>; Manager/Owner <strong>efetivam</strong>.</td>
+</tr>
+<tr>
+<td><strong>Warning</strong></td>
+<td>Advertência: Verbal, Written ou Final Written (FW).</td>
+</tr>
+<tr>
+<td><strong>FW</strong></td>
+<td>Final Written Warning. Aparece como marca vermelha ao lado do nome.</td>
+</tr>
+<tr>
+<td><strong>Handover</strong></td>
+<td>O diário oficial do Lodge: tudo o que acontece no turno.</td>
+</tr>
+</tbody>
+</table>
+<p>Horários são sempre mostrados no <strong>horário de Dublin</strong>.</p>
+<hr />
+<h2 id="3-quem-ve-o-que">3. Quem vê o quê</h2>
+<table>
+<thead>
+<tr>
+<th>Tela</th>
+<th style="text-align: center;">Porter (Office/Float)</th>
+<th style="text-align: center;">Manager / Owner / Developer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hoje, Tarefas do turno</td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: center;">✔</td>
+</tr>
+<tr>
+<td>Residentes, Folha do dia, Seen, Ausências, No Shows, Warnings, Mapa de camas</td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: center;">✔</td>
+</tr>
+<tr>
+<td>Handover, Manutenção</td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: center;">✔ (altera status)</td>
+</tr>
+<tr>
+<td>Fridge, Food Delivery, Dinner, Laundry</td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: center;">✔ (fecha sobras do Dinner)</td>
+</tr>
+<tr>
+<td>Rota</td>
+<td style="text-align: center;">vê só o <strong>publicado</strong></td>
+<td style="text-align: center;">monta e publica</td>
+</tr>
+<tr>
+<td>Distribuição</td>
+<td style="text-align: center;">✔ (sem preços)</td>
+<td style="text-align: center;">✔</td>
+</tr>
+<tr>
+<td>Notificações, Compras, Horas, Férias, Relatórios, Usuários, Auditoria</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✔</td>
+</tr>
+</tbody>
+</table>
+<p>Regras gerais:
+- <strong>Porter só registra no Lodge do seu posto</strong> (o Float registra nos dois). Em outro Lodge, ele apenas vê.
+- <strong>Preços e notas de compra</strong> só a gestão vê.
+- Há uma <strong>janela de correção de 72 horas</strong> para anotações e registros: depois disso, só Manager ou Owner corrigem.</p>
+<hr />
+<h2 id="4-hoje">4. Hoje</h2>
+<p><img alt="Hoje" src="img/01-hoje.png" /></p>
+<p><strong>Para que serve:</strong> é a tela inicial. Mostra o que importa <strong>agora</strong>.</p>
+<p>O que aparece:
+- <strong>Cabeçalho do turno:</strong> dia operacional, turno (Day/Night), o seu posto e o botão da <strong>próxima ação</strong> (por exemplo “Lançar check 12:00”).
+- <strong>De serviço agora:</strong> quem está no Office de cada Lodge e no Float, com o horário em que assumiu.
+- <strong>Dia operacional (a régua):</strong> uma linha de 07:00 a 07:00 para cada Lodge. Cada marca é uma ronda ou um check:
+  - quadrado <strong>preto</strong> = feito;
+  - <strong>vermelho</strong> = atrasado;
+  - <strong>vazado</strong> = por vir;
+  - a linha <strong>azul</strong> é o “agora”.
+- <strong>Pendências:</strong> o que está esperando alguém, com link direto: checks por lançar, rondas esquecidas, tarefas, possíveis No Shows, ausências com retorno vencido e chamados em aberto. Clique em uma linha para ir à tela certa.
+- <strong>Quadro de camas:</strong> cada quarto com as suas camas — ocupada (cinza), livre (vazada), com Out decidido (âmbar), fora de uso (hachurada). Uma linha vermelha na célula marca um residente com FW. Clique no quadro para abrir o <strong>Mapa de camas</strong>.</p>
+<p><strong>Como usar:</strong> olhe a régua e as pendências no começo de cada turno e resolva de cima para baixo.</p>
+<hr />
+<h2 id="5-tarefas-do-turno">5. Tarefas do turno</h2>
+<p><img alt="Tarefas do turno" src="img/02-tarefas.png" /></p>
+<p><strong>Para que serve:</strong> a lista de tarefas do turno, <strong>do modelo de cada Lodge</strong>, nos 3 idiomas.</p>
+<p><strong>Assinar uma tarefa</strong>
+1. Abra <strong>Tarefas do turno</strong>.
+2. Clique em <strong>Assinar</strong> na tarefa feita.
+3. A assinatura registra <strong>seu nome, função e hora</strong>.</p>
+<p><strong>Quando entrar no sistema</strong>, um aviso lista as tarefas esperando por você. <strong>Abrir tarefas</strong> leva à lista; <strong>Depois</strong> fecha o aviso (ele volta).</p>
+<p><strong>Tarefas pendentes</strong>
+- Tarefa sem assinatura <strong>não some</strong>: aparece em <strong>Ainda pendentes</strong> e fica marcada como atrasada depois que o turno termina.</p>
+<p><strong>Tarefa extra (gestão)</strong>
+1. Clique em <strong>Tarefa extra</strong>.
+2. Escreva a tarefa, escolha <strong>Para</strong> (uma pessoa ou <strong>O turno todo</strong>) e, se quiser, o <strong>Prazo</strong>.
+3. Clique em <strong>Criar</strong>. Todos os que estiverem no turno enxergam a tarefa.</p>
+<p><strong>Tarefa da geladeira:</strong> é assinada <strong>sozinha</strong> quando alguém registra a temperatura na tela Fridge (capítulo 15).</p>
+<p>🎥 Vídeos: <strong>08</strong> (assinar) e <strong>12</strong> (tarefas extras).</p>
+<hr />
+<h2 id="6-residentes">6. Residentes</h2>
+<p><img alt="Residentes" src="img/03-residentes.png" /></p>
+<p><img alt="Residentes" src="img/03b-admitir-residente.png" /></p>
+<p><img alt="Residentes" src="img/04-perfil-residente.png" /></p>
+<p><strong>Para que serve:</strong> o cadastro de todos os residentes, atuais e antigos.</p>
+<h3 id="procurar">Procurar</h3>
+<ol>
+<li>Digite no campo de busca: <strong>nome, quarto ou PASS ID</strong>. A lista filtra enquanto você digita.</li>
+<li>Use os filtros de <strong>Lodge</strong> e <strong>Situação</strong> (<strong>Morando aqui</strong> ou <strong>Antigos</strong>).</li>
+</ol>
+<h3 id="admitir-um-residente">Admitir um residente</h3>
+<ol>
+<li>Clique em <strong>Admitir residente</strong>.</li>
+<li>Escolha <strong>Residente novo</strong> (ou <strong>Ex-residente (readmissão)</strong> para quem já esteve aqui).</li>
+<li>Preencha <strong>Nome</strong> e <strong>Sobrenome</strong>. <strong>Data de nascimento</strong> e <strong>PASS ID</strong> são opcionais.</li>
+<li>Em <strong>Cama</strong>, escolha uma <strong>cama livre</strong>. A lista mostra só as camas livres do seu Lodge.</li>
+<li>Em <strong>Data e hora da entrada</strong>, deixe <strong>Agora</strong> marcado, ou desmarque e informe a data e a hora.</li>
+<li>Clique em <strong>Admitir residente</strong>.</li>
+</ol>
+<p>O sistema abre o perfil do residente e avisa: <strong>a abertura de cada perfil fica registrada</strong> (auditoria).</p>
+<h3 id="perfil-do-residente">Perfil do residente</h3>
+<p>No perfil você vê: dados, a estadia atual, <strong>Warnings</strong> e <strong>ocorrências</strong> do Handover em que ele foi marcado, e o histórico de estadias.
+- <strong>Editar dados:</strong> corrige nome, nascimento, PASS ID e observações.
+- <strong>Transferir:</strong> muda o residente de cama (capítulo abaixo).
+- <strong>Decidir Out / Retirar Out / Efetivar Out:</strong> saída do residente.
+- <strong>Registrar Warning:</strong> abre o formulário de advertência.</p>
+<h3 id="decidir-out-office-float">Decidir Out (Office, Float)</h3>
+<ol>
+<li>No perfil, clique em <strong>Decidir Out</strong>.</li>
+<li>Escreva o <strong>Motivo</strong> (obrigatório).</li>
+<li>Confirme. A estadia passa a <strong>Out pendente</strong> e <strong>a cama continua ocupada</strong>.</li>
+<li>Se mudar de ideia, <strong>Retirar Out</strong> (antes de efetivar).</li>
+</ol>
+<h3 id="efetivar-out-manager-owner">Efetivar Out (Manager, Owner)</h3>
+<ol>
+<li>No perfil do residente com Out pendente, clique em <strong>Efetivar Out</strong>.</li>
+<li>Confirme a data e a hora e clique em <strong>Efetivar</strong>.</li>
+<li>A estadia é <strong>encerrada</strong> e a <strong>cama fica livre</strong>. O cadastro do residente é mantido (aparece em <strong>Antigos</strong>).</li>
+</ol>
+<h3 id="transferir-de-cama">Transferir de cama</h3>
+<ol>
+<li>No perfil, clique em <strong>Transferir</strong>.</li>
+<li>Escolha a <strong>nova cama livre</strong> (pode ser em outro Lodge).</li>
+<li>Confirme. A estadia antiga é encerrada como <strong>Transferência</strong> e uma nova começa. O histórico não se perde e <strong>a contagem de No Shows do mês continua</strong> (transferir não zera).</li>
+</ol>
+<p>🎥 Vídeos: <strong>03</strong> (admissões e Out) e <strong>11</strong> (transferência e efetivar Out).</p>
+<hr />
+<h2 id="7-folha-do-dia-room-check">7. Folha do dia (Room Check)</h2>
+<p><img alt="Folha do dia (Room Check)" src="img/05-folha-do-dia.png" /></p>
+<p><strong>Para que serve:</strong> lançar os <strong>checks de 12:00, 18:00 e 22:00</strong>: de cada cama, quem foi visto.</p>
+<h3 id="lancar-um-check">Lançar um check</h3>
+<ol>
+<li>Abra <strong>Folha do dia</strong> e escolha o <strong>Lodge</strong> (no topo).</li>
+<li>Confira o <strong>Dia operacional</strong> (por padrão, o de hoje).</li>
+<li>Clique na aba do check (<strong>Check 12:00</strong>, <strong>Check 18:00</strong> ou <strong>Check 22:00</strong>). Cada aba mostra a situação: <strong>não iniciado</strong>, <strong>por lançar</strong> ou <strong>lançado</strong>.</li>
+<li>Clique em <strong>Começar a lançar</strong> (ou <strong>Continuar</strong>, se já tiver começado).</li>
+<li>Confira o <strong>Horário real do check</strong> e <strong>Quem fez a ronda</strong> (se foi outra pessoa que fez a ronda e você está digitando, escolha o nome dela).</li>
+<li>Marque <strong>cada residente</strong>:
+   - <strong>Visto</strong>
+   - <strong>Não visto</strong>
+   - <strong>Ausência</strong> (só habilita para quem tem ausência comunicada)</li>
+<li>Quando todos estiverem marcados, clique em <strong>Lançar check</strong>. A mensagem <strong>Check lançado.</strong> confirma.</li>
+</ol>
+<h3 id="pelo-teclado-mais-rapido">Pelo teclado (mais rápido)</h3>
+<p>Clique na primeira linha e use:</p>
+<table>
+<thead>
+<tr>
+<th>Tecla</th>
+<th>O que faz</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>V</strong></td>
+<td>Visto (e vai para a próxima linha)</td>
+</tr>
+<tr>
+<td><strong>N</strong></td>
+<td>Não visto</td>
+</tr>
+<tr>
+<td><strong>A</strong></td>
+<td>Ausência</td>
+</tr>
+<tr>
+<td><strong>↑ / ↓</strong></td>
+<td>Muda de linha</td>
+</tr>
+<tr>
+<td><strong>Delete</strong></td>
+<td>Limpa a marca</td>
+</tr>
+</tbody>
+</table>
+<p>A barra de baixo mostra o progresso (“21 de 35 marcados”). <strong>Só dá para lançar quando todos estão marcados.</strong></p>
+<h3 id="residente-com-ausencia-comunicada">Residente com ausência comunicada</h3>
+<p>Se você marcar <strong>Visto</strong> alguém que tem ausência ativa, o sistema pergunta <strong>“Deseja antecipar a presença deste residente?”</strong>:
+- <strong>Sim, registrar o retorno agora</strong>: encerra a ausência e conta como presente.
+- <strong>Não, manter a ausência</strong>: nada muda; marque como <strong>Ausência</strong>.</p>
+<h3 id="regras-importantes">Regras importantes</h3>
+<ul>
+<li>Um check pode ser lançado até <strong>1 hora antes</strong> do horário. Antes disso aparece “Ainda não chegou o horário deste check”.</li>
+<li>Se a folha <strong>já foi lançada</strong>, o sistema avisa e <strong>nada é duplicado</strong>.</li>
+<li>Se aparecer “Você pode ver esta folha, mas não lançar”, você está vendo <strong>outro Lodge</strong> ou está <strong>sem posto</strong>.</li>
+</ul>
+<h3 id="imprimir-a-folha">Imprimir a folha</h3>
+<p><strong>Imprimir folha</strong> abre a folha de papel (número, quartos, residentes atuais e linhas em branco para admissões). Use quando o sistema estiver fora do ar; <strong>imprimir não confirma nada</strong>. Depois, lance os dados no sistema.</p>
+<p>🎥 Vídeo: <strong>04</strong>.</p>
+<hr />
+<h2 id="8-seen">8. Seen</h2>
+<p><img alt="Seen" src="img/06-seen.png" /></p>
+<p><strong>Para que serve:</strong> ver, de cada residente, se foi <strong>visto no turno Day</strong> e <strong>no turno Night</strong>, e <strong>por qual origem</strong> (check, visto manual, check-in ou Dinner).</p>
+<p><strong>Registrar um visto manual</strong> (“Vi este residente”)
+1. Abra <strong>Seen</strong> e confira o <strong>Lodge</strong> e o <strong>dia</strong>.
+2. Clique em <strong>Registrar visto</strong>.
+3. Escolha o <strong>Residente</strong> (aparecem só os que estão no Lodge agora).
+4. Ajuste <strong>Quando</strong> (por padrão, agora) e, se quiser, <strong>Onde</strong> (Recepção, Cozinha, Jardim…).
+5. Clique em <strong>Salvar</strong>. A mensagem <strong>Visto registrado.</strong> confirma.</p>
+<p>Um visto manual vale como <strong>evidência de presença</strong> no turno e <strong>evita No Show</strong>.</p>
+<p>🎥 Vídeo: <strong>05</strong>.</p>
+<hr />
+<h2 id="9-ausencias">9. Ausências</h2>
+<p><img alt="Ausências" src="img/07-ausencias.png" /></p>
+<p><strong>Para que serve:</strong> registrar quando o residente avisa que vai sair.</p>
+<p><strong>Registrar uma ausência</strong>
+1. Abra <strong>Ausências</strong> e clique em <strong>Registrar ausência</strong>.
+2. Escolha o <strong>Residente</strong>.
+3. Confira <strong>Saída em</strong> e informe o <strong>Retorno previsto</strong>.
+4. Se quiser, escreva uma <strong>Observação</strong> (hospital, visita à família…).
+5. Clique em <strong>Salvar</strong>.</p>
+<p>Enquanto a ausência está ativa, <strong>a cama continua do residente e não haverá No Show</strong>.</p>
+<p><strong>Registrar o retorno</strong>
+1. Na linha da ausência, clique em <strong>Registrar retorno</strong>.
+2. Confirme a <strong>Hora do retorno</strong> e clique em <strong>Salvar</strong>.</p>
+<p><strong>Retorno vencido:</strong> se passar do retorno previsto sem o residente voltar, a ausência fica marcada como <strong>Retorno vencido</strong> e entra nas <strong>Pendências</strong> de Hoje. Procure o residente, registre o retorno ou ajuste a situação.</p>
+<p>🎥 Vídeo: <strong>05</strong>.</p>
+<hr />
+<h2 id="10-no-shows">10. No Shows</h2>
+<p><img alt="No Shows" src="img/08-no-shows.png" /></p>
+<p><img alt="No Shows" src="img/27-no-shows-gestao.png" /></p>
+<p><strong>Para que serve:</strong> a lista final do dia que terminou: quem <strong>não teve nenhuma evidência de presença</strong>.</p>
+<p><strong>Quando abre:</strong> a lista de cada dia fica pronta <strong>às 06h30</strong>. Antes disso aparece “O dia ainda não terminou”.</p>
+<p><strong>Confirmar No Shows</strong>
+1. Abra <strong>No Shows</strong>. A lista mostra os <strong>Possíveis No Shows</strong> do dia anterior, com o contador <strong>No mês</strong> de cada residente.
+2. Se aparecer <strong>“Lista incompleta: checks por lançar”</strong>, volte à <strong>Folha do dia</strong> e lance os checks que faltam: <strong>a confirmação fica bloqueada</strong> até lá.
+3. Antes de confirmar, <strong>procure</strong> quem aparece na lista: se alguém foi visto, registre o <strong>Seen</strong> ou corrija o check.
+4. Marque a caixa de cada residente que realmente não apareceu.
+5. Clique em <strong>Confirmar selecionados</strong>. A mensagem <strong>No Shows confirmados.</strong> confirma.</p>
+<p><strong>3º No Show no mês:</strong> o sistema avisa <strong>Manager e Owner</strong> (“chegou a 3 No Shows no mês”). O contador mostra o número do mês (por exemplo 2/3) e a decisão sobre o Out é da gestão.</p>
+<p><strong>Desfazer um No Show</strong> (Manager/Owner)
+1. Na seção <strong>Confirmados</strong>, clique em <strong>Desfazer</strong>.
+2. Escreva o <strong>Motivo</strong> e confirme. O registro fica <strong>Desfeito</strong>, <strong>com histórico</strong>.</p>
+<p><strong>Aviso das 18h30:</strong> às 18h30 o sistema mostra, na tela Hoje, quem ainda <strong>não tem evidência de presença no dia</strong>. Procure, corrija e marque. Esse aviso <strong>não registra nada</strong>.</p>
+<p>🎥 Vídeo: <strong>11</strong>.</p>
+<hr />
+<h2 id="11-warnings">11. Warnings</h2>
+<p><img alt="Warnings" src="img/09-warnings.png" /></p>
+<p><strong>Para que serve:</strong> registrar advertências: <strong>Verbal</strong>, <strong>Written</strong> e <strong>Final Written (FW)</strong>.</p>
+<p><strong>Registrar um Warning</strong>
+1. Abra <strong>Warnings</strong> (ou o perfil do residente) e clique em <strong>Registrar Warning</strong>.
+2. Escolha o <strong>Residente</strong>, o <strong>Tipo</strong> e escreva <strong>O que aconteceu</strong>.
+3. Clique em <strong>Registrar</strong>. O Warning vai para o <strong>Handover</strong> e para o <strong>perfil</strong>.</p>
+<p><strong>Final Warning (FW)</strong>
+- Aparece como uma marca <strong>FW</strong> vermelha ao lado do nome do residente na folha, no perfil e no mapa de camas.
+- <strong>Warnings não expiram sozinhos</strong> e <strong>não geram bloqueio automático</strong>.
+- Só a <strong>gestão desativa</strong> um FW, <strong>sempre com motivo</strong>: botão <strong>Desativar FW</strong>.</p>
+<p>🎥 Vídeos: <strong>06</strong> (registrar) e <strong>11</strong> (desativar FW).</p>
+<hr />
+<h2 id="12-mapa-de-camas">12. Mapa de camas</h2>
+<p><img alt="Mapa de camas" src="img/10-mapa-de-camas.png" /></p>
+<p><strong>Para que serve:</strong> ver todas as camas de cada Lodge, quarto por quarto.</p>
+<ul>
+<li>Cada cama mostra o residente (ou <strong>Cama livre</strong>).</li>
+<li>Marcas: <strong>Out pendente</strong>, <strong>Fora de uso</strong>, <strong>Protegida por ausência</strong>.</li>
+</ul>
+<p><strong>Marcar uma cama fora de uso</strong> (e voltar ao uso)
+1. Clique em uma <strong>cama livre</strong>.
+2. Para tirar de uso, escreva a <strong>Observação</strong> (por exemplo “Cabeceira quebrada”) e clique em <strong>Marcar fora de uso</strong>.
+3. Para devolver, clique na cama hachurada e em <strong>Voltar ao uso</strong>.</p>
+<p>Camas fora de uso <strong>não aparecem</strong> na lista de camas livres para admissão.</p>
+<p>🎥 Vídeo: <strong>11</strong>.</p>
+<hr />
+<h2 id="13-handover-livro-ata">13. Handover (Livro Ata)</h2>
+<p><img alt="Handover (Livro Ata)" src="img/11-handover.png" /></p>
+<p><strong>Para que serve:</strong> o <strong>diário oficial</strong> dos Lodges. Tudo o que acontece no turno é anotado aqui.</p>
+<h3 id="escrever-uma-anotacao">Escrever uma anotação</h3>
+<ol>
+<li>Abra <strong>Handover</strong> e confira o <strong>Lodge</strong>.</li>
+<li>No campo de texto, escreva o que aconteceu.</li>
+<li>Digite <strong>@</strong> para <strong>marcar um residente ou um colega</strong>. Escolha na lista. A anotação passa a aparecer no perfil do residente.</li>
+<li><strong>Frases rápidas</strong> (botões abaixo do campo) inserem textos prontos.</li>
+<li>Em <strong>Hora do fato</strong>, deixe <strong>Agora</strong>, ou desmarque e informe a hora em que o fato aconteceu.</li>
+<li>Clique em <strong>Lançar no Handover</strong>.</li>
+</ol>
+<p><strong>Lançamento depois do turno:</strong> se o fato é de um turno que já terminou, o sistema pede o <strong>Motivo do lançamento depois do turno</strong> (por exemplo “Esqueci de registrar”). Escolha um da lista.</p>
+<h3 id="rondas-de-2-em-2-horas">Rondas (de 2 em 2 horas)</h3>
+<ul>
+<li>No alto da tela há os horários das rondas (08:00, 10:00, 12:00…).</li>
+<li>Clique no horário da ronda que você fez: o sistema registra <strong>“Room Check Done”</strong>.</li>
+<li>Ronda que passou e não foi registrada aparece como <strong>ronda esquecida</strong> e entra nas Pendências.</li>
+<li>Lançar um <strong>check</strong> na Folha do dia já registra a ronda daquele horário.</li>
+</ul>
+<h3 id="filtros">Filtros</h3>
+<p>As abas <strong>Tudo, Anotações, Rondas, Manutenção, Warnings</strong> e <strong>Laundry</strong> filtram o dia. O <strong>campo de data</strong> muda o dia que você está vendo.</p>
+<h3 id="atalhos-dentro-do-handover">Atalhos dentro do Handover</h3>
+<ul>
+<li><strong>Criar manutenção</strong>: abre um chamado (capítulo 14).</li>
+<li><strong>Registrar Warning</strong>: abre o formulário de advertência (capítulo 11).</li>
+</ul>
+<h3 id="corrigir-e-anular">Corrigir e anular</h3>
+<ul>
+<li>Passe o mouse sobre a <strong>sua</strong> anotação e use <strong>Corrigir</strong> (muda o texto) ou <strong>Anular</strong> (exige <strong>Motivo da anulação</strong>).</li>
+<li>Nada é apagado: a anotação anulada fica riscada, com o motivo.</li>
+<li>Depois de <strong>72 horas</strong>, só Manager ou Owner corrigem.</li>
+</ul>
+<p>🎥 Vídeo: <strong>07</strong>.</p>
+<hr />
+<h2 id="14-manutencao">14. Manutenção</h2>
+<p><img alt="Manutenção" src="img/12-manutencao.png" /></p>
+<p><strong>Para que serve:</strong> chamados de conserto. Qualquer Porter abre; a gestão acompanha.</p>
+<h3 id="abrir-um-chamado">Abrir um chamado</h3>
+<ol>
+<li>Abra <strong>Manutenção</strong> e clique em <strong>Novo chamado</strong> (ou use <strong>Criar manutenção</strong> no Handover).</li>
+<li>Preencha <strong>Local</strong> (por exemplo “Quarto 6 — janela”) e <strong>Descrição</strong>.</li>
+<li>Escolha a <strong>Prioridade</strong>: <strong>Urgente</strong> (prazo de 24 horas), <strong>Normal</strong> (7 dias) ou <strong>Baixa</strong> (30 dias). O <strong>prazo sugerido</strong> aparece na tela.</li>
+<li>Clique em <strong>Criar</strong>. A mensagem <strong>Chamado criado — o Manager foi avisado.</strong> confirma. O chamado também vira uma anotação no Handover.</li>
+</ol>
+<h3 id="acompanhar-gestao">Acompanhar (gestão)</h3>
+<ol>
+<li>Clique no chamado.</li>
+<li>Escolha o <strong>Status</strong>: <strong>Aberto</strong>, <strong>Em andamento</strong>, <strong>Em espera</strong>, <strong>Resolvido</strong> ou <strong>Reaberto</strong>.</li>
+<li>Se quiser, defina um <strong>Novo prazo</strong> e escreva <strong>O que foi feito</strong>.</li>
+<li>Clique em <strong>Atualizar</strong>.</li>
+</ol>
+<p>Cada mudança fica no <strong>Histórico</strong> do chamado. As abas <strong>Em aberto</strong> e <strong>Resolvidos</strong> separam os chamados.</p>
+<h3 id="prazo-vencido">Prazo vencido</h3>
+<p>Quando o prazo passa, a gestão vê um aviso <strong>“Prazo vencido — qual é o status?”</strong> ao entrar, com as opções: <strong>Resolvido</strong>, <strong>Em andamento (novo prazo)</strong>, <strong>Em espera (com observação)</strong> ou <strong>Lembrar em 24 h</strong>.</p>
+<p>🎥 Vídeos: <strong>08</strong> (abrir chamados) e <strong>12</strong> (atualizar status).</p>
+<hr />
+<h2 id="15-fridge-temperatura">15. Fridge / Temperatura</h2>
+<p><img alt="Fridge / Temperatura" src="img/13-fridge.png" /></p>
+<p><strong>Para que serve:</strong> registrar a temperatura da geladeira. <strong>Só a geladeira é medida.</strong></p>
+<ol>
+<li>Abra <strong>Fridge / Temperatura</strong>.</li>
+<li>Digite a <strong>Temperatura (°C)</strong> (aceita vírgula: 3,4). <strong>Campo em branco não vale como 0 °C.</strong></li>
+<li>Se quiser, escreva uma <strong>Observação</strong>.</li>
+<li>Clique em <strong>Registrar temperatura</strong>.</li>
+</ol>
+<ul>
+<li><strong>Dentro da faixa (0 a 5 °C):</strong> a tarefa <strong>“Temperatura da geladeira”</strong> do turno é <strong>assinada sozinha</strong>.</li>
+<li><strong>Fora da faixa:</strong> o sistema avisa na hora (<strong>“Fora da faixa — o Manager foi avisado.”</strong>) e manda <strong>notificação à gestão</strong>.</li>
+</ul>
+<p>A tela mostra a <strong>última leitura</strong> e o histórico.</p>
+<p>🎥 Vídeo: <strong>09</strong>.</p>
+<hr />
+<h2 id="16-food-delivery">16. Food Delivery</h2>
+<p><img alt="Food Delivery" src="img/14-food-delivery.png" /></p>
+<p><strong>Para que serve:</strong> registrar as <strong>entregas de fornecedores</strong> (só no Lodge que tem cozinha, o Amiens).</p>
+<ol>
+<li>Abra <strong>Food Delivery</strong> e clique em <strong>Registrar entrega</strong>.</li>
+<li>Preencha <strong>Produto</strong>, <strong>Fornecedor</strong>, <strong>Lote</strong>, <strong>Validade</strong> e <strong>Temperatura (°C)</strong>.</li>
+<li>Clique em <strong>Salvar</strong>. A mensagem <strong>Entrega registrada.</strong> confirma.</li>
+</ol>
+<ul>
+<li>A temperatura da entrega <strong>só fica registrada</strong> (não há alerta).</li>
+<li>Validade próxima aparece destacada como <strong>“vence logo”</strong>.</li>
+</ul>
+<p>🎥 Vídeo: <strong>09</strong>.</p>
+<hr />
+<h2 id="17-dinner">17. Dinner</h2>
+<p><img alt="Dinner" src="img/15-dinner.png" /></p>
+<p><strong>Para que serve:</strong> marcar quem jantou. O Dinner é servido <strong>das 18h às 22h</strong>, só no Lodge com cozinha (Amiens).</p>
+<p><strong>Marcar</strong>
+1. Abra <strong>Dinner</strong> e confira o <strong>dia</strong>.
+2. Em cada residente, clique em <strong>Sim</strong> (jantou) ou <strong>Não</strong>.
+3. <strong>“Sim” vale como Seen Night</strong>: conta como evidência de presença e tira o residente da lista de No Show.</p>
+<p>Antes das 18h os botões ficam bloqueados (“O Dinner começa às 18h.”).</p>
+<p><strong>Fechar as sobras (gestão, depois das 22h)</strong>
+1. Clique em <strong>Fechar sobras</strong>.
+2. Informe as <strong>Porções de sobra</strong> e as <strong>Embalagens</strong> (embalagens <strong>não são</strong> pessoas atendidas) e, se quiser, uma <strong>Observação</strong>.
+3. Confirme. Depois de fechado, <strong>só o Owner (ou Developer)</strong> edita as sobras (<strong>Editar sobras</strong>).</p>
+<p>🎥 Vídeo: <strong>09</strong>.</p>
+<hr />
+<h2 id="18-laundry">18. Laundry</h2>
+<p><img alt="Laundry" src="img/16-laundry.png" /></p>
+<p><strong>Para que serve:</strong> controlar as <strong>4 máquinas</strong> da lavanderia (<strong>A·Wash, A·Dry, B·Wash, B·Dry</strong>), só no Connolly. <strong>Não há reservas.</strong></p>
+<ol>
+<li>Abra <strong>Laundry</strong>.</li>
+<li>Em uma máquina <strong>Livre</strong>, clique em <strong>Iniciar</strong>.</li>
+<li>Escolha o <strong>Residente</strong> (ou <strong>Sem residente (uso da equipe)</strong>) e clique em <strong>Iniciar</strong>.</li>
+<li>A máquina passa a mostrar <strong>“Em uso desde …”</strong> e o residente. <strong>Iniciar anota no Handover.</strong></li>
+<li>Quando terminar, clique em <strong>Finalizar</strong>. A máquina fica livre (<strong>finalizar não gera outra anotação</strong>).</li>
+</ol>
+<p>Uma máquina em uso <strong>não pode ser iniciada de novo</strong>.</p>
+<p>🎥 Vídeo: <strong>10</strong>.</p>
+<hr />
+<h2 id="19-notificacoes-gestao">19. Notificações (gestão)</h2>
+<p><img alt="Notificações (gestão)" src="img/19-notificacoes.png" /></p>
+<p><strong>Para que serve:</strong> os avisos que o sistema envia à gestão:
+- <strong>Geladeira fora da faixa</strong>
+- <strong>Novo chamado de manutenção</strong>
+- <strong>3º No Show do mês</strong>
+- <strong>Rota publicada abaixo da cobertura mínima</strong>
+- <strong>Férias em conflito com a Rota</strong></p>
+<p><strong>Como usar</strong>
+1. Abra <strong>Notificações</strong>.
+2. Clique em <strong>Marcar como lida</strong> quando tratar o aviso.</p>
+<p><strong>Marcar como lida não resolve o item</strong>: o problema segue nas telas dele até ser resolvido.</p>
+<p>🎥 Vídeo: <strong>12</strong>.</p>
+<hr />
+<h2 id="20-rota">20. Rota</h2>
+<p><img alt="Rota" src="img/20-rota-gestao.png" /></p>
+<p><img alt="Rota" src="img/17-rota-equipe.png" /></p>
+<p><strong>Para que serve:</strong> a escala semanal (<strong>Day, Night, Float, Cleaners e Manager</strong>).</p>
+<h3 id="para-a-equipe">Para a equipe</h3>
+<p>Você vê <strong>a escala publicada</strong>. Rascunhos não aparecem.</p>
+<h3 id="para-a-gestao">Para a gestão</h3>
+<ol>
+<li>Abra <strong>Rota</strong> e use as setas <strong>Semana anterior / Próxima semana</strong>.</li>
+<li><strong>Buracos de cobertura</strong> aparecem em <strong>vermelho</strong>, por exemplo “Float — sem cobertura”.</li>
+<li>Clique em <strong>Adicionar turno</strong> no dia desejado.</li>
+<li>Escolha a <strong>Função</strong> (<strong>Office, Float, Cleaner</strong> ou <strong>Manager</strong>). Para Office, escolha <strong>Day 07–19</strong> ou <strong>Night 19–07</strong>.</li>
+<li>Escolha a <strong>Pessoa</strong>: o sistema só oferece quem pode assumir aquela função (Office: Porter; Float: Porter ou Manager; Cleaner: Cleaner).</li>
+<li>Escolha o <strong>Lodge</strong> (Float não tem Lodge), o <strong>Dia</strong> e os horários. Um fim menor que o início vale para o <strong>dia seguinte</strong> (Night, Float).</li>
+<li>Clique em <strong>Salvar</strong>. O turno entra como <strong>rascunho</strong>.</li>
+<li>Para tirar um turno, clique nele e em <strong>Remover turno</strong>.</li>
+<li>Quando a semana estiver pronta, clique em <strong>Publicar semana</strong>. O sistema avisa quantos turnos foram publicados e se ainda há <strong>cobertura abaixo do mínimo</strong> (nesse caso a gestão recebe uma notificação).</li>
+</ol>
+<p><strong>Recusas comuns</strong>
+- “Esta pessoa já tem um turno neste horário.”
+- “Já existe um Float na escala neste horário.”
+- “O cargo desta pessoa não permite esta função.”</p>
+<p><strong>Cobertura mínima:</strong> 1 Office por turno e por Lodge e 1 Float das 12h à meia-noite.</p>
+<p>🎥 Vídeo: <strong>13</strong>.</p>
+<hr />
+<h2 id="21-distribuicao">21. Distribuição</h2>
+<p><img alt="Distribuição" src="img/18-distribuicao.png" /></p>
+<p><strong>Para que serve:</strong> repartir as <strong>compras</strong> entre os Lodges e <strong>transferir produtos</strong> de um Lodge para o outro. <strong>Aqui ninguém vê preços.</strong></p>
+<h3 id="alocar-uma-compra">Alocar uma compra</h3>
+<ol>
+<li>Abra <strong>Distribuição</strong>, aba <strong>Alocar compras</strong>.</li>
+<li>Em cada produto comprado aparece <strong>“N a alocar”</strong>.</li>
+<li>Escolha o Lodge em <strong>Para</strong>, digite a <strong>quantidade</strong> e clique em <strong>Alocar</strong>.</li>
+<li><strong>Não dá para alocar mais do que foi comprado.</strong></li>
+</ol>
+<h3 id="transferir-entre-lodges">Transferir entre Lodges</h3>
+<ol>
+<li>Aba <strong>Transferir entre Lodges</strong>.</li>
+<li>Escolha o <strong>Produto</strong>, <strong>De</strong>, <strong>Para</strong>, a <strong>quantidade</strong> e, se quiser, uma <strong>Observação</strong>.</li>
+<li>Clique em <strong>Transferir</strong>. <strong>Transferência não é nova despesa.</strong></li>
+</ol>
+<p>A aba <strong>Histórico</strong> lista todas as alocações e transferências, com quem fez e quando.</p>
+<p>🎥 Vídeo: <strong>14</strong>.</p>
+<hr />
+<h2 id="22-compras-gestao">22. Compras (gestão)</h2>
+<p><img alt="Compras (gestão)" src="img/21-compras.png" /></p>
+<p><strong>Para que serve:</strong> registrar as compras dos fornecedores. <strong>Preços e notas só a gestão vê.</strong></p>
+<ol>
+<li>Abra <strong>Compras</strong> e clique em <strong>Registrar compra</strong>.</li>
+<li>Preencha <strong>Fornecedor</strong>, <strong>Data</strong> e, se tiver, a <strong>Nota / documento</strong>.</li>
+<li>Em cada linha, escolha o <strong>Produto</strong> (ou digite o nome de um <strong>produto novo</strong>), a <strong>Qtd.</strong> e o <strong>Preço unit. (€)</strong>.</li>
+<li>O <strong>total da linha</strong> aparece na hora e é <strong>arredondado ao centavo</strong> (meio centavo sobe). Exemplo: 24 × 1,335 € = 32,04 €.</li>
+<li>Use <strong>Adicionar linha</strong> para mais produtos e clique em <strong>Salvar</strong>.</li>
+</ol>
+<p>Para ver as linhas e os preços de uma compra, clique nela na lista.</p>
+<p>🎥 Vídeo: <strong>14</strong>.</p>
+<hr />
+<h2 id="23-horas-gestao">23. Horas (gestão)</h2>
+<p><img alt="Horas (gestão)" src="img/22-horas.png" /></p>
+<p><strong>Para que serve:</strong> comparar as <strong>horas planejadas</strong> (Rota) com as <strong>efetivas</strong> (posto assumido). <strong>Não é folha de pagamento.</strong></p>
+<ol>
+<li>Abra <strong>Horas</strong> e escolha o <strong>Mês</strong>.</li>
+<li>Cada pessoa mostra <strong>Planejadas</strong>, <strong>Efetivas</strong> e a <strong>Diferença</strong> (vermelha = trabalhou menos; verde = mais).</li>
+<li>Clique em <strong>Atuação</strong> para ver, dia a dia, de onde vêm as horas (posto assumido ou lançamento da gestão).</li>
+</ol>
+<p><strong>Ajustar um posto</strong> (esqueceu de assumir, ou encerrou depois)
+1. Em <strong>Atuação</strong>, clique em <strong>Ajustar</strong> no posto.
+2. Corrija o <strong>início</strong> e o <strong>fim</strong> e escreva o <strong>Motivo</strong> (obrigatório).
+3. Clique em <strong>Salvar</strong>. O <strong>histórico fica guardado</strong>.</p>
+<p><strong>Lançar horas</strong> (cleaners e Manager, que não assumem posto)
+1. Clique em <strong>Lançar horas</strong> na linha da pessoa.
+2. Informe início e fim e, se quiser, uma observação.
+3. Limites: <strong>até 24 horas</strong> por lançamento e <strong>não no futuro</strong>.</p>
+<p>🎥 Vídeo: <strong>13</strong>.</p>
+<hr />
+<h2 id="24-ferias-gestao">24. Férias (gestão)</h2>
+<p><img alt="Férias (gestão)" src="img/23-ferias.png" /></p>
+<p><strong>Para que serve:</strong> registrar as férias da equipe.</p>
+<ol>
+<li>Abra <strong>Férias</strong> e clique em <strong>Registrar férias</strong>.</li>
+<li>Escolha a <strong>Pessoa</strong> e as datas <strong>De</strong> e <strong>Até</strong>, com uma <strong>Observação</strong> se quiser.</li>
+<li>Clique em <strong>Salvar</strong>.</li>
+</ol>
+<p>Se as férias <strong>coincidem com turnos da Rota</strong>, o sistema mostra <strong>“Conflito: N turno(s) da Rota neste período”</strong> e <strong>avisa a gestão</strong>: ajuste a Rota.</p>
+<p>Para desfazer, use <strong>Cancelar férias</strong> na linha.</p>
+<p>🎥 Vídeo: <strong>13</strong>.</p>
+<hr />
+<h2 id="25-relatorios-gestao">25. Relatórios (gestão)</h2>
+<p><img alt="Relatórios (gestão)" src="img/24-relatorios.png" /></p>
+<p><strong>Para que serve:</strong> o <strong>resumo mensal por Lodge</strong>.</p>
+<ol>
+<li>Abra <strong>Relatórios</strong>, escolha o <strong>Lodge</strong> e o <strong>Mês</strong>.</li>
+<li>Os blocos aparecem na ordem: <strong>Ocupação das camas, Manutenção, No Shows, Warnings, Dinner, Laundry, Horas, Tarefas diárias, Rondas e checks, Temperatura, Movimentação de residentes, Lançamentos fora do turno e Cobertura da escala</strong>.</li>
+<li><strong>Cada número sublinhado abre os registros que o formam.</strong> Clique para conferir de onde ele vem.</li>
+<li><strong>Imprimir</strong> gera a versão de papel.</li>
+</ol>
+<p>Observações:
+- O Dinner só aparece no Lodge com cozinha e o Laundry só no Lodge com lavanderia.
+- Mês atual: as horas <strong>planejadas</strong> contam a Rota do mês inteiro; as <strong>efetivas</strong> contam só até hoje.</p>
+<p>🎥 Vídeo: <strong>14</strong>.</p>
+<hr />
+<h2 id="26-usuarios-gestao">26. Usuários (gestão)</h2>
+<p><img alt="Usuários (gestão)" src="img/25-usuarios.png" /></p>
+<p><strong>Para que serve:</strong> criar e administrar quem usa o sistema. <strong>Só a gestão</strong> faz isso.</p>
+<h3 id="criar-um-usuario">Criar um usuário</h3>
+<ol>
+<li>Abra <strong>Usuários</strong> e clique em <strong>Criar usuário</strong>.</li>
+<li>Preencha <strong>Nome completo</strong>, <strong>Nome curto</strong> (opcional), <strong>Perfil</strong> (Porter, Cleaner, Manager ou Owner), <strong>E-mail</strong>, <strong>Idioma</strong> e <strong>Lodge principal</strong>.</li>
+<li>Clique em <strong>Salvar</strong>.</li>
+<li>A <strong>Primeira senha</strong> aparece <strong>uma vez</strong> na tela. <strong>Entregue pessoalmente</strong>: a pessoa troca no primeiro acesso.</li>
+</ol>
+<p><strong>Cleaners não entram no sistema</strong>: o Manager lança as horas deles (capítulo 23).</p>
+<h3 id="redefinir-a-senha">Redefinir a senha</h3>
+<p>Clique em <strong>Redefinir senha</strong> na linha da pessoa. Uma nova senha provisória é gerada (entregue pessoalmente).</p>
+<h3 id="desativar-e-reativar">Desativar e reativar</h3>
+<ul>
+<li><strong>Desativar</strong> encerra o acesso <strong>na hora</strong>; o histórico é mantido. Fica na aba <strong>Desativados</strong>.</li>
+<li><strong>Reativar</strong> devolve o acesso.</li>
+</ul>
+<p>🎥 Vídeo: <strong>15</strong>.</p>
+<hr />
+<h2 id="27-auditoria-gestao">27. Auditoria (gestão)</h2>
+<p><img alt="Auditoria (gestão)" src="img/26-auditoria.png" /></p>
+<p><strong>Para que serve:</strong> ver <strong>tudo o que mudou</strong> no sistema.</p>
+<ul>
+<li>Aba <strong>Alterações:</strong> cada linha mostra <strong>quando, quem, o quê e o registro</strong>, com o <strong>antes e o depois</strong>.</li>
+<li>Aba <strong>Perfis abertos:</strong> quem abriu o perfil de qual residente, e quando.</li>
+</ul>
+<p>O histórico <strong>não pode ser apagado nem editado</strong>.</p>
+<p>🎥 Vídeo: <strong>15</strong>.</p>
+<hr />
+<h2 id="28-no-celular">28. No celular</h2>
+<p><img alt="No celular" src="img/28-celular-hoje.png" /></p>
+<p>O sistema funciona no celular, com a mesma lógica:
+- A <strong>barra de baixo</strong> dá acesso a <strong>Hoje, Folha, Handover e Tarefas</strong>.
+- O botão <strong>Menu</strong> abre as demais telas e o seletor de <strong>idioma</strong>.
+- As tabelas viram <strong>cartões</strong>, com botões grandes.</p>
+<p>Use o computador da recepção para as tarefas longas (como o check completo).</p>
+<p>🎥 Vídeo: <strong>16</strong>.</p>
+<hr />
+<h2 id="29-rotina-do-turno-em-resumo">29. Rotina do turno, em resumo</h2>
+<p><strong>Ao começar o turno (Day 07:00 / Night 19:00)</strong>
+1. Entre no sistema e <strong>assuma o posto</strong>.
+2. Abra <strong>Hoje</strong>: veja as pendências e a régua.
+3. Leia as últimas anotações do <strong>Handover</strong> (o turno anterior).
+4. Responda ao aviso de <strong>tarefas</strong> (ou <strong>Depois</strong>).</p>
+<p><strong>Durante o turno</strong>
+- A cada <strong>2 horas</strong>: registre a <strong>ronda</strong> no Handover.
+- <strong>12:00 / 18:00 / 22:00</strong>: lance o <strong>check</strong> na Folha do dia.
+- Anote tudo o que acontece no <strong>Handover</strong>.
+- Residente avisou que vai sair: <strong>Ausência</strong>. Voltou: <strong>registre o retorno</strong>.
+- Algo quebrou: <strong>Manutenção</strong>. Problema com um residente: <strong>Warning</strong>.
+- Geladeira: registre a <strong>temperatura</strong> (duas vezes por turno).
+- Amiens: <strong>Food Delivery</strong> quando chegar entrega e <strong>Dinner</strong> entre 18h e 22h.
+- Connolly: <strong>Laundry</strong> a cada uso.</p>
+<p><strong>Ao terminar o turno</strong>
+1. Confira as <strong>Pendências</strong> de Hoje: não deixe checks, rondas ou tarefas para trás.
+2. Lance no Handover o que ficou combinado para o próximo turno.
+3. <strong>Encerre o seu posto</strong> e <strong>saia</strong>.</p>
+<p><strong>Às 06h30 (fechamento do dia)</strong>
+- A gestão revisa a lista de <strong>No Shows</strong> do dia que terminou.</p>
+<hr />
+<h2 id="30-problemas-comuns-e-o-que-significam-as-mensagens">30. Problemas comuns e o que significam as mensagens</h2>
+<table>
+<thead>
+<tr>
+<th>Mensagem</th>
+<th>O que significa / o que fazer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Você saiu automaticamente após 15 minutos sem atividade.</strong></td>
+<td>Segurança do sistema. Entre de novo.</td>
+</tr>
+<tr>
+<td><strong>Assuma um posto para fazer registros.</strong></td>
+<td>Você está sem posto. Vá em <strong>Assumir Posto</strong>.</td>
+</tr>
+<tr>
+<td><strong>Você não tem permissão para esta ação.</strong></td>
+<td>A ação é de outro perfil (por exemplo, só a gestão desativa FW) ou de outro Lodge.</td>
+</tr>
+<tr>
+<td><strong>Você pode ver esta folha, mas não lançar</strong></td>
+<td>Outro Lodge ou sem posto.</td>
+</tr>
+<tr>
+<td><strong>Marque todos os residentes antes de lançar o check.</strong></td>
+<td>Falta alguém na folha. Use a barra de progresso.</td>
+</tr>
+<tr>
+<td><strong>Ainda não chegou o horário deste check.</strong></td>
+<td>O check só abre 1 hora antes do horário.</td>
+</tr>
+<tr>
+<td><strong>Lista incompleta: checks por lançar</strong></td>
+<td>Há checks do dia sem lançar. Lance-os para liberar o No Show.</td>
+</tr>
+<tr>
+<td><strong>O dia ainda não terminou — a lista final abre às 06h30.</strong></td>
+<td>Espere o fechamento do dia.</td>
+</tr>
+<tr>
+<td><strong>Esta pessoa já tem um turno neste horário.</strong></td>
+<td>Conflito na Rota. Escolha outra pessoa ou outro horário.</td>
+</tr>
+<tr>
+<td><strong>O cargo desta pessoa não permite esta função.</strong></td>
+<td>Na Rota: Office só Porter; Float Porter ou Manager.</td>
+</tr>
+<tr>
+<td><strong>Mais do que a quantidade comprada.</strong></td>
+<td>Em Distribuição, a soma alocada passou do comprado.</td>
+</tr>
+<tr>
+<td><strong>Esta máquina já está em uso.</strong></td>
+<td>Finalize o uso atual antes de iniciar de novo.</td>
+</tr>
+<tr>
+<td><strong>O Dinner deste dia já foi fechado.</strong></td>
+<td>As sobras já foram fechadas; só o Owner edita.</td>
+</tr>
+<tr>
+<td><strong>Este check já foi lançado e não pode mais ser alterado.</strong></td>
+<td>A folha foi lançada. Correções são feitas pela gestão.</td>
+</tr>
+<tr>
+<td><strong>Este residente não tem mais uma estadia aberta (já saiu ou foi transferido).</strong></td>
+<td>A tela estava desatualizada. Recarregue.</td>
+</tr>
+<tr>
+<td><strong>Temperatura impossível (de −40 a 40 °C).</strong></td>
+<td>Digitou errado? Confira a leitura da geladeira.</td>
+</tr>
+<tr>
+<td><strong>Outra pessoa alterou este registro. Recarregue antes de salvar.</strong></td>
+<td>Duas pessoas editaram ao mesmo tempo. Recarregue a tela e refaça a alteração.</td>
+</tr>
+<tr>
+<td><strong>Já passaram mais de 72 horas — agora só o Manager ou o Owner corrigem.</strong></td>
+<td>Fim da janela de correção. Peça à gestão.</td>
+</tr>
+<tr>
+<td><strong>Registro não encontrado.</strong></td>
+<td>Link antigo ou o registro foi removido. Volte à lista.</td>
+</tr>
+<tr>
+<td><strong>Este residente não está mais neste Lodge nesse horário.</strong></td>
+<td>Escolha outro residente ou outro horário.</td>
+</tr>
+<tr>
+<td><strong>Sem ligação com o servidor.</strong></td>
+<td>O sistema só funciona online. Use a <strong>folha impressa</strong> e lance depois.</td>
+</tr>
+<tr>
+<td><strong>Algo deu errado. Tente de novo.</strong></td>
+<td>Erro inesperado: tente de novo e, se repetir, avise a gestão.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Se o sistema cair no meio do turno:</strong> imprima/use a <strong>folha do dia em papel</strong> (Folha do dia → <strong>Imprimir folha</strong>), anote à mão e lance tudo quando voltar. O sistema pede <strong>motivo</strong> para lançamentos feitos depois do turno.</p>
+<hr />
+<h2 id="31-glossario">31. Glossário</h2>
+<ul>
+<li><strong>Amiens St. / Connolly:</strong> os dois Lodges.</li>
+<li><strong>Check-in:</strong> a entrada do residente (conta como evidência de presença no dia).</li>
+<li><strong>Cleaner:</strong> pessoa da limpeza (não entra no sistema; a gestão lança as horas).</li>
+<li><strong>Cobertura mínima:</strong> 1 Office por turno e Lodge + 1 Float das 12h à meia-noite.</li>
+<li><strong>Evidência de presença:</strong> check, visto manual, check-in ou Dinner “Sim”.</li>
+<li><strong>Float / Office:</strong> funções do posto (ver capítulo 2).</li>
+<li><strong>FW:</strong> Final Written Warning.</li>
+<li><strong>Handover:</strong> o Livro Ata dos Lodges.</li>
+<li><strong>Out pendente:</strong> saída decidida, ainda não efetivada.</li>
+<li><strong>PASS ID:</strong> identificação do residente no sistema da assistência.</li>
+<li><strong>Posto:</strong> a função que a pessoa assume no turno (Office ou Float).</li>
+<li><strong>Seen Day / Seen Night:</strong> visto no turno Day / Night.</li>
+</ul>
+<hr />
+<p><em>Manual v1 — 24/11/2026. Acompanha o sistema: se uma tela mudar, o capítulo correspondente deve ser atualizado.</em></p></body></html>
