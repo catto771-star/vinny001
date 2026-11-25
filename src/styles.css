@@ -197,7 +197,8 @@ input[type="checkbox"], input[type="radio"] { width: 20px; min-height: 20px; hei
 .brand { font-weight: 600; color: var(--house-ink); display: inline-flex; align-items: center; gap: 0.625rem; }
 .brand-logo { width: 2.25rem; height: auto; flex: none; }
 .brand-house { font-size: 0.9375rem; line-height: 1.2; }
-.auth-logo { display: block; width: 7.5rem; height: auto; margin: 0 0 1rem; }
+.auth-logo { display: block; width: 11rem; height: auto; margin: 0 auto 1.5rem; }
+.auth-card h1 { text-align: center; }
 .auth-card .form button.primary { min-height: 44px; }
 
 /* ---------- Relógio ---------- */
@@ -770,3 +771,44 @@ th.num, td.num { text-align: right; }
 .holiday-day:disabled { cursor: default; opacity: 1; }
 .holiday-day:not(:disabled):hover { outline: 2px solid var(--ink); }
 .report-split { display: block; color: var(--ink-3); font-size: 0.75rem; margin-top: 0.125rem; }
+
+/* ===========================================================================
+   Console (revisão 25/11): menu e barra superior escuros na cor forte da casa,
+   página num tom claro da casa, números em mono. Texto claro sobre o escuro (AA).
+   =========================================================================== */
+:root { --chrome: #1c1f24; --chrome-2: #262a31; --chrome-line: rgb(255 255 255 / 10%); --chrome-ink: #f3f1ec; --chrome-muted: rgb(243 241 236 / 66%); --house-strong: #9aa3ad; }
+:root[data-house="amiens"] { --chrome: #33230f; --chrome-2: #422e15; --house-strong: #e0a85c; --paper: #f5ecdf; --house-soft: #f5ecdf; }
+:root[data-house="connolly"] { --chrome: #072e4b; --chrome-2: #0d3b5f; --house-strong: #8db4d3; --paper: #e8eff5; --house-soft: #e8eff5; }
+html, body { background: var(--paper); transition: background-color var(--base); }
+
+.topbar, .topbar.is-scrolled { background: var(--chrome); border-bottom: 1px solid var(--chrome-line); color: var(--chrome-ink); }
+.topbar .clock-weekday, .topbar .clock-time, .topbar-house { color: var(--chrome-ink); }
+.topbar .clock-date, .topbar .user-name { color: var(--chrome-muted); }
+.topbar .link-button { color: var(--chrome-ink); }
+.topbar .house-switch { background: rgb(255 255 255 / 8%); border-color: var(--chrome-line); }
+.topbar .house-option { color: var(--chrome-muted); }
+.topbar .house-option.is-active { background: rgb(255 255 255 / 16%); color: #fff; box-shadow: inset 3px 0 0 var(--opt); }
+.topbar .post-chip { background: rgb(255 255 255 / 8%); border-color: var(--chrome-line); color: var(--chrome-ink); }
+.topbar .post-chip .dot { background: #4ade80; }
+
+@media (min-width: 1024px) {
+  .sidebar { background: var(--chrome); border-right: 1px solid var(--chrome-line); }
+}
+.sidebar .brand, .drawer-list .brand { color: var(--chrome-ink); }
+.brand-logo { background: #fff; border-radius: 8px; padding: 3px 4px; box-sizing: content-box; }
+.sidebar .nav-group-label { color: var(--chrome-muted); font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.02em; }
+.sidebar .nav-item { color: var(--chrome-muted); }
+.sidebar .nav-item svg { color: var(--chrome-muted); }
+.sidebar .nav-item:hover { background: rgb(255 255 255 / 7%); color: var(--chrome-ink); }
+.sidebar .nav-item.active { background: rgb(255 255 255 / 12%); color: #fff; box-shadow: inset 3px 0 0 var(--house-strong); }
+.sidebar .nav-item.active svg { color: var(--house-strong); }
+.sidebar .nav-badge { background: rgb(255 120 110 / 16%); color: #ffb4ab; }
+.sidebar { scrollbar-color: rgb(255 255 255 / 20%) transparent; }
+
+/* Detalhes "técnicos": números em mono, cartões com fio da casa no topo do título */
+.big-number, .stat-row .big-number, .report-metric dd { font-family: var(--font-mono); letter-spacing: -0.01em; }
+.page-header .eyebrow { font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink-2); }
+.bottom-nav { background: var(--chrome); border-top-color: var(--chrome-line); }
+.bottom-nav a, .bottom-nav button { color: var(--chrome-muted); }
+.bottom-nav a.active { color: #fff; background: rgb(255 255 255 / 12%); }
+.bottom-nav a.active svg { color: var(--house-strong); }
