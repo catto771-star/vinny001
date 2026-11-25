@@ -28,3 +28,10 @@ describe("texto dentro da caixa", () => {
     expect(btn).toMatch(/max-width:\s*100%/);
   });
 });
+
+describe("espaçamento (revisão 10)", () => {
+  it("abas soltas na página têm folga embaixo (não ficam coladas no conteúdo)", () => {
+    const r = rules(css).find((x) => x.sel.includes(".page > .tabs"));
+    expect(r?.body).toMatch(/margin-bottom:\s*1rem/);
+  });
+});

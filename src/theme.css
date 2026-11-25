@@ -276,3 +276,6 @@ a { color: var(--hc, var(--accent)); }
 .time-list { display:grid;gap:.5rem;grid-column:1 / -1 }
 .time-list .inline { display:flex;gap:.5rem;flex-wrap:wrap;align-items:center }
 .time-list input[type="time"] { width:auto;min-width:9rem }
+
+/* Revisão 10: abas soltas na página não ficam coladas no conteúdo. */
+.page > .tabs { margin-bottom: 1rem }
