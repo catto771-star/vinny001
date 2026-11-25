@@ -399,6 +399,9 @@ const enIE = {
     alertNone: "Everyone has evidence of presence today.",
   },
   handover: {
+    startedAt: "Start time",
+    endedAt: "End time",
+    handOverAt: "Handover time",
     chooseWhoTakesOver: "Choose who takes over",
     officeShift: "Office shift",
     floatShift: "Float shift",

@@ -127,3 +127,33 @@ describe("Turno de Float (revisão 4)", () => {
     expect((await db.one("select rota_shift_id from public.handover_shifts where id = $1", [s])).rota_shift_id).toBe(rota);
   });
 });
+
+describe("Horário informado na abertura, passagem e encerramento (revisão 5)", () => {
+  it("abre às 07:05 informado, fecha/passa às 19:10 informado; o turno seguinte começa nesse horário; vale para o Float", async () => {
+    const pedro = await db.createStaff("porter", "Pedro", { login: false });
+    const ana = await db.createStaff("porter", "Ana", { login: false });
+    await db.as(station);
+    const s1 = (await db.one<{ id: string }>("select public.open_handover_shift($1, $2, 'office', now() - interval '11 hours') as id", [amiens, pedro.staffId])).id;
+    const s2 = (await db.one<{ id: string }>("select public.close_handover_shift($1, $2, null, now() - interval '20 minutes') as id", [s1, ana.staffId])).id;
+    const f = (await db.one<{ id: string }>("select public.open_handover_shift($1, $2, 'float', now() - interval '2 hours') as id", [amiens, pedro.staffId])).id;
+    await db.query("select public.close_handover_shift($1, null, null, now() - interval '30 minutes')", [f]);
+    await db.asSuperuser();
+    const r = (await db.query(`select id, opened_at = now() - interval '11 hours' as o11, closed_at = now() - interval '20 minutes' as c20,
+                                      opened_at = now() - interval '20 minutes' as o20, opened_at = now() - interval '2 hours' as o2,
+                                      closed_at = now() - interval '30 minutes' as c30 from public.handover_shifts where id = any($1)`, [[s1, s2, f]])).rows;
+    expect(r.find((x) => x.id === s1)).toMatchObject({ o11: true, c20: true });
+    expect(r.find((x) => x.id === s2)!.o20).toBe(true);
+    expect(r.find((x) => x.id === f)).toMatchObject({ o2: true, c30: true });
+    const e = (await db.query("select body, occurred_at = now() - interval '20 minutes' as at20 from public.handover_entries where kind = 'shift' and body like 'Shift closed%'")).rows;
+    expect(e[0].at20).toBe(true);
+  });
+
+  it("horário no futuro, antes da abertura ou de mais de 24 h atrás é recusado", async () => {
+    const pedro = await db.createStaff("porter", "Pedro", { login: false });
+    await db.as(station);
+    expect(await db.error("select public.open_handover_shift($1, $2, 'office', now() + interval '1 hour')", [amiens, pedro.staffId])).toMatch(/invalid_time/);
+    expect(await db.error("select public.open_handover_shift($1, $2, 'office', now() - interval '30 hours')", [amiens, pedro.staffId])).toMatch(/invalid_time/);
+    const s = (await db.one<{ id: string }>("select public.open_handover_shift($1, $2, 'office', now() - interval '2 hours') as id", [amiens, pedro.staffId])).id;
+    expect(await db.error("select public.close_handover_shift($1, null, null, now() - interval '3 hours')", [s])).toMatch(/invalid_time/);
+  });
+});

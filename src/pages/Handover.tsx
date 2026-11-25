@@ -13,6 +13,7 @@ import { useOccupancy } from "@/lib/useOccupancy";
 import { useStaffList } from "@/lib/useStaffList";
 import { onDutyFor, useOnDuty } from "@/lib/useOnDuty";
 import { DateTimeField } from "@/components/DateTimeField";
+import { DateTimeInput } from "@/components/DateTimeInput";
 import { Dialog, DialogCancel } from "@/components/Dialog";
 import { LodgeTabs } from "@/components/LodgeTabs";
 import { useLodgeState } from "@/lib/activeLodge";
@@ -350,6 +351,9 @@ function ShiftBar({ lodgeId, onChange, fn = "office" }: { lodgeId: string; onCha
   const [who, setWho] = useState("");
   const [closing, setClosing] = useState(false);
   const [handTo, setHandTo] = useState("");
+  // Revisão 5: horário real de início e de término (padrão: agora).
+  const [startAt, setStartAt] = useState<Date | null>(() => new Date());
+  const [endAt, setEndAt] = useState<Date | null>(() => new Date());
   const [note, setNote] = useState("");
   const fillers = staffList.filter((s) => FILLER_ROLES.includes(s.role));
   const rostered = (fn === "float" ? posts.find((p) => p.function === "float") : onDutyFor(posts, lodgeId))?.staff_id ?? "";
@@ -366,14 +370,16 @@ function ShiftBar({ lodgeId, onChange, fn = "office" }: { lodgeId: string; onCha
   useEffect(() => void load(), [load]);
 
   async function open() {
-    const { error } = await supabase.rpc("open_handover_shift", { p_lodge: lodgeId, p_staff: who || rostered, p_function: fn });
+    setStartAt((d) => d ?? new Date());
+    const { error } = await supabase.rpc("open_handover_shift", { p_lodge: lodgeId, p_staff: who || rostered, p_function: fn, p_at: (startAt ?? new Date()).toISOString() });
     if (error) return toast.error(t(errorKey(error)));
     toast.success(t("handover.shiftOpened"));
+    setStartAt(new Date());
     void load();
   }
   async function close() {
     if (!shift) return;
-    const { error } = await supabase.rpc("close_handover_shift", { p_shift: shift.id, p_handed_to: handTo || null, p_note: note });
+    const { error } = await supabase.rpc("close_handover_shift", { p_shift: shift.id, p_handed_to: handTo || null, p_note: note, p_at: (endAt ?? new Date()).toISOString() });
     if (error) return toast.error(t(errorKey(error)));
     setClosing(false);
     setNote("");
@@ -390,7 +396,7 @@ function ShiftBar({ lodgeId, onChange, fn = "office" }: { lodgeId: string; onCha
         <>
           <span className="shift-dot" aria-hidden="true" />
           <span><strong>{t(fn === "float" ? "handover.floatShiftOf" : "handover.shiftOf", { name: nameOf(shift.staff_id) })}</strong> <span className="mono muted">{t("today.since", { time: formatTime(shift.opened_at, locale) })}</span></span>
-          <button className={fn === "float" ? "" : "primary"} onClick={() => setClosing(true)}>{fn === "float" ? t("handover.closeFloat") : t("handover.closeShift")}</button>
+          <button className={fn === "float" ? "" : "primary"} onClick={() => { setEndAt(new Date()); setClosing(true); }}>{fn === "float" ? t("handover.closeFloat") : t("handover.closeShift")}</button>
         </>
       ) : (
         <>
@@ -402,7 +408,11 @@ function ShiftBar({ lodgeId, onChange, fn = "office" }: { lodgeId: string; onCha
               {fillers.map((s) => <option key={s.id} value={s.id}>{staffName(s)}{s.id === rostered ? ` · ${t("handover.onRoster")}` : ""}</option>)}
             </select>
           </label>
-          <button className={fn === "float" ? "" : "primary"} disabled={!(who || rostered)} onClick={() => void open()}>{fn === "float" ? t("handover.openFloat") : t("handover.openShift")}</button>
+          <label className="inline">
+            {t("handover.startedAt")}
+            <DateTimeInput value={startAt} onChange={setStartAt} required />
+          </label>
+          <button className={fn === "float" ? "" : "primary"} disabled={!(who || rostered) || !startAt} onClick={() => void open()}>{fn === "float" ? t("handover.openFloat") : t("handover.openShift")}</button>
         </>
       )}
       {closing && shift && (
@@ -419,6 +429,10 @@ function ShiftBar({ lodgeId, onChange, fn = "office" }: { lodgeId: string; onCha
                 <option value="">{t("handover.nobodyYet")}</option>
                 {fillers.filter((s) => s.id !== shift.staff_id).map((s) => <option key={s.id} value={s.id}>{staffName(s)}</option>)}
               </select>
+            </label>
+            <label>
+              {handTo ? t("handover.handOverAt") : t("handover.endedAt")}
+              <DateTimeInput value={endAt} onChange={setEndAt} required />
             </label>
             <label>{t("handover.closeNote")} <small>({t("app.optional")})</small><textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} /></label>
           </div>
