@@ -40,10 +40,10 @@ const iso = (d: Date) => d.toISOString();
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000);
 
 describe("Conta da casa (Staff)", () => {
-  it("lança nas duas casas sem assumir posto (Float troca de casa sem sair) e não acessa a gestão", async () => {
+  it("lança só na própria casa, sem assumir posto, e não acessa a gestão (revisão 8: a outra casa é recusada)", async () => {
     await db.as(station);
     expect(await db.error("select public.add_handover_note($1, 'Quiet night', null, '[]'::jsonb, null, null)", [amiens])).toBeNull();
-    expect(await db.error("select public.add_handover_note($1, 'Float visit', null, '[]'::jsonb, null, null)", [connolly])).toBeNull();
+    expect(await db.error("select public.add_handover_note($1, 'Float visit', null, '[]'::jsonb, null, null)", [connolly])).toMatch(/not_authorised/);
     expect(await db.error("select public.assume_post('office', $1)", [amiens])).toMatch(/role_cannot_take_office/);
     expect(await db.error("select public.save_rota_shift(null, $1, $2, 'office', now(), now() + interval '1 hour')", [pedro.staffId, amiens])).toMatch(/not_authorised/);
     expect(await db.error("select * from public.staff_hours(now() - interval '1 day', now())")).toMatch(/not_authorised/);
@@ -68,7 +68,7 @@ describe("Handover: quem está preenchendo", () => {
   it("sem Office escalado, vem o Float; quem preenche precisa ser uma pessoa da equipe (não a conta da casa nem Cleaner)", async () => {
     await shift(ana, "float", null, iso(hoursAgo(1)), iso(hoursAgo(-5)));
     await db.as(station);
-    expect((await db.one("select public.on_duty_staff($1, now()) as s", [connolly])).s).toBe(ana.staffId);
+    expect((await db.one("select public.on_duty_staff($1, now()) as s", [amiens])).s).toBe(ana.staffId);
     expect(await db.error("select public.add_handover_note($1, 'x', null, '[]'::jsonb, null, $2)", [amiens, station.staffId])).toMatch(/invalid_filled_by/);
     expect(await db.error("select public.add_handover_note($1, 'x', null, '[]'::jsonb, null, $2)", [amiens, cleaner.staffId])).toMatch(/invalid_filled_by/);
     expect(await db.error("select public.add_handover_note($1, 'x', null, '[]'::jsonb, null, gen_random_uuid())", [amiens])).toMatch(/invalid_filled_by/);

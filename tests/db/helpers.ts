@@ -74,7 +74,8 @@ export class Db {
   }
 
   /** Cria usuário de auth + cadastro na equipe (como superusuário). */
-  async createStaff(role: string, name: string, opts: { login?: boolean } = {}): Promise<Actor> {
+  /** `home`: casa da conta de casa (station); padrão Amiens, `null` = sem casa. */
+  async createStaff(role: string, name: string, opts: { login?: boolean; home?: "AMIENS" | "CONNOLLY" | null } = {}): Promise<Actor> {
     await this.asSuperuser();
     let userId: string | null = null;
     if (opts.login !== false && role !== "cleaner") {
@@ -84,9 +85,10 @@ export class Db {
       );
       userId = user.id;
     }
+    const homeCode = role === "station" ? (opts.home === undefined ? "AMIENS" : opts.home) : null;
     const staff = await this.one<{ id: string }>(
-      "insert into public.staff (user_id, full_name, role) values ($1, $2, $3) returning id",
-      [userId, name, role],
+      "insert into public.staff (user_id, full_name, role, home_lodge_id) values ($1, $2, $3, (select id from public.lodges where code = $4)) returning id",
+      [userId, name, role, homeCode],
     );
     // Gestão: simula que a pessoa já pediu o código por e-mail numa sessão com senha.
     if (userId && MANAGEMENT.includes(role)) {

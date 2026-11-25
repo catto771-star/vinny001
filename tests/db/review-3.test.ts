@@ -99,7 +99,9 @@ describe("Turno de Float (revisão 4)", () => {
     await db.as(station);
     const office = (await db.one<{ id: string }>("select public.open_handover_shift($1, $2) as id", [amiens, pedro.staffId])).id;
     const float = (await db.one<{ id: string }>("select public.open_handover_shift($1, $2, 'float') as id", [amiens, ana.staffId])).id;
-    expect(await db.error("select public.open_handover_shift($1, $2, 'float')", [connolly, rui.staffId])).toMatch(/shift_already_open/);
+    expect(await db.error("select public.open_handover_shift($1, $2, 'float')", [amiens, rui.staffId])).toMatch(/shift_already_open/);
+    // Revisão 8: a conta da casa não abre turno na outra casa.
+    expect(await db.error("select public.open_handover_shift($1, $2, 'float')", [connolly, rui.staffId])).toMatch(/not_authorised/);
     const next = (await db.one<{ id: string }>("select public.close_handover_shift($1, $2, 'Float handed over') as id", [float, rui.staffId])).id;
     await db.asSuperuser();
     const rows = (await db.query("select id, function, staff_id, closed_at is not null as closed, handed_to from public.handover_shifts where id = any($1)", [[office, float, next]])).rows;

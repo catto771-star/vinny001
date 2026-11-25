@@ -431,7 +431,7 @@ const enIE = {
     floatShift: "Float shift",
     floatShiftOf: "Float: {name}",
     noFloatShift: "No Float on shift.",
-    noFloatShiftHint: "Record who takes over the Float (it covers both houses).",
+    noFloatShiftHint: "Record who takes over the Float.",
     openFloat: "Start Float shift",
     closeFloat: "End Float / hand over",
     tags: "Tags",
@@ -960,7 +960,7 @@ const enIE = {
       developer: "Developer",
     },
     cleanerNoLogin: "Porters and Cleaners do not sign in: the team uses the house account and the Roster says who is working.",
-    stationHint: "One house account per Lodge (institutional Google email). It works in both houses — the Float switches house at the top.",
+    stationHint: "One house account per Lodge (institutional Google email). It can only see and record data for its own house; the Float signs in on the account of the house they are in.",
   },
   audit: {
     title: "Audit",
