@@ -70,7 +70,7 @@ export const GROUPS: Group[] = [
       { to: "/reports", label: "nav.reports", icon: ChartColumn, managementOnly: true },
       { to: "/users", label: "nav.users", icon: ScrollText, managementOnly: true },
       { to: "/audit", label: "nav.audit", icon: History, managementOnly: true },
-      { to: "/settings", label: "nav.settings", icon: Settings2, managementOnly: true },
+      { to: "/settings", label: "nav.settings", icon: Settings2 },
     ],
   },
 ];

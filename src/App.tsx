@@ -113,7 +113,7 @@ function Gate() {
         {isManagement && <Route path="reports" element={<Reports />} />}
         {isManagement && <Route path="users" element={<Users />} />}
         {isManagement && <Route path="audit" element={<Audit />} />}
-        {isManagement && <Route path="settings" element={<Settings />} />}
+        <Route path="settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

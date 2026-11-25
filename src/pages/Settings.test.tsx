@@ -21,22 +21,27 @@ function query(result: unknown) {
 }
 vi.mock("@/lib/supabase", () => ({ supabaseConfigured: true, supabase: { rpc: (n: string, a: unknown) => rpc(n, a), from: () => query(tags) } }));
 
+vi.mock("@/auth/AuthProvider", () => ({
+  useAuth: () => ({ isManagement: true, staff: { id: "me", full_name: "Admin", display_name: null, role: "manager", email: "a@x", home_lodge_id: null }, session: null, lodges: [] }),
+}));
+
 import { I18nProvider } from "@/i18n";
 import { Settings } from "./Settings";
 
 describe("Configurações do Admin", () => {
   it("liga a manutenção 'Low' só para mim e esconde a tag Delivery do Handover", async () => {
-    render(<I18nProvider><MemoryRouter><Settings /></MemoryRouter></I18nProvider>);
+    render(<I18nProvider><MemoryRouter initialEntries={["/settings?tab=notifications"]}><Settings /></MemoryRouter></I18nProvider>);
     const low = await screen.findByRole("switch", { name: "Maintenance (by priority) · Low" });
     expect((low as HTMLInputElement).checked).toBe(false);
     fireEvent.click(low);
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("set_push_pref", { p_key: "maintenance:low", p_enabled: true }));
+    fireEvent.click(screen.getByRole("tab", { name: "Handover" }));
     fireEvent.click(await screen.findByRole("switch", { name: "Show · Delivery" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("set_handover_tag", { p_tag: "g1", p_visible: false }));
   });
 
   it("fora do app instalado no iPhone, explica como adicionar à Tela de Início", async () => {
-    render(<I18nProvider><MemoryRouter><Settings /></MemoryRouter></I18nProvider>);
+    render(<I18nProvider><MemoryRouter initialEntries={["/settings?tab=notifications"]}><Settings /></MemoryRouter></I18nProvider>);
     expect(await screen.findByText(/cannot receive notifications|Add to Home Screen/)).toBeTruthy();
   });
 });

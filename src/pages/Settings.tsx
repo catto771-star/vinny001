@@ -1,4 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useAuth } from "@/auth/AuthProvider";
+import { Tabs } from "@/components/Tabs";
+import { AccountSettings } from "./settings/AccountSettings";
+import { SystemSettings } from "./settings/SystemSettings";
 import { useI18n, type MessageKey } from "@/i18n";
 import { supabase } from "@/lib/supabase";
 import { errorKey } from "@/lib/errors";
@@ -20,7 +25,7 @@ const GROUPS: { key: Pref["group"]; title: MessageKey }[] = [
  * Configurações do Admin (revisão 3): quais tags aparecem no Handover (vale para todos) e quais
  * notificações chegam no celular deste Admin (cada um escolhe as suas).
  */
-export function Settings() {
+function useSettingsData() {
   const { t } = useI18n();
   const toast = useToast();
   const [tags, setTags] = useState<HandoverTag[] | null>(null);
@@ -73,6 +78,23 @@ export function Settings() {
     }
   }
 
+  return { t, tags, prefs, push, error, toggleTag, togglePref, switchPush };
+}
+
+export function Settings() {
+  const { t } = useI18n();
+  const { isManagement } = useAuth();
+  const [params, setParams] = useSearchParams();
+  const tabs = [
+    { value: "account", label: t("settings.tabAccount") },
+    ...(isManagement ? [
+      { value: "notifications", label: t("settings.tabNotifications") },
+      { value: "handover", label: t("settings.tabHandover") },
+      { value: "system", label: t("settings.tabSystem") },
+    ] : []),
+  ];
+  const wanted = params.get("tab") ?? "account";
+  const tab = tabs.some((x) => x.value === wanted) ? wanted : "account";
   return (
     <section className="page">
       <header className="page-header">
@@ -81,7 +103,21 @@ export function Settings() {
           <h1>{t("settings.title")}</h1>
         </div>
       </header>
+      {tabs.length > 1 && (
+        <Tabs label={t("settings.title")} value={tab} onChange={(v) => setParams(v === "account" ? {} : { tab: v }, { replace: true })} items={tabs} />
+      )}
+      {tab === "account" && <AccountSettings />}
+      {isManagement && tab === "notifications" && <NotificationSettings />}
+      {isManagement && tab === "handover" && <HandoverTagSettings />}
+      {isManagement && tab === "system" && <SystemSettings />}
+    </section>
+  );
+}
 
+function NotificationSettings() {
+  const { t, prefs, push, error, togglePref, switchPush } = useSettingsData();
+  return (
+    <>
       <article className="card settings-push">
         <div>
           <h2 className="section-title">{t("settings.thisDevice")}</h2>
@@ -117,6 +153,15 @@ export function Settings() {
           ))}
         </article>
 
+      </div>
+    </>
+  );
+}
+
+function HandoverTagSettings() {
+  const { t, tags, toggleTag } = useSettingsData();
+  return (
+    <div className="settings-grid">
         <article className="card">
           <h2 className="section-title">{t("settings.handoverTags")}</h2>
           <p className="hint">{t("settings.handoverTagsHint")}</p>
@@ -132,7 +177,6 @@ export function Settings() {
             </fieldset>
           )}
         </article>
-      </div>
-    </section>
+    </div>
   );
 }

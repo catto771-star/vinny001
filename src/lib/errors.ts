@@ -26,6 +26,8 @@ const RULES: Array<[RegExp, MessageKey]> = [
   [/invalid_split_time/, "errors.invalidSplitTime"],
   [/invalid_filled_by/, "errors.invalidFilledBy"],
   [/too_many_authors/, "errors.tooManyAuthors"],
+  [/invalid_parameter/, "errors.invalidParameter"],
+  [/unknown_parameter/, "errors.unknownParameter"],
   [/invalid_co_author/, "errors.invalidCoAuthor"],
   [/home_lodge_required/, "errors.homeLodgeRequired"],
   [/dates_locked/, "errors.datesLocked"],
