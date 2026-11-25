@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [stage, setStage] = useState<AuthStage>("loading");
   const [staff, setStaff] = useState<Staff | null>(null);
-  const [lodges, setLodges] = useState<Lodge[]>([]);
+  const [allLodges, setLodges] = useState<Lodge[]>([]);
   const [post, setPost] = useState<DutyPost | null>(null);
   const [idleMinutes, setIdleMinutes] = useState(15);
   const [serverOffsetMs, setServerOffsetMs] = useState(0);
@@ -168,6 +168,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isManagement = isManagementRole(staff?.role);
 
   const isStation = staff?.role === "station";
+  // Conta de casa (station) enxerga só a sua casa; Admin e equipe com posto enxergam todas.
+  const lodges = useMemo(
+    () => (isStation && staff?.home_lodge_id ? allLodges.filter((l) => l.id === staff.home_lodge_id) : allLodges),
+    [allLodges, isStation, staff?.home_lodge_id],
+  );
   const canWriteLodge = useCallback(
     (lodgeId: string) => isManagement || (isStation && lodges.some((l) => l.id === lodgeId)) || (!!post && (post.function === "float" || post.lodge_id === lodgeId)),
     [isManagement, isStation, lodges, post],

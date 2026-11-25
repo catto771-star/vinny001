@@ -30,8 +30,10 @@ function readStored(): string | null {
 
 export function ActiveLodgeProvider({ children }: { children: ReactNode }) {
   const { lodges, post, staff } = useAuth();
+  const { isManagement } = useAuth();
   const [chosen, setChosen] = useState<string | null>(readStored);
-  const activeId = pickInitialLodge(lodges, [chosen, post?.lodge_id, staff?.home_lodge_id]);
+  // A casa guardada no navegador só vale para Admin; conta de casa usa sempre a sua.
+  const activeId = pickInitialLodge(lodges, [isManagement ? chosen : null, post?.lodge_id, staff?.home_lodge_id]);
   const setActiveId = useCallback((id: string) => {
     setChosen(id);
     try {

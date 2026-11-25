@@ -152,6 +152,8 @@ const enIE = {
     needPost: "Take a post to make entries.",
   },
   nav: {
+    activeHouse: "Active house",
+    pendingTotal: "{n} pending in total",
     alerts: "Alerts",
     presence: "Presence",
     log: "Log",

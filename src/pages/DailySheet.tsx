@@ -16,7 +16,7 @@ import { LodgeTabs } from "@/components/LodgeTabs";
 import { useLodgeState } from "@/lib/activeLodge";
 import { Notice } from "@/components/Notice";
 import { Skeleton } from "@/components/Skeleton";
-import { Tabs } from "@/components/Tabs";
+import { Tabs, type TabStatus } from "@/components/Tabs";
 import { useToast } from "@/components/Toast";
 
 export type Run = {
@@ -185,12 +185,8 @@ export function DailySheet() {
             return {
               value: s,
               label: t("sheet.check", { slot: s }),
-              hint: (
-                <small className={r?.status === "launched" ? "ok-text tab-hint" : "warn-text tab-hint"}>
-                  {" · "}
-                  {r ? (r.status === "launched" ? t("sheet.launched") : t("sheet.pending")) : t("sheet.notOpened")}
-                </small>
-              ),
+              status: (r ? (r.status === "launched" ? "done" : "progress") : "idle") as TabStatus,
+              statusLabel: r ? (r.status === "launched" ? t("sheet.launched") : t("sheet.pending")) : t("sheet.notOpened"),
             };
           })}
         />

@@ -24,6 +24,18 @@ export const BADGE_FOR_PATH: Record<string, keyof PendingCounts> = {
   "/no-shows": "no_shows",
 };
 
+/** Contagem de um item do menu; Notifications usa as não lidas. */
+export function badgeFor(to: string, counts: PendingCounts, unread = 0): number {
+  if (to === "/notifications") return unread;
+  const key = BADGE_FOR_PATH[to];
+  return key ? counts[key] : 0;
+}
+
+/** Soma dos itens de um módulo (mostrada no cabeçalho do módulo retraído). */
+export function groupBadgeTotal(paths: string[], counts: PendingCounts, unread = 0): number {
+  return paths.reduce((n, p) => n + badgeFor(p, counts, unread), 0);
+}
+
 export function usePendingCounts(lodgeIds: string[], refreshKey: unknown) {
   const [counts, setCounts] = useState<PendingCounts>(EMPTY_COUNTS);
   const key = lodgeIds.join(",");

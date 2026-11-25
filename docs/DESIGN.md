@@ -98,3 +98,11 @@ o item ativo do menu usa o acento. Nunca emoji na interface.
 
 - Botões, campos e chips usam raio fixo de 22px (não mais 999px). Até 44px de altura continuam com forma de pílula; com várias linhas (ex.: turnos do Roster) viram cartões arredondados e o canto não corta o texto. Botões quebram palavras longas (`overflow-wrap:anywhere`) e não passam de 100% da largura. Abas não encolhem (a faixa rola). Guardado por `src/lib/textContainment.test.ts`; a varredura de todas as telas (celular/computador, claro/escuro) não achou texto fora da caixa.
 - Transições (`src/lib/transition.ts` + `.content[data-transition]`): abrir detalhe = entra pela direita; voltar = entra pela esquerda; trocar de seção = esmaecer rápido com leve escala (Mac). Curva do iOS `cubic-bezier(.32,.72,0,1)`, 220–380ms. Janelas abrem com escala no computador e sobem como folha no celular. Respeita "reduzir movimento".
+
+## Revisão 8 — paleta por casa, controles de seleção, interruptor das casas e menu em módulos
+
+- Paleta canônica por casa e tema no fim de `src/theme.css` (`--bg`, `--surface`, `--hc`, `--on-hc`, `--hero`, `--on-hero`, `--hero-btn-ink`). Amiens = âmbar/areia; Connolly = gelo/azul. `src/lib/themeContrast.test.ts` exige AA (4,5:1) em todos os pares e que as casas não voltem a se parecer.
+- Botão principal e item selecionado usam o gradiente da casa (`--hero`) com tinta `--on-hero`. O botão "No Shows" do topo usa fundo branco e tinta `--hero-btn-ink`.
+- Abas: trilho com polegar deslizante; ponto de status (`idle/progress/done/danger`) no lugar do texto "· not started" (texto só para leitor de tela e `title`). Chips: contorno; selecionado = gradiente com ✓.
+- Interruptor das casas (`HouseSwitch`): só Admin vê e alterna; conta de casa (station) vê apenas a sua casa e ignora a casa guardada no navegador.
+- Menu lateral: módulos retraídos; o da rota ativa abre sozinho; o cabeçalho soma as pendências dos submódulos e cada submódulo mostra a sua (ex.: Occurrences 23 = Handover 10 + Maintenance 13). Estado guardado em `nav.open`.

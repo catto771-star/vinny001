@@ -100,3 +100,19 @@ describe("Dialog", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("Tabs com ponto de status (revisão 8)", () => {
+  afterEach(cleanup);
+  it("mostra o ponto, o texto só para leitor de tela e o título; a aba escolhida continua aria-selected", () => {
+    render(<Tabs label="Checks" value="12:00" onChange={() => {}} items={[
+      { value: "12:00", label: "Check 12:00", status: "idle", statusLabel: "Not started" },
+      { value: "18:00", label: "Check 18:00", status: "done", statusLabel: "Completed" },
+    ]} />);
+    const tab = screen.getByRole("tab", { name: /Check 12:00/ });
+    expect(tab.getAttribute("aria-selected")).toBe("true");
+    expect(tab.getAttribute("title")).toBe("Not started");
+    expect(tab.querySelector(".status-dot.is-idle")).not.toBeNull();
+    expect(tab.querySelector(".sr-only")?.textContent).toBe("Not started");
+    expect(screen.getByRole("tab", { name: /Check 18:00/ }).querySelector(".status-dot.is-done")).not.toBeNull();
+  });
+});

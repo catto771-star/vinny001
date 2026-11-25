@@ -1,15 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { NavLink, Outlet, useLocation, useNavigationType } from "react-router-dom";
 import { transitionKind, type TransitionKind } from "@/lib/transition";
 import {
   BedDouble, Settings2, ListChecks, ClipboardCheck, Eye, History, House, LayoutGrid, NotebookPen, Plane, ScrollText,
-  Bell, CalendarDays, ChartColumn, ShieldAlert, ShoppingCart, Timer, TreePalm, Shirt, Thermometer, Truck, UserX, Users, UtensilsCrossed, Wrench,
+  Bell, CalendarDays, ChartColumn, ChevronDown, ShieldAlert, ShoppingCart, Timer, TreePalm, Shirt, Thermometer, Truck, UserX, Users, UtensilsCrossed, Wrench,
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthProvider";
 import { useI18n, type MessageKey } from "@/i18n";
 import { staffName } from "@/lib/types";
-import { BADGE_FOR_PATH, usePendingCounts } from "@/lib/pending";
+import { badgeFor, groupBadgeTotal, usePendingCounts } from "@/lib/pending";
+import { groupIndexOfPath, nextOpen, readOpen, writeOpen } from "@/lib/navGroups";
 import { supabase } from "@/lib/supabase";
 import { MaintenanceReminder } from "@/pages/Maintenance";
 import { Clock } from "./Clock";
@@ -118,20 +119,27 @@ export function HouseMark({ name }: { name?: string }) {
 
 /** Troca a casa ativa na hora (Float): muda a cor do cabeçalho e a casa em que as telas lançam. */
 export function HouseSwitch() {
-  const { lodges } = useAuth();
+  const { lodges, isManagement } = useAuth();
   const { activeId, setActiveId } = useActiveLodge();
   const { t } = useI18n();
-  if (lodges.length < 2) return null;
+  // Só Admin alterna entre as casas; conta de casa (station) fica presa à sua.
+  if (!isManagement || lodges.length < 2) return null;
+  const active = lodges.find((l) => l.id === activeId);
+  const idx = Math.max(0, lodges.findIndex((l) => l.id === activeId));
+  const move = (e: KeyboardEvent<HTMLButtonElement>) => {
+    if (!["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"].includes(e.key)) return;
+    e.preventDefault();
+    const step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : -1;
+    const next = lodges[(idx + step + lodges.length) % lodges.length];
+    setActiveId(next.id);
+    (e.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[lodges.indexOf(next)])?.focus();
+  };
   return (
-    <div className="house-switch" role="group" aria-label={t("residents.lodge")}>
+    <div className="house-toggle" role="radiogroup" aria-label={t("nav.activeHouse")} data-active={houseOf(active)} style={{ "--n": lodges.length, "--i": idx } as CSSProperties}>
+      <span className="house-toggle-thumb" aria-hidden="true" />
       {lodges.map((l) => (
-        <button
-          key={l.id}
-          type="button"
-          className={`house-option house-${houseOf(l)}${l.id === activeId ? " is-active" : ""}`}
-          aria-pressed={l.id === activeId}
-          onClick={() => setActiveId(l.id)}
-        >
+        <button key={l.id} type="button" role="radio" aria-checked={l.id === activeId} tabIndex={l.id === activeId ? 0 : -1}
+          className={`house-toggle-opt house-${houseOf(l)}`} onClick={() => setActiveId(l.id)} onKeyDown={move}>
           {l.short_name}
         </button>
       ))}
@@ -192,30 +200,55 @@ function Shell() {
     return () => window.clearInterval(id);
   }, [isManagement, location.pathname]);
   const badge = (to: string) => {
-    const key = BADGE_FOR_PATH[to];
-    const n = to === "/notifications" ? unread : key ? counts[key] : 0;
+    const n = badgeFor(to, counts, unread);
     return n > 0 ? <span className="nav-badge" aria-label={String(n)}>{n > 99 ? "99+" : n}</span> : null;
   };
 
   const groups = GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => !i.managementOnly || isManagement) }));
 
+  // Módulos retraídos: o da rota ativa abre sozinho; a escolha fica guardada.
+  const [openGroups, setOpenGroups] = useState<string[]>(readOpen);
+  useEffect(() => {
+    const i = groupIndexOfPath(groups.map((g) => g.items.map((x) => x.to)), location.pathname);
+    if (i >= 0) setOpenGroups((o) => (o.includes(groups[i].label) ? o : [...o, groups[i].label]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+  useEffect(() => writeOpen(openGroups), [openGroups]);
+
   const renderNav = (only?: MessageKey) => (
     <>
-      {groups.filter((g) => !only || g.label === only).map((group) =>
-        group.items.length === 0 && !group.phase ? null : (
-          <div className="nav-group" key={group.label}>
-            <div className="nav-group-label eyebrow">{t(group.label)}</div>
-            {group.items.map((item) => (
-              <NavLink key={item.to} to={item.to} end={item.to === "/"} className="nav-item">
-                <item.icon size={17} strokeWidth={1.8} aria-hidden="true" />
-                {t(item.label)}
-                {badge(item.to)}
-              </NavLink>
-            ))}
-            {group.phase && <div className="nav-item-disabled">{t("app.comingInPhase", { phase: group.phase })}</div>}
+      {groups.filter((g) => !only || g.label === only).map((group) => {
+        if (group.items.length === 0 && !group.phase) return null;
+        const id = `nav-${group.label.replace(/\W/g, "-")}`;
+        const open = !!only || openGroups.includes(group.label);
+        const total = groupBadgeTotal(group.items.map((i) => i.to), counts, unread);
+        return (
+          <div className={`nav-group${open ? " is-open" : ""}`} key={group.label}>
+            {only ? (
+              <div className="nav-group-label eyebrow">{t(group.label)}</div>
+            ) : (
+              <button type="button" className="nav-group-toggle" id={`${id}-btn`} aria-expanded={open} aria-controls={`${id}-panel`}
+                onClick={() => setOpenGroups((o) => nextOpen(o, group.label))}>
+                <span className="nav-group-title">{t(group.label)}</span>
+                {total > 0 && <span className="nav-badge" aria-label={t("nav.pendingTotal", { n: total })}>{total > 99 ? "99+" : total}</span>}
+                <ChevronDown className="nav-chevron" size={16} aria-hidden="true" />
+              </button>
+            )}
+            <div className="nav-sub" id={`${id}-panel`} role="group" aria-labelledby={only ? undefined : `${id}-btn`}>
+              <div className="nav-sub-inner">
+                {group.items.map((item) => (
+                  <NavLink key={item.to} to={item.to} end={item.to === "/"} className="nav-item">
+                    <item.icon size={17} strokeWidth={1.8} aria-hidden="true" />
+                    {t(item.label)}
+                    {badge(item.to)}
+                  </NavLink>
+                ))}
+                {group.phase && <div className="nav-item-disabled">{t("app.comingInPhase", { phase: group.phase })}</div>}
+              </div>
+            </div>
           </div>
-        ),
-      )}
+        );
+      })}
     </>
   );
 
