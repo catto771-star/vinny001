@@ -223,3 +223,26 @@ a { color: var(--hc, var(--accent)); }
 .nav-group { margin-top:.5rem }
 .nav-group-toggle:focus-visible { outline:2px solid var(--hc);outline-offset:-2px }
 @media (prefers-reduced-motion:reduce) { .nav-sub,.nav-chevron { transition:none } }
+
+/* ---- Revisão 8: Author + colegas (chips com avatar e busca) ---- */
+.staff-picker { display:grid;gap:.375rem;min-width:0;flex:1 1 18rem }
+.staff-picker-label { font-size:.8125rem;font-weight:600;color:var(--ink-2) }
+.staff-chips { display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0 }
+.person-chip { display:inline-flex;align-items:center;gap:.5rem;min-height:36px;max-width:100%;padding:0 .625rem 0 .25rem;border-radius:22px;background:var(--surface-2);color:var(--ink);font-size:.875rem;font-weight:600;box-shadow:inset 0 0 0 1px var(--line);min-width:0 }
+.person-name { min-width:0;overflow-wrap:anywhere }
+.person-hint { font-size:.75rem;font-weight:500;color:var(--ink-3);white-space:nowrap }
+.avatar { flex:none;display:inline-grid;place-items:center;width:26px;height:26px;border-radius:999px;background:var(--hero);color:var(--on-hero);font-size:.6875rem;font-weight:700;letter-spacing:.02em }
+:root[data-theme] button.person-chip { border:none!important;background:var(--surface-2)!important;color:var(--ink)!important;cursor:pointer;box-shadow:inset 0 0 0 1px var(--line) }
+:root[data-theme] button.person-chip.is-author { box-shadow:inset 0 0 0 1.5px var(--hc) }
+:root[data-theme] button.person-chip.is-empty, :root[data-theme] button.person-chip.is-add { padding:0 .875rem;color:var(--ink-2)!important;background:transparent!important;box-shadow:inset 0 0 0 1.5px var(--line-strong) }
+:root[data-theme] button.person-chip.is-add { gap:.375rem }
+:root[data-theme] button.person-chip:hover { box-shadow:inset 0 0 0 1.5px var(--hc) }
+.chip-x { display:inline-grid;place-items:center;width:22px;height:22px;min-height:22px;padding:0;border-radius:999px!important;background:transparent!important;color:var(--ink-3)!important;border:none!important }
+.chip-x:hover { background:var(--line-strong)!important;color:var(--ink)!important }
+.staff-pop { display:grid;gap:6px;padding:8px;border-radius:18px;background:var(--surface);box-shadow:0 0 0 1px var(--line-strong),0 12px 32px -12px rgb(0 0 0 / 35%) }
+.staff-pop input { min-height:38px }
+.staff-options { list-style:none;margin:0;padding:0;display:grid;gap:2px;max-height:13rem;overflow:auto }
+.staff-options li { display:flex;align-items:center;gap:.5rem;min-height:40px;padding:0 .5rem;border-radius:14px;cursor:pointer;color:var(--ink) }
+.staff-options li.is-active { background:var(--hc-soft) }
+.staff-none { color:var(--ink-3);cursor:default!important }
+.person-chip:focus-visible, .staff-options li:focus-visible { outline:2px solid var(--hc);outline-offset:2px }

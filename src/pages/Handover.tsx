@@ -1,3 +1,4 @@
+import { StaffPicker } from "@/components/StaffPicker";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthProvider";
@@ -82,6 +83,7 @@ export function Handover() {
   const [editing, setEditing] = useState<{ entry: Entry; mode: "edit" | "void" } | null>(null);
   const [shiftStaff, setShiftStaff] = useState<string | null>(null);
   const [entryTags, setEntryTags] = useState<{ entry_id: string; tag_id: string }[]>([]);
+  const [coAuthors, setCoAuthors] = useState<{ entry_id: string; staff_id: string; position: number }[]>([]);
   const [tagFilter, setTagFilter] = useState("");
   const allTags = useHandoverTags(false);
   const canWrite = canWriteLodge(lodgeId);
@@ -100,16 +102,18 @@ export function Handover() {
       .order("occurred_at", { ascending: false });
     const list = (data ?? []) as Entry[];
     const ids = list.map((e) => e.id);
-    const [{ data: m }, { data: et }] = list.length
+    const [{ data: m }, { data: et }, { data: co }] = list.length
       ? await Promise.all([
           supabase.from("handover_mentions").select("entry_id, resident_id, staff_id").in("entry_id", ids),
           supabase.from("handover_entry_tags").select("entry_id, tag_id").in("entry_id", ids),
+          supabase.from("handover_entry_staff").select("entry_id, staff_id, position").in("entry_id", ids).order("position"),
         ])
-      : [{ data: [] }, { data: [] }];
+      : [{ data: [] }, { data: [] }, { data: [] }];
     if (!isLatest()) return;
     setEntries(list);
     setMentions((m ?? []) as Mention[]);
     setEntryTags((et ?? []) as { entry_id: string; tag_id: string }[]);
+    setCoAuthors((co ?? []) as { entry_id: string; staff_id: string; position: number }[]);
   }, [lodgeId, day, begin]);
 
   useEffect(() => {
@@ -246,6 +250,9 @@ export function Handover() {
                 <div className="timeline-body">
                   <div className="timeline-meta">
                     <strong>{nameOf(item.filled_by ?? item.author_id)}</strong>
+                    {coAuthors.some((c) => c.entry_id === item.id) && (
+                      <span className="muted">{t("handover.withAuthors", { names: coAuthors.filter((c) => c.entry_id === item.id).map((c) => nameOf(c.staff_id)).join(", ") })}</span>
+                    )}
                     {item.kind !== "note" && KIND_LABEL[item.kind] && <span className="tag tag-kind">{t(KIND_LABEL[item.kind])}</span>}
                     {item.late_reason && (
                       <span className="tag">{t("handover.lateTag", { reason: t(`handover.reasons.${item.late_reason}` as MessageKey) })}</span>
@@ -467,6 +474,7 @@ function Composer({
   const [filledBy, setFilledBy] = useState<string | null>(null);
   const fillers = staffList.filter((s) => FILLER_ROLES.includes(s.role));
   const chosenFiller = filledBy ?? rostered;
+  const [coAuthorIds, setCoAuthorIds] = useState<string[]>([]);
   const [body, setBody] = useState("");
   const [occurredAt, setOccurredAt] = useState<Date | null>(null);
   const [reason, setReason] = useState("");
@@ -532,11 +540,14 @@ function Composer({
       p_late_reason: late ? reason || null : null,
       p_filled_by: chosenFiller || null,
       p_tags: chosenTags,
+      // Só envia colegas quando há (compatível com a assinatura anterior durante a atualização).
+      ...(chosenFiller && coAuthorIds.length ? { p_co_authors: coAuthorIds } : {}),
     });
     setBusy(false);
     if (err) return setError(t(errorKey(err)));
     setBody("");
     setChosenTags([]);
+    setCoAuthorIds([]);
     setPicked([]);
     setOccurredAt(null);
     setReason("");
@@ -587,14 +598,15 @@ function Composer({
         </div>
       )}
       <div className="composer-bar">
-        <label className="field">
-          <span>{t("handover.filledBy")}</span>
-          <select value={chosenFiller} onChange={(e) => setFilledBy(e.target.value)} required={isStation}>
-            {!isStation && <option value="">{t("handover.filledByMe")}</option>}
-            {isStation && !chosenFiller && <option value="">{t("handover.filledByChoose")}</option>}
-            {fillers.map((s) => <option key={s.id} value={s.id}>{staffName(s)}{s.id === rostered ? ` · ${t("handover.onRoster")}` : ""}</option>)}
-          </select>
-        </label>
+        <StaffPicker
+          people={fillers.map((p) => ({ id: p.id, name: staffName(p) }))}
+          author={filledBy}
+          rosteredId={rostered}
+          coAuthors={chosenFiller ? coAuthorIds : []}
+          onAuthor={setFilledBy}
+          onCoAuthors={setCoAuthorIds}
+          required={isStation}
+        />
         <DateTimeField label="handover.occurredAt" value={occurredAt} onChange={setOccurredAt} />
         {late && (
           <label className="field">

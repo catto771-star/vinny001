@@ -88,19 +88,19 @@ describe("Handover", () => {
 
   it("@ marca residente: escolhe na lista e envia a menção junto da anotação", async () => {
     wrap(<Handover />);
-    const box = await screen.findByPlaceholderText(/Write in the Handover/);
+    const box = await screen.findByPlaceholderText(/Write an entry/);
     fireEvent.change(box, { target: { value: "Conversei com @Se", selectionStart: 17 } });
     (box as HTMLTextAreaElement).setSelectionRange(17, 17);
     fireEvent.change(box, { target: { value: "Conversei com @Se" } });
     const option = await screen.findByText("@Seán Byrne");
     fireEvent.click(option);
-    fireEvent.click(screen.getByRole("button", { name: "Add to Handover" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add entry" }));
     await waitFor(() =>
       expect(rpc).toHaveBeenCalledWith("add_handover_note", expect.objectContaining({ p_lodge: "a", p_mentions: [{ resident_id: "res1" }], p_late_reason: null })),
     );
   });
 
-  it("Beta: conta da casa — 'Filled in by' começa com quem está no Roster e vai junto da anotação; dá para trocar", async () => {
+  it("Beta: conta da casa — o Author começa com quem está no Roster e vai junto da anotação; dá para trocar", async () => {
     station = true;
     post = null;
     tables.staff = [
@@ -110,17 +110,24 @@ describe("Handover", () => {
     ];
     tables.rota_shifts = [{ id: "r1", staff_id: "pedro", function: "office", lodge_id: "a", started_at: "2026-11-20T07:00:00Z", ends_at: "2099-01-01T00:00:00Z", staff: { full_name: "Pedro Almeida", display_name: null } }];
     wrap(<Handover />);
-    const box = await screen.findByPlaceholderText(/Write in the Handover/);
+    const box = await screen.findByPlaceholderText(/Write an entry/);
     fireEvent.change(box, { target: { value: "Bins out" } });
-    const select = (await screen.findByLabelText("Filled in by")) as HTMLSelectElement;
-    await waitFor(() => expect(select.value).toBe("pedro"));
-    expect(within(select).queryByRole("option", { name: /Amiens Reception/ })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Add to Handover" }));
+    const authorBtn = await screen.findByRole("button", { name: /Change author/ });
+    await waitFor(() => expect(authorBtn.textContent).toContain("Pedro Almeida"));
+    fireEvent.click(authorBtn);
+    expect(within(screen.getByRole("listbox")).queryByRole("option", { name: /Amiens Reception/ })).toBeNull();
+    fireEvent.keyDown(screen.getByLabelText("Search colleague"), { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "Add entry" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("add_handover_note", expect.objectContaining({ p_filled_by: "pedro" })));
-    fireEvent.change(select, { target: { value: "ana" } });
+    expect(rpc.mock.calls.find((c) => c[0] === "add_handover_note")![1]).not.toHaveProperty("p_co_authors");
+    fireEvent.click(screen.getByRole("button", { name: /Change author/ }));
+    fireEvent.click(within(screen.getByRole("listbox")).getByRole("option", { name: /Ana Lima/ }));
+    // Revisão 8: colega junto do autor.
+    fireEvent.click(screen.getByRole("button", { name: /Add colleague/ }));
+    fireEvent.click(within(screen.getByRole("listbox")).getByRole("option", { name: /Pedro Almeida/ }));
     fireEvent.change(box, { target: { value: "Covered the desk" } });
-    fireEvent.click(screen.getByRole("button", { name: "Add to Handover" }));
-    await waitFor(() => expect(rpc).toHaveBeenCalledWith("add_handover_note", expect.objectContaining({ p_body: "Covered the desk", p_filled_by: "ana" })));
+    fireEvent.click(screen.getByRole("button", { name: "Add entry" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("add_handover_note", expect.objectContaining({ p_body: "Covered the desk", p_filled_by: "ana", p_co_authors: ["pedro"] })));
   });
 
   it("Revisão 25/11: sem turno aberto, abre com quem está no Roster; com turno aberto, encerra passando o serviço", async () => {
@@ -138,7 +145,7 @@ describe("Handover", () => {
     tables.handover_shifts = [{ id: "sh1", staff_id: "pedro", opened_at: "2026-11-25T07:02:00Z" }];
     wrap(<Handover />);
     expect(await screen.findByText("Shift of Pedro Almeida")).toBeTruthy();
-    await waitFor(() => expect((screen.getByLabelText("Filled in by") as HTMLSelectElement).value).toBe("pedro"));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Change author/ }).textContent).toContain("Pedro Almeida"));
     fireEvent.click(screen.getByRole("button", { name: "Close shift / hand over" }));
     const dialog = await screen.findByRole("dialog");
     fireEvent.change(within(dialog).getByLabelText("Hand over to"), { target: { value: "ana" } });
@@ -167,37 +174,37 @@ describe("Handover", () => {
       { id: "g2", code: "delivery", label: "Delivery", sort_order: 7, visible: false, notify_default: false },
     ];
     wrap(<Handover />);
-    const box = await screen.findByPlaceholderText(/Write in the Handover/);
+    const box = await screen.findByPlaceholderText(/Write an entry/);
     fireEvent.change(box, { target: { value: "Fight in room 4" } });
     const group = await screen.findByRole("group", { name: "Tags" });
     expect(within(group).queryByRole("button", { name: "Delivery" })).toBeNull();
     fireEvent.click(within(group).getByRole("button", { name: "Incident / Safety" }));
-    fireEvent.click(screen.getByRole("button", { name: "Add to Handover" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add entry" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("add_handover_note", expect.objectContaining({ p_body: "Fight in room 4", p_tags: ["g1"] })));
   });
 
   it("B38: fato de turno encerrado → Office precisa escolher motivo; sem motivo o botão fica bloqueado", async () => {
     wrap(<Handover />);
-    const box = await screen.findByPlaceholderText(/Write in the Handover/);
+    const box = await screen.findByPlaceholderText(/Write an entry/);
     fireEvent.change(box, { target: { value: "Aconteceu ontem" } });
     fireEvent.click(screen.getByLabelText("Now"));
     const input = document.querySelector('.composer input[type="datetime-local"]') as HTMLInputElement;
     fireEvent.change(input, { target: { value: "2026-01-10T10:00" } });
-    expect(await screen.findByText("This fact belongs to a shift that has ended — choose a reason.")).toBeTruthy();
-    const post = screen.getByRole("button", { name: "Add to Handover" }) as HTMLButtonElement;
+    expect(await screen.findByText("This occurred during a shift that has ended. Select a reason.")).toBeTruthy();
+    const post = screen.getByRole("button", { name: "Add entry" }) as HTMLButtonElement;
     expect(post.disabled).toBe(true);
-    fireEvent.change(screen.getByLabelText("Reason for entering after the shift"), { target: { value: "forgot" } });
+    fireEvent.change(screen.getByLabelText("Reason for late entry"), { target: { value: "forgot" } });
     expect(post.disabled).toBe(false);
   });
 
   it("B39: para a gestão não aparece pedido de motivo", async () => {
     management = true;
     wrap(<Handover />);
-    const box = await screen.findByPlaceholderText(/Write in the Handover/);
+    const box = await screen.findByPlaceholderText(/Write an entry/);
     fireEvent.change(box, { target: { value: "Nota antiga" } });
     fireEvent.click(screen.getByLabelText("Now"));
     fireEvent.change(document.querySelector('.composer input[type="datetime-local"]') as HTMLInputElement, { target: { value: "2026-01-10T10:00" } });
-    expect(screen.queryByText("This fact belongs to a shift that has ended — choose a reason.")).toBeNull();
+    expect(screen.queryByText("This occurred during a shift that has ended. Select a reason.")).toBeNull();
   });
 });
 
