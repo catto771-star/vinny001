@@ -37,6 +37,7 @@ afterEach(cleanup);
 describe("Seen — troca de dia", () => {
   it("mostra o dia escolhido mesmo se a resposta do dia anterior chegar depois", async () => {
     render(<I18nProvider><MemoryRouter><Seen /></MemoryRouter></I18nProvider>);
+    fireEvent.click(screen.getByLabelText("Only not seen yet")); // mostra todos, vistos ou não (revisão 25/11)
     fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: "2026-02-13" } });
     await waitFor(() => expect(screen.getByText("Chosen X")).toBeTruthy());
     await new Promise((r) => setTimeout(r, 200)); // a resposta atrasada chega

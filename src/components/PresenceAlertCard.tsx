@@ -37,7 +37,7 @@ export function PresenceAlertCard() {
   return (
     <article className="bento-tile tile-alert span-6">
       <span className="eyebrow">{t("noShows.alertTitle")}</span>
-      <p className="hint">{t("noShows.alertHint")}</p>
+      <p className="hint">{t("noShows.alertHint")} <Link to="/seen">{t("noShows.openSeen")} →</Link></p>
       <div className="alert-columns">
       {lodgeIds.map((id) => {
         const a = alerts[id];

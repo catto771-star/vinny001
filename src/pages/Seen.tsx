@@ -7,7 +7,7 @@ import { useLatestRequest } from "@/lib/useLatestRequest";
 import { useOccupancy } from "@/lib/useOccupancy";
 import { errorKey } from "@/lib/errors";
 import { roomLabel } from "@/lib/rooms";
-import { operationalDay } from "@/lib/time";
+import { operationalDay, shiftOf } from "@/lib/time";
 import { residentName } from "@/lib/types";
 import { AnticipateDialog } from "@/components/AnticipateDialog";
 import { DateTimeInput } from "@/components/DateTimeInput";
@@ -15,6 +15,7 @@ import { Dialog, DialogCancel } from "@/components/Dialog";
 import { LodgeTabs } from "@/components/LodgeTabs";
 import { useLodgeState } from "@/lib/activeLodge";
 import { Notice } from "@/components/Notice";
+import { Tabs } from "@/components/Tabs";
 import { Skeleton } from "@/components/Skeleton";
 import { useToast } from "@/components/Toast";
 
@@ -39,16 +40,25 @@ const SOURCE_KEY: Record<string, MessageKey> = {
   dinner: "seen.source_dinner",
 };
 
-/** Seen Day / Seen Night (s.5): calculado de check positivo, Seen manual e entrada no Lodge. */
+/**
+ * Seen (revisão 25/11): um check por turno — Seen Day e Seen Night. Cada residente aparece com o que já o
+ * conta como visto (Room Check, Dinner, entrada no Lodge, Seen manual); um toque marca o Seen agora.
+ * Quem não for visto no dia vira candidato a No Show.
+ */
 export function Seen() {
   const { t } = useI18n();
   const { canWriteLodge, serverOffsetMs } = useAuth();
+  const now = new Date(Date.now() + serverOffsetMs);
+  const today = operationalDay(now);
   const [lodgeId, setLodgeId] = useLodgeState();
-  const [day, setDay] = useState(() => operationalDay(new Date(Date.now() + serverOffsetMs)));
+  const [day, setDay] = useState(today);
+  const [shift, setShift] = useState<"day" | "night">(() => shiftOf(now));
+  const [onlyMissing, setOnlyMissing] = useState(true);
   const [rows, setRows] = useState<SeenRow[]>([]);
   const [recording, setRecording] = useState(false);
   const [anticipate, setAnticipate] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
   const toast = useToast();
   const [loading, setLoading] = useState(true);
 
@@ -68,49 +78,78 @@ export function Seen() {
   }, [load]);
 
   const sources = (list: string[]) => list.map((s) => (SOURCE_KEY[s] ? t(SOURCE_KEY[s]) : s)).join(", ");
+  const isSeen = (r: SeenRow) => (shift === "day" ? r.seen_day : r.seen_night);
+  const srcOf = (r: SeenRow) => (shift === "day" ? r.day_sources : r.night_sources);
+  const seenCount = rows.filter(isSeen).length;
+  const seenAllDay = rows.filter((r) => r.seen_day || r.seen_night).length;
+  // Marcar com um toque: só o turno em andamento (o horário fica "agora"). O resto, pelo Seen com horário.
+  const live = canWriteLodge(lodgeId) && day === today && shift === shiftOf(now);
+  const list = onlyMissing ? rows.filter((r) => !isSeen(r)) : rows;
+
+  async function markSeen(r: SeenRow) {
+    setBusy(r.stay_id);
+    const { data, error: e } = await supabase.rpc("record_sighting", { p_resident: r.resident_id, p_lodge: lodgeId, p_seen_at: null, p_place: "" });
+    setBusy(null);
+    if (e) return toast.error(t(errorKey(e)));
+    const info = data as { absence_active: boolean; absence_id: string | null };
+    if (info.absence_active && info.absence_id) setAnticipate(info.absence_id);
+    void load();
+  }
 
   return (
     <section className="page">
       <header className="page-header">
-        <h1>{t("seen.title")}</h1>
+        <div>
+          <span className="eyebrow">{t("seen.eyebrow")}</span>
+          <h1>{t("seen.title")}</h1>
+        </div>
         <LodgeTabs value={lodgeId} onChange={setLodgeId} />
       </header>
       <div className="toolbar">
+        <Tabs label={t("seen.title")} value={shift} onChange={(v) => setShift(v as "day" | "night")}
+          items={[{ value: "day", label: t("seen.seenDay") }, { value: "night", label: t("seen.seenNight") }]} />
         <label className="inline">
           {t("sheet.day")}
           <input type="date" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} />
         </label>
-        {canWriteLodge(lodgeId) && (
-          <button className="primary" onClick={() => setRecording(true)}>{t("seen.record")}</button>
-        )}
+        <label className="inline check-toggle">
+          <input type="checkbox" checked={onlyMissing} onChange={(e) => setOnlyMissing(e.target.checked)} />
+          {t("seen.onlyMissing")}
+        </label>
+        {canWriteLodge(lodgeId) && <button onClick={() => setRecording(true)}>{t("seen.record")}</button>}
       </div>
+
+      <div className="seen-meter card">
+        <div>
+          <span className="big-number">{seenCount}</span><span className="muted"> / {rows.length} {t("seen.seenThisShift")}</span>
+          <div className="meter" aria-hidden="true"><span style={{ width: `${rows.length ? (seenCount / rows.length) * 100 : 0}%` }} /></div>
+        </div>
+        <div className="seen-meter-side">
+          <span className="mono">{rows.length - seenAllDay}</span> <span className="muted">{t("seen.notSeenToday")}</span>
+          <Link to="/no-shows" className="small-text">{t("seen.toNoShows")}</Link>
+        </div>
+      </div>
+      {!live && day === today && <p className="hint">{t("seen.otherShiftHint")}</p>}
       <Notice kind="error">{error}</Notice>
 
-      {loading && rows.length === 0 ? <div className="card"><Skeleton rows={8} label={t("app.loading")} /></div> : (
-      <table className="table">
-        <thead>
-          <tr>
-            <th>{t("sheet.room")}</th>
-            <th>{t("sheet.bed")}</th>
-            <th>{t("sheet.resident")}</th>
-            <th>{t("seen.seenDay")}</th>
-            <th>{t("seen.seenNight")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.stay_id}>
-              <td className="room-cell">{roomLabel(t, r.room_kind, r.room_code)}</td>
-              <td>{r.bed_number}</td>
-              <td>
-                <Link to={`/residents/${r.resident_id}`}>{residentName(r)}</Link>
-              </td>
-              <td className={r.seen_day ? "ok-text" : "muted"}>{r.seen_day ? `✓ ${sources(r.day_sources)}` : "—"}</td>
-              <td className={r.seen_night ? "ok-text" : "muted"}>{r.seen_night ? `✓ ${sources(r.night_sources)}` : "—"}</td>
-            </tr>
+      {loading && rows.length === 0 ? <div className="card"><Skeleton rows={8} label={t("app.loading")} /></div> : list.length === 0 ? (
+        <div className="card empty-state"><p>{t("seen.allSeen")}</p></div>
+      ) : (
+        <ul className="seen-list">
+          {list.map((r) => (
+            <li key={r.stay_id} className={`seen-row${isSeen(r) ? " is-seen" : ""}`}>
+              <span className="seen-room mono">{roomLabel(t, r.room_kind, r.room_code)} · {r.bed_number}</span>
+              <Link className="seen-name" to={`/residents/${r.resident_id}`}>{residentName(r)}</Link>
+              {isSeen(r) ? (
+                <span className="seen-state ok-text">✓ {sources(srcOf(r))}</span>
+              ) : (
+                <button type="button" className="seen-btn" disabled={!live || busy === r.stay_id} onClick={() => void markSeen(r)} aria-label={`${t("seen.markSeen")} — ${residentName(r)}`}>
+                  {t("seen.markSeen")}
+                </button>
+              )}
+            </li>
           ))}
-        </tbody>
-      </table>
+        </ul>
       )}
 
       {recording && (

@@ -152,6 +152,25 @@ export function NoShows() {
             </Notice>
           )}
 
+          {/* Revisão 25/11: o No Show parte do Seen — primeiro o Seen do dia, depois quem não foi visto. */}
+          <ol className="steps">
+            <li className="step-card">
+              <span className="step-n mono">1</span>
+              <div>
+                <strong>{t("noShows.step1")}</strong>
+                <p className="muted small-text">{t("noShows.step1Hint")}</p>
+              </div>
+              <Link className="button-link" to="/seen">{t("noShows.openSeen")}</Link>
+            </li>
+            <li className="step-card">
+              <span className="step-n mono">2</span>
+              <div>
+                <strong>{t("noShows.step2", { n: review.candidates.length })}</strong>
+                <p className="muted small-text">{t("noShows.step2Hint")}</p>
+              </div>
+            </li>
+          </ol>
+
           <h2>{t("noShows.candidates")}</h2>
           {review.candidates.length === 0 ? (
             <p className="muted">{t("noShows.noCandidates")}</p>

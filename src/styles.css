@@ -825,3 +825,39 @@ html, body { background: var(--paper); transition: background-color var(--base);
 .review-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 1rem; }
 .row-warn td { background: var(--warn-soft); }
 .tag-warn { background: var(--warn-soft); color: var(--warn); margin-left: 0.5rem; }
+
+/* Seen — check por turno (revisão 25/11) */
+.check-toggle { gap: 0.375rem; }
+.seen-meter { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+.seen-meter > div:first-child { flex: 1 1 18rem; }
+.meter { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin-top: 0.5rem; }
+.meter > span { display: block; height: 100%; background: var(--ok); border-radius: 999px; transition: width var(--slow) var(--ease-out); }
+.seen-meter-side { display: grid; gap: 0.25rem; justify-items: end; }
+.seen-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr)); gap: 0.5rem; }
+.seen-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.75rem; padding: 0.625rem 0.75rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.seen-row.is-seen { background: var(--ok-soft); border-color: transparent; }
+.seen-room { color: var(--ink-3); font-size: 0.8125rem; min-width: 5.5rem; }
+.seen-name { font-weight: 500; color: var(--ink); }
+.seen-btn { min-height: 36px; padding: 0 1rem; border-radius: var(--radius); background: var(--ink); color: #fff; border: none; font-weight: 500; }
+.seen-btn:disabled { background: var(--surface-2); color: var(--ink-3); }
+.seen-state { font-size: 0.8125rem; }
+.steps { list-style: none; padding: 0; margin: 0 0 1.25rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 0.75rem; }
+.step-card { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.75rem; padding: 0.875rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.step-card p { margin: 0.125rem 0 0; }
+.step-n { width: 2rem; height: 2rem; border-radius: 999px; display: grid; place-items: center; background: var(--chrome); color: var(--chrome-ink); font-weight: 500; }
+
+/* Room Check — visual novo (revisão 25/11) */
+.rc-summary { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 0.75rem; margin-bottom: 0.75rem; }
+@media (max-width: 719px) { .rc-summary { grid-template-columns: 1fr; } .rc-keys { display: none; } }
+.rc-progress { display: grid; gap: 0.5rem; }
+.rc-count .big-number { font-size: 2.25rem; }
+.rc-tally { display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.875rem; color: var(--ink-2); }
+.rc-tally i { display: inline-block; width: 0.625rem; height: 0.625rem; border-radius: 3px; margin-right: 0.375rem; vertical-align: middle; }
+.dot-seen { background: var(--ok); } .dot-not_seen { background: var(--danger); } .dot-absent { background: var(--warn); }
+.rc-keys ul { list-style: none; margin: 0.5rem 0 0; padding: 0; display: grid; gap: 0.375rem; font-size: 0.875rem; color: var(--ink-2); }
+kbd { display: inline-grid; place-items: center; min-width: 1.5rem; height: 1.5rem; padding: 0 0.375rem; margin-right: 0.25rem; border-radius: 5px; border: 1px solid var(--line-strong); border-bottom-width: 2px; background: var(--surface); font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink); }
+.sheet-table tr.room-sep td { background: var(--chrome); color: var(--chrome-ink); font-family: var(--font-mono); font-size: 0.75rem; padding: 0.25rem 0.75rem; letter-spacing: 0.02em; }
+.sheet-table td { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+.sheet-table .result-buttons button { min-width: 5.5rem; font-weight: 500; }
+.sheet-table .result-buttons button.result-seen:not(.selected):hover { color: var(--ok); }
+.sheet-table .result-buttons button.result-not_seen:not(.selected):hover { color: var(--danger); }

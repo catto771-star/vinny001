@@ -34,10 +34,20 @@ describe("Seen — diálogo 'Vi este residente'", () => {
   it("lista só quem está no Lodge agora (quem já saiu não pode ser marcado)", async () => {
     render(<I18nProvider><MemoryRouter><Seen /></MemoryRouter></I18nProvider>);
     await waitFor(() => expect(screen.getAllByText(/Left X/).length).toBeGreaterThan(0)); // a tabela do dia mostra os dois
-    fireEvent.click(screen.getByRole("button", { name: "Record seen" }));
+    fireEvent.click(screen.getByRole("button", { name: "Seen earlier (set time)" }));
     const dialog = await screen.findByRole("dialog");
     const options = Array.from(within(dialog).getByRole("combobox").querySelectorAll("option")).map((o) => o.textContent);
     expect(options.some((o) => o?.includes("Present"))).toBe(true);
     expect(options.some((o) => o?.includes("Left"))).toBe(false);
+  });
+});
+
+describe("Seen — check do turno (revisão 25/11)", () => {
+  it("um toque em 'Seen' marca o residente agora; a contagem do turno aparece; quem não foi visto leva aos No Shows", async () => {
+    render(<I18nProvider><MemoryRouter><Seen /></MemoryRouter></I18nProvider>);
+    expect(await screen.findByText(/seen this shift/)).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Go to No Shows/ }).getAttribute("href")).toBe("/no-shows");
+    fireEvent.click(screen.getByRole("button", { name: "Seen — Present X" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("record_sighting", { p_resident: "r-s1", p_lodge: "a", p_seen_at: null, p_place: "" }));
   });
 });

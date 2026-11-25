@@ -67,6 +67,14 @@ describe("No Shows", () => {
     await waitFor(() => expect(screen.getByText(/Ana X reached 3 No Shows this month/)).toBeTruthy());
   });
 
+  it("Revisão 25/11: primeiro o Seen do dia (link), depois os candidatos — quem não foi visto", async () => {
+    review = { operational_day: "2026-11-19", day_finished: true, complete: true, pending_slots: [], candidates: [candidate], confirmed: [] };
+    await renderPage();
+    expect(screen.getByText("Seen of the day")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Open Seen" }).getAttribute("href")).toBe("/seen");
+    expect(screen.getByText("Not seen: 1 No Show candidate(s)")).toBeTruthy();
+  });
+
   it("desmarcar o residente tira da confirmação", async () => {
     review = { operational_day: "2026-11-19", day_finished: true, complete: true, pending_slots: [], candidates: [candidate], confirmed: [] };
     await renderPage();

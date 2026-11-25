@@ -87,6 +87,14 @@ describe("Folha do dia", () => {
     expect(within(freeRow).queryAllByRole("button")).toHaveLength(0);
   });
 
+  it("Revisão 25/11: progresso do check, atalhos em teclas e separador por quarto", async () => {
+    await renderSheet();
+    expect(screen.getByText("Keyboard")).toBeTruthy();
+    expect(document.querySelectorAll("kbd").length).toBeGreaterThanOrEqual(5);
+    expect(document.querySelectorAll("tr.room-sep").length).toBeGreaterThan(0);
+    expect(document.querySelector(".rc-progress .meter")).not.toBeNull();
+  });
+
   it("teclado: V marca visto o residente selecionado e pula a cama livre", async () => {
     await renderSheet();
     const table = document.querySelector(".sheet-table-wrap") as HTMLElement;

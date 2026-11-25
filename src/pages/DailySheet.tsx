@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthProvider";
 import { useI18n, type MessageKey } from "@/i18n";
@@ -222,6 +222,28 @@ export function DailySheet() {
 
       {run && (
         <>
+          <div className="rc-summary">
+            <div className="rc-progress card">
+              <span className="eyebrow mono">{t("sheet.check", { slot: run.slot })} · {lodge?.name}</span>
+              <div className="rc-count"><span className="big-number">{progress.marked}</span><span className="muted"> / {progress.total}</span></div>
+              <div className="meter" aria-hidden="true"><span style={{ width: `${progress.total ? (progress.marked / progress.total) * 100 : 0}%` }} /></div>
+              <div className="rc-tally">
+                <span><i className="dot-seen" />{rows.filter((r) => r.result === "seen").length} {t("sheet.seen")}</span>
+                <span><i className="dot-not_seen" />{rows.filter((r) => r.result === "not_seen").length} {t("sheet.notSeen")}</span>
+                <span><i className="dot-absent" />{rows.filter((r) => r.result === "absent").length} {t("sheet.absent")}</span>
+              </div>
+            </div>
+            <div className="rc-keys card" aria-label={t("sheet.keyboardTitle")}>
+              <span className="eyebrow mono">{t("sheet.keyboardTitle")}</span>
+              <ul>
+                <li><kbd>↑</kbd><kbd>↓</kbd> {t("sheet.keyMove")}</li>
+                <li><kbd>V</kbd> {t("sheet.seen")}</li>
+                <li><kbd>N</kbd> {t("sheet.notSeen")}</li>
+                <li><kbd>A</kbd> {t("sheet.absent")}</li>
+                <li><kbd>Del</kbd> {t("sheet.keyClear")}</li>
+              </ul>
+            </div>
+          </div>
           <div className="card sheet-header">
             <div>
               <span className="sheet-number">{t("sheet.sheetNumber", { n: run.sheet_number })}</span> · {lodge?.name} ·{" "}
@@ -247,7 +269,6 @@ export function DailySheet() {
             </label>
           </div>
 
-          <p className="hint">{t("sheet.keyboardHint")}</p>
           {sheetLoading && rows.length === 0 && <div className="card"><Skeleton rows={8} label={t("app.loading")} /></div>}
           <div ref={tableRef} tabIndex={0} className="sheet-table-wrap" onKeyDown={onKeyDown} aria-label={t("sheet.title")}>
             <table className="table sheet-table">
@@ -262,7 +283,11 @@ export function DailySheet() {
               </thead>
               <tbody>
                 {rows.map((r, i) => (
-                  <tr key={r.bed_id} className={i === selected && r.stay_id ? "row-selected" : ""} onClick={() => r.stay_id && setSelected(i)}>
+                  <Fragment key={r.bed_id}>
+                  {(i === 0 || rows[i - 1].room_id !== r.room_id) && (
+                    <tr className="room-sep" aria-hidden="true"><td colSpan={5}>{roomLabel(t, r.room_kind, r.room_code)}</td></tr>
+                  )}
+                  <tr className={i === selected && r.stay_id ? "row-selected" : ""} onClick={() => r.stay_id && setSelected(i)}>
                     <td className="room-cell">{roomLabel(t, r.room_kind, r.room_code)}</td>
                     <td>{r.bed_number}</td>
                     <td>
@@ -300,6 +325,7 @@ export function DailySheet() {
                       )}
                     </td>
                   </tr>
+                  </Fragment>
                 ))}
               </tbody>
             </table>
