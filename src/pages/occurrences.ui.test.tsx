@@ -36,6 +36,7 @@ vi.mock("@/auth/AuthProvider", () => ({
 
 import { I18nProvider } from "@/i18n";
 import { groupRounds, Handover, type Entry } from "./Handover";
+import { Tasks } from "./Tasks";
 import { TicketDialog, type Ticket } from "./Maintenance";
 import { MaintenanceDialog } from "@/components/MaintenanceDialog";
 
@@ -206,5 +207,54 @@ describe("Manutenção", () => {
     fireEvent.change(screen.getByLabelText("Status"), { target: { value: "in_progress" } });
     fireEvent.click(screen.getByRole("button", { name: "Update" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("maintenance_set_status", expect.objectContaining({ p_ticket: "k1", p_status: "in_progress" })));
+  });
+});
+
+describe("Daily Tasks (de volta na revisão 25/11)", () => {
+  it("assinar chama sign_task com o turno e o dia exibidos", async () => {
+    rpcResult.shift_tasks = [{ kind: "template", task_id: "t1", title: { "en-IE": "Fridge temperature" }, suggested_time: "10:00", staff_id: null, due_at: null, signatures: [] }];
+    rpcResult.pending_tasks = [];
+    wrap(<Tasks />);
+    const row = (await screen.findByText("Fridge temperature")).closest("li")!;
+    fireEvent.click(within(row).getByRole("button", { name: "Sign" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("sign_task", expect.objectContaining({ p_kind: "template", p_task: "t1", p_lodge: "a" })));
+  });
+
+  it("B50: mostra quem assinou, a função e a hora", async () => {
+    rpcResult.shift_tasks = [{
+      kind: "template", task_id: "t1", title: { "en-IE": "Fridge temperature" }, suggested_time: null, staff_id: null, due_at: null,
+      signatures: [{ staff_id: "me", duty_function: "office", signed_at: "2026-11-20T10:05:00Z" }, { staff_id: "x", duty_function: "float", signed_at: "2026-11-20T10:07:00Z" }],
+    }];
+    rpcResult.pending_tasks = [];
+    wrap(<Tasks />);
+    expect(await screen.findByText("Me · Office · 10:05")).toBeTruthy();
+    expect(screen.getByText(/Float · 10:07/)).toBeTruthy();
+  });
+
+  it("conta da casa assina em nome de quem está no turno aberto do Handover", async () => {
+    station = true;
+    post = null;
+    tables.staff = [{ id: "pedro", full_name: "Pedro Almeida", display_name: null, role: "porter" }];
+    tables.handover_shifts = [{ staff_id: "pedro" }];
+    rpcResult.shift_tasks = [{ kind: "extra", task_id: "x1", title: { "en-IE": "Call the plumber" }, suggested_time: null, staff_id: null, due_at: null, signatures: [] }];
+    rpcResult.pending_tasks = [];
+    wrap(<Tasks />);
+    await waitFor(() => expect((screen.getByLabelText("Signing as") as HTMLSelectElement).value).toBe("pedro"));
+    const row = (await screen.findByText("Call the plumber")).closest("li")!;
+    fireEvent.click(within(row).getByRole("button", { name: "Sign" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("sign_task", expect.objectContaining({ p_task: "x1", p_signed_by: "pedro" })));
+  });
+
+  it("Admin cria tarefa recorrente para o turno nos dias escolhidos", async () => {
+    management = true;
+    rpcResult.shift_tasks = [];
+    rpcResult.pending_tasks = [];
+    wrap(<Tasks />);
+    fireEvent.click(await screen.findByRole("button", { name: "Recurring task" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Task"), { target: { value: "Check fire exits" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Mon" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("create_task_template", expect.objectContaining({ p_lodge: "a", p_shift: "day", p_weekdays: [1], p_title: { "en-IE": "Check fire exits" } })));
   });
 });

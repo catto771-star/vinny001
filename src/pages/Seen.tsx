@@ -92,7 +92,7 @@ export function Seen() {
     setBusy(null);
     if (e) return toast.error(t(errorKey(e)));
     const info = data as { absence_active: boolean; absence_id: string | null };
-    if (info.absence_active && info.absence_id) setAnticipate(info.absence_id);
+    if (info?.absence_active && info.absence_id) setAnticipate(info.absence_id);
     void load();
   }
 

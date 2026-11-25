@@ -108,3 +108,39 @@ describe("Correção: Final Written Warning duplicada (achada pela simulação e
     expect(await db.error("select public.record_warning($1, 'final_written', 'New one')", [stay])).toBeNull();
   });
 });
+
+describe("Daily Tasks de volta (item 10)", () => {
+  it("Admin cria tarefa recorrente (turno) e pontual (para uma pessoa); a conta da casa assina em nome de quem está no turno", async () => {
+    const admin = await db.createStaff("manager", "Admin");
+    const station = await db.createStaff("station", "Amiens Reception");
+    const pedro = await db.createStaff("porter", "Pedro", { login: false });
+    const ana = await db.createStaff("porter", "Ana", { login: false });
+    const amiens = await db.lodgeId("AMIENS");
+    await db.as(admin);
+    const day = (await db.one<{ d: string; s: string }>("select public.operational_day(now())::text d, public.shift_of(now()) s"));
+    const tpl = (await db.one<{ id: string }>("select public.create_task_template($1, $2, null, '{\"en-IE\":\"Check fire exits\"}'::jsonb, 1, '10:00') as id", [amiens, day.s])).id;
+    await db.asSuperuser();
+    await db.query("update public.task_templates set created_at = now() - interval '2 days' where id = $1", [tpl]);
+    await db.as(admin);
+    const extra = (await db.one<{ id: string }>("select public.create_extra_task($1, $2::date, $3, $4, 'Call the plumber', null) as id", [amiens, day.d, day.s, ana.staffId])).id;
+    await db.as(station);
+    await db.query("select public.open_handover_shift($1, $2)", [amiens, pedro.staffId]);
+    await db.query("select public.sign_task('template', $1, $2, $3::date, $4)", [tpl, amiens, day.d, day.s]);
+    await db.query("select public.sign_task('extra', $1, $2, $3::date, $4, $5)", [extra, amiens, day.d, day.s, ana.staffId]);
+    await db.asSuperuser();
+    const sig = (await db.query<{ template_id: string | null; staff_id: string }>("select template_id, staff_id from public.task_signatures where lodge_id = $1", [amiens])).rows;
+    expect(sig.find((x) => x.template_id === tpl)!.staff_id).toBe(pedro.staffId);
+    expect(sig.find((x) => x.template_id === null)!.staff_id).toBe(ana.staffId);
+  });
+
+  it("sem turno aberto e sem escolher quem assina, a conta da casa não assina", async () => {
+    const admin = await db.createStaff("manager", "Admin");
+    const station = await db.createStaff("station", "Amiens Reception");
+    const amiens = await db.lodgeId("AMIENS");
+    await db.as(admin);
+    const day = (await db.one<{ d: string; s: string }>("select public.operational_day(now())::text d, public.shift_of(now()) s"));
+    const extra = (await db.one<{ id: string }>("select public.create_extra_task($1, $2::date, $3, null, 'Restock', null) as id", [amiens, day.d, day.s])).id;
+    await db.as(station);
+    expect(await db.error("select public.sign_task('extra', $1, $2, $3::date, $4)", [extra, amiens, day.d, day.s])).toMatch(/invalid_filled_by/);
+  });
+});

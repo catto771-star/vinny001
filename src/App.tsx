@@ -31,6 +31,7 @@ import { Hours } from "@/pages/Hours";
 import { Purchases } from "@/pages/Purchases";
 import { Reports } from "@/pages/Reports";
 import { Rota } from "@/pages/Rota";
+import { Tasks } from "@/pages/Tasks";
 import { Vacations } from "@/pages/Vacations";
 
 function Gate() {
@@ -78,6 +79,7 @@ function Gate() {
       <Route path="/sheet/print" element={<PrintSheet />} />
       <Route element={<Layout />}>
         <Route index element={<Today />} />
+        <Route path="tasks" element={<Tasks />} />
         <Route path="residents" element={<Residents />} />
         <Route path="residents/:id" element={<ResidentProfile />} />
         <Route path="beds" element={<BedMap />} />

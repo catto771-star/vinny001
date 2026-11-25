@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
-  BedDouble, ClipboardCheck, Eye, History, House, LayoutGrid, NotebookPen, Plane, ScrollText,
+  BedDouble, ListChecks, ClipboardCheck, Eye, History, House, LayoutGrid, NotebookPen, Plane, ScrollText,
   Bell, CalendarDays, ChartColumn, ShieldAlert, ShoppingCart, Timer, TreePalm, Shirt, Thermometer, Truck, UserX, Users, UtensilsCrossed, Wrench,
   type LucideIcon,
 } from "lucide-react";
@@ -25,6 +25,7 @@ export const GROUPS: Group[] = [
     label: "nav.groupToday",
     items: [
       { to: "/", label: "nav.today", icon: House },
+      { to: "/tasks", label: "nav.tasks", icon: ListChecks },
       { to: "/notifications", label: "nav.notifications", icon: Bell, managementOnly: true },
     ],
   },

@@ -64,7 +64,9 @@ describe("Room Check fora do horário exato (escopo 3, Room Check)", () => {
       const run = (await db.one<{ id: string }>("select public.open_room_check($1, $2::date, $3) as id", [amiens, day, slot])).id;
       await db.asSuperuser();
       const row = await db.one("select slot, checked_at = now() as real_time, public.slot_instant(operational_day, slot) <> checked_at as differs from public.room_check_runs where id = $1", [run]);
-      expect(row).toEqual({ slot, real_time: true, differs: true });
+      // Perto das 07:00 o horário de 20 min atrás é do dia operacional anterior, que já fechou: vale o previsto.
+      const crossed = (await db.one<{ c: boolean }>("select public.operational_day(now()) <> $1::date as c", [day])).c;
+      expect(row).toEqual(crossed ? { slot, real_time: false, differs: false } : { slot, real_time: true, differs: true });
       await db.query("delete from public.room_check_runs where id = $1", [run]);
     }
   });

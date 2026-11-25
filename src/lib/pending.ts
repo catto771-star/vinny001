@@ -16,6 +16,7 @@ export function sumCounts(list: Array<Partial<PendingCounts> | null | undefined>
 
 /** Bolinha vermelha por seção do menu (s.11): some só quando o item é resolvido. */
 export const BADGE_FOR_PATH: Record<string, keyof PendingCounts> = {
+  "/tasks": "tasks",
   "/maintenance": "maintenance",
   "/absences": "absences",
   "/sheet": "checks",
