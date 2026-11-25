@@ -3,9 +3,11 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import "./styles.css";
 import "./theme.css";
-import { applyTheme, initialTheme } from "./lib/theme";
+import "./elevate.css";
+import { applyTheme, ensureHouse, initialTheme } from "./lib/theme";
 
 applyTheme(initialTheme());
+ensureHouse();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

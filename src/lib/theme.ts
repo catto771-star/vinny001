@@ -32,3 +32,9 @@ export function applyTheme(mode: ThemeMode, remember = false): void {
 export function currentTheme(): ThemeMode {
   return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
 }
+
+/** Casa padrão do tema: antes do login (e sem casa ativa) vale a paleta de Amiens. */
+export const DEFAULT_HOUSE = "amiens";
+export function ensureHouse(): void {
+  if (!document.documentElement.dataset.house) document.documentElement.dataset.house = DEFAULT_HOUSE;
+}

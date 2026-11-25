@@ -1,0 +1,175 @@
+/* Revisão 11 — visual em alto relevo, tech e moderno: botões e cartões com realce superior e sombras em camadas,
+   campos "afundados", transições curtas com a curva do iOS/Mac e ritmo de espaçamento único. Carregado depois de theme.css. */
+
+/* ---- tokens de relevo por tema e casa ---- */
+:root[data-theme="light"] { --shadow-rgb:16 24 40;--hi:rgb(255 255 255 / .9);--sheen:rgb(255 255 255 / .7);
+  --sh-1:0 1px 1px rgb(var(--shadow-rgb) / .07), 0 2px 5px -1px rgb(var(--shadow-rgb) / .10);
+  --sh-2:0 2px 3px rgb(var(--shadow-rgb) / .07), 0 8px 18px -6px rgb(var(--shadow-rgb) / .18);
+  --sh-3:0 4px 6px rgb(var(--shadow-rgb) / .08), 0 22px 40px -14px rgb(var(--shadow-rgb) / .30) }
+:root[data-theme="light"][data-house="amiens"] { --shadow-rgb:110 60 10 }
+:root[data-theme="light"][data-house="connolly"] { --shadow-rgb:14 50 120 }
+:root[data-theme="dark"] { --shadow-rgb:0 0 0;--hi:rgb(255 255 255 / .10);--sheen:rgb(255 255 255 / .035);
+  --sh-1:0 1px 1px rgb(var(--shadow-rgb) / .40), 0 3px 8px -2px rgb(var(--shadow-rgb) / .50);
+  --sh-2:0 2px 3px rgb(var(--shadow-rgb) / .40), 0 10px 22px -8px rgb(var(--shadow-rgb) / .65);
+  --sh-3:0 4px 8px rgb(var(--shadow-rgb) / .45), 0 26px 46px -14px rgb(var(--shadow-rgb) / .75) }
+:root[data-theme="light"] { --btn-top:var(--surface);--btn-bottom:var(--surface-2) }
+:root[data-theme="dark"] { --btn-top:color-mix(in srgb, var(--surface-2), #fff 8%);--btn-bottom:var(--surface-2) }
+:root { --press:cubic-bezier(.32,.72,0,1) }
+
+/* ---- a coluna de conteúdo pode encolher (nada empurra o topo para fora da janela) ---- */
+@media (min-width: 1024px) { .shell { grid-template-columns: 15.5rem minmax(0, 1fr) } }
+.content, .topbar { min-width:0 }
+.dash-occ > div:first-child { min-width:0;flex:1 1 auto }
+.dash-card { grid-template-columns:minmax(0, 1fr) }
+.dash-kpis { grid-template-columns:repeat(auto-fit, minmax(5.25rem, 1fr)) }
+
+/* ---- ritmo de espaçamento: a página empilha os blocos com um espaço só ---- */
+.page { display:flex;flex-direction:column;gap:1.25rem }
+.page > * { margin-top:0;margin-bottom:0 }
+.page > .tabs, .page > .segmented, .page > button, .page > .button-link { align-self:flex-start }
+.page > .page-header, .page > .toolbar, .page > .card-grid { margin:0 }
+
+/* ---- botões em alto relevo ---- */
+:root[data-theme] button:not([class]),
+:root[data-theme] button.small,
+:root[data-theme] button.icon-btn,
+:root[data-theme] button.theme-toggle,
+:root[data-theme] button.filter-more,
+:root[data-theme] a.button-link:not(.primary),
+:root[data-theme] button.danger-outline,
+:root[data-theme] button.ghost {
+  background-image:linear-gradient(180deg, var(--btn-top), var(--btn-bottom))!important;background-color:var(--btn-bottom)!important;
+  color:var(--ink)!important;border:0!important;font-weight:600;
+  box-shadow:inset 0 1px 0 var(--hi), inset 0 -1px 0 var(--line), 0 0 0 1px var(--line-strong), var(--sh-1)!important;
+  transition:transform 160ms var(--ios-ease), box-shadow 200ms var(--ios-ease), background-color 160ms var(--ios-ease), color 120ms, opacity 140ms }
+:root[data-theme] button:not([class]):hover:not(:disabled),
+:root[data-theme] button.small:hover:not(:disabled),
+:root[data-theme] button.icon-btn:hover:not(:disabled),
+:root[data-theme] button.theme-toggle:hover:not(:disabled),
+:root[data-theme] button.filter-more:hover:not(:disabled),
+:root[data-theme] a.button-link:not(.primary):hover:not(:disabled),
+:root[data-theme] button.danger-outline:hover:not(:disabled),
+:root[data-theme] button.ghost:hover:not(:disabled) { transform:translateY(-1px);
+  box-shadow:inset 0 1px 0 var(--hi), inset 0 -1px 0 var(--line), 0 0 0 1px var(--line-strong), var(--sh-2)!important }
+:root[data-theme] button.danger-outline { color:var(--danger)!important }
+
+/* afundar ao pressionar */
+:root[data-theme] button:active:not(:disabled), :root[data-theme] a.button-link:active { transform:translateY(1px) scale(.985) }
+:root[data-theme] button:not([class]):active:not(:disabled),
+:root[data-theme] button.small:active:not(:disabled),
+:root[data-theme] button.icon-btn:active:not(:disabled),
+:root[data-theme] button.theme-toggle:active:not(:disabled),
+:root[data-theme] button.filter-more:active:not(:disabled),
+:root[data-theme] a.button-link:not(.primary):active:not(:disabled),
+:root[data-theme] button.danger-outline:active:not(:disabled),
+:root[data-theme] button.ghost:active:not(:disabled) { transform:translateY(1px) scale(.985);background-image:linear-gradient(180deg, var(--btn-bottom), var(--btn-top))!important;
+  box-shadow:inset 0 2px 4px rgb(var(--shadow-rgb) / .22), 0 0 0 1px var(--line-strong)!important }
+:root[data-theme] button:disabled { box-shadow:none!important }
+
+/* botão principal: gradiente da casa, brilho no topo e sombra colorida */
+:root[data-theme] button.primary, :root[data-theme] a.button-link.primary {
+  background-image:linear-gradient(180deg, rgb(255 255 255 / .26), rgb(255 255 255 / 0) 52%), var(--hero)!important;color:var(--on-hero)!important;border:0!important;font-weight:600;
+  box-shadow:inset 0 1px 0 rgb(255 255 255 / .42), inset 0 -1px 0 rgb(0 0 0 / .20), 0 1px 2px rgb(var(--shadow-rgb) / .35), 0 10px 20px -10px var(--hc-vivid)!important;
+  transition:transform 160ms var(--ios-ease), box-shadow 200ms var(--ios-ease), filter 160ms, opacity 140ms }
+:root[data-theme] button.primary:hover:not(:disabled), :root[data-theme] a.button-link.primary:hover { transform:translateY(-1px);filter:brightness(1.06) saturate(1.05);
+  box-shadow:inset 0 1px 0 rgb(255 255 255 / .46), inset 0 -1px 0 rgb(0 0 0 / .20), 0 2px 3px rgb(var(--shadow-rgb) / .35), 0 14px 24px -10px var(--hc-vivid)!important }
+:root[data-theme] button.primary:active:not(:disabled), :root[data-theme] a.button-link.primary:active { transform:translateY(1px) scale(.985);filter:brightness(.96);
+  box-shadow:inset 0 2px 5px rgb(0 0 0 / .30), 0 1px 1px rgb(var(--shadow-rgb) / .25)!important }
+:root[data-theme] .today-head button.primary { background-image:linear-gradient(180deg, #fff, #eef1f7)!important;background-color:#fff!important;color:var(--hero-btn-ink)!important;
+  box-shadow:inset 0 1px 0 #fff, 0 1px 2px rgb(0 0 0 / .25), 0 10px 20px -10px rgb(0 0 0 / .45)!important }
+:root[data-theme] button.danger { background-image:linear-gradient(180deg, rgb(255 255 255 / .22), rgb(255 255 255 / 0) 52%), linear-gradient(180deg, var(--danger), color-mix(in srgb, var(--danger), #000 22%))!important;color:#fff!important;border:0!important;
+  box-shadow:inset 0 1px 0 rgb(255 255 255 / .35), inset 0 -1px 0 rgb(0 0 0 / .2), 0 1px 2px rgb(var(--shadow-rgb) / .3), 0 8px 16px -8px var(--danger)!important }
+
+/* botões dedicados (Seen, Took the meal): só relevo, mantêm a cor */
+:root[data-theme] .seen-btn:not(:disabled), :root[data-theme] .took-btn { box-shadow:inset 0 1px 0 var(--hi), 0 0 0 1px var(--line), var(--sh-1);transition:transform 160ms var(--ios-ease), box-shadow 200ms var(--ios-ease), background-color 160ms }
+:root[data-theme] .seen-btn:hover:not(:disabled), :root[data-theme] .took-btn:hover { transform:translateY(-1px);box-shadow:inset 0 1px 0 var(--hi), 0 0 0 1px var(--line), var(--sh-2) }
+
+/* chips de escolha */
+:root[data-theme] button.chip { box-shadow:inset 0 1px 0 var(--hi), 0 0 0 1px var(--line-strong), var(--sh-1)!important;border:0!important;
+  transition:transform 160ms var(--ios-ease), box-shadow 200ms var(--ios-ease), background-color 160ms }
+:root[data-theme] button.chip:hover:not(:disabled) { transform:translateY(-1px);box-shadow:inset 0 1px 0 var(--hi), 0 0 0 1px var(--hc), var(--sh-2)!important }
+:root[data-theme] button.chip:active:not(:disabled) { transform:translateY(1px) scale(.985);box-shadow:inset 0 2px 3px rgb(var(--shadow-rgb) / .2), 0 0 0 1px var(--hc)!important }
+:root[data-theme] button.chip.is-on, :root[data-theme] button.chip[aria-pressed="true"] { background-image:linear-gradient(180deg, rgb(255 255 255 / .24), rgb(255 255 255 / 0) 52%), var(--hero)!important;
+  box-shadow:inset 0 1px 0 rgb(255 255 255 / .4), inset 0 -1px 0 rgb(0 0 0 / .18), 0 1px 2px rgb(var(--shadow-rgb) / .3), 0 8px 16px -8px var(--hc-vivid)!important }
+
+/* ---- abas, interruptor das casas e polegar deslizante ---- */
+:root[data-theme] .tabs, :root[data-theme] .segmented, :root[data-theme] .house-toggle { box-shadow:inset 0 1px 3px rgb(var(--shadow-rgb) / .16), inset 0 0 0 1px var(--line) }
+:root[data-theme] .tabs-indicator, :root[data-theme] .house-toggle-thumb { background-image:linear-gradient(180deg, rgb(255 255 255 / .26), rgb(255 255 255 / 0) 55%), var(--hero);
+  box-shadow:inset 0 1px 0 rgb(255 255 255 / .42), inset 0 -1px 0 rgb(0 0 0 / .18), 0 1px 2px rgb(var(--shadow-rgb) / .35), 0 6px 14px -6px var(--hc-vivid) }
+:root[data-theme] .segmented button.selected { background-image:linear-gradient(180deg, rgb(255 255 255 / .24), rgb(255 255 255 / 0) 55%), var(--hero)!important;
+  box-shadow:inset 0 1px 0 rgb(255 255 255 / .4), 0 1px 2px rgb(var(--shadow-rgb) / .35)!important }
+:root[data-theme] .tab, :root[data-theme] .house-toggle-opt { transition:color 160ms var(--ios-ease) }
+
+/* Sign out do topo: botão pequeno em relevo */
+:root[data-theme] .topbar-right button.link-button { min-height:34px;padding:0 .875rem;border-radius:999px!important;text-decoration:none;font-weight:600;color:var(--ink)!important;
+  background-image:linear-gradient(180deg, var(--btn-top), var(--btn-bottom))!important;background-color:var(--btn-bottom)!important;
+  box-shadow:inset 0 1px 0 var(--hi), inset 0 -1px 0 var(--line), 0 0 0 1px var(--line-strong), var(--sh-1)!important;transition:transform 160ms var(--ios-ease), box-shadow 200ms var(--ios-ease) }
+:root[data-theme] .topbar-right button.link-button:hover { transform:translateY(-1px);box-shadow:inset 0 1px 0 var(--hi), inset 0 -1px 0 var(--line), 0 0 0 1px var(--line-strong), var(--sh-2)!important }
+:root[data-theme] .topbar-right button.link-button:active { transform:translateY(1px) scale(.985) }
+
+/* O primeiro bloco do cartão não leva margem de cima (o título não fica solto no meio do espaço). */
+.card > :first-child, .dash-card > :first-child, .composer > :first-child { margin-top:0 }
+.card > .section-title { margin:0 0 .5rem }
+.card > .section-title ~ .section-title { margin-top:1.5rem }
+
+/* ---- topo: o que não cabe some em ordem, em vez de cortar ---- */
+@media (max-width: 1400px) { .topbar .user-name { display:none !important } }
+@media (max-width: 1180px) { .topbar-right .post-chip { display:none } }
+@media (max-width: 719px) {
+  .topbar { flex-wrap:nowrap;gap:.5rem }
+  .topbar:has(.house-toggle) .brand-house { display:none }
+  .topbar .clock { min-width:0 }
+}
+
+/* ---- cartões e painéis ---- */
+:root[data-theme] :is(.card, .dash-card, .shift-bar, .composer, .duty-card, .bento-tile, .timeline, .table) {
+  background-image:linear-gradient(180deg, var(--sheen), transparent 45%);
+  box-shadow:inset 0 1px 0 var(--hi), 0 0 0 1px var(--line), var(--sh-1) }
+:root[data-theme] :is(.dash-kpis div, .dash-maint a, .person-stats > div) { box-shadow:inset 0 1px 0 var(--hi), 0 0 0 1px var(--line) }
+:root[data-theme] .today-head { box-shadow:inset 0 1px 0 rgb(255 255 255 / .38), 0 0 0 1px rgb(255 255 255 / .12), var(--sh-3) }
+:root[data-theme] .dialog { box-shadow:inset 0 1px 0 var(--hi), 0 0 0 1px var(--line-strong), var(--sh-3) }
+:root[data-theme] :is(.ticket, .rota-shift:not(:disabled), .bed) { transition:transform 160ms var(--ios-ease), box-shadow 200ms var(--ios-ease), background-color 160ms var(--ios-ease), border-color 160ms }
+:root[data-theme] :is(.ticket, .rota-shift:not(:disabled)):hover { transform:translateY(-1px);box-shadow:var(--sh-2) }
+
+/* ---- campos afundados ---- */
+:root[data-theme] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea) {
+  box-shadow:inset 0 1px 3px rgb(var(--shadow-rgb) / .12), inset 0 0 0 1px var(--line);
+  transition:box-shadow 180ms var(--ios-ease), background-color 160ms var(--ios-ease) }
+:root[data-theme] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea):focus {
+  outline:none;box-shadow:inset 0 1px 3px rgb(var(--shadow-rgb) / .10), inset 0 0 0 1px var(--hc), 0 0 0 4px var(--hc-soft) }
+:root[data-theme] .filter-search input { box-shadow:none!important }
+:root[data-theme] .filter-search:focus-within { box-shadow:inset 0 1px 3px rgb(var(--shadow-rgb) / .10), inset 0 0 0 1px var(--hc), 0 0 0 4px var(--hc-soft) }
+
+/* ---- interruptores (switch) ---- */
+.switch-row input[role="switch"] { box-shadow:inset 0 1px 3px rgb(var(--shadow-rgb) / .25);transition:background-color 180ms var(--ios-ease), box-shadow 180ms }
+.switch-row input[role="switch"]::after { box-shadow:0 1px 2px rgb(var(--shadow-rgb) / .35), 0 3px 6px -2px rgb(var(--shadow-rgb) / .35);transition:transform 220ms var(--ios-ease) }
+.switch-row input[role="switch"]:checked { background:var(--hc) }
+
+/* ---- menu lateral ---- */
+:root[data-theme] .sidebar .nav-item { transition:background-color 160ms var(--ios-ease), color 120ms, transform 160ms var(--ios-ease), box-shadow 200ms var(--ios-ease) }
+:root[data-theme] .sidebar .nav-item:hover:not(.active) { background:var(--surface-2) }
+:root[data-theme] .sidebar .nav-item:active { transform:scale(.985) }
+:root[data-theme] .sidebar .nav-item.active { background:var(--surface)!important;box-shadow:inset 0 1px 0 var(--hi), 0 0 0 1px var(--line), var(--sh-1)!important }
+:root[data-theme="dark"] .sidebar .nav-item.active { background:var(--surface-2)!important }
+/* seta do módulo em cascata: folga na borda e disco em relevo */
+:root[data-theme] .nav-group-toggle { padding:0 .75rem 0 .625rem;gap:.5rem;transition:background-color 160ms var(--ios-ease), transform 160ms var(--ios-ease) }
+:root[data-theme] .nav-group-toggle:active { transform:scale(.985) }
+.nav-chevron { box-sizing:border-box;width:22px;height:22px;padding:4px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);
+  box-shadow:inset 0 1px 0 var(--hi), 0 0 0 1px var(--line), var(--sh-1) }
+
+/* ---- links e ícones ---- */
+a { transition:color 140ms var(--ios-ease), opacity 140ms }
+:root[data-theme] button.icon-button { transition:background-color 160ms var(--ios-ease), transform 160ms var(--ios-ease) }
+:root[data-theme] button.icon-button:active { transform:scale(.92) }
+
+/* ---- reduzir movimento ---- */
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme] button:hover, :root[data-theme] button:active, :root[data-theme] .chip:hover, :root[data-theme] .ticket:hover { transform:none!important }
+  * { transition-duration:.01ms!important }
+}
+
+/* Respiro dos indicadores do painel */
+.dash-kpis div, .dash-maint a { padding:.5rem .625rem }
+
+/* Logo do login: no escuro, cartão branco em relevo */
+:root[data-theme="dark"] .auth-logo { background:#fff;border-radius:22px;padding:14px 18px;box-sizing:content-box;width:9rem;box-shadow:inset 0 1px 0 #fff, var(--sh-2) }

@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "@/auth/AuthProvider";
 import type { Lodge } from "@/lib/types";
+import { ensureHouse } from "@/lib/theme";
 
 /**
  * Casa ativa (escopo Beta, item 1): a casa escolhida pinta o cabeçalho e o menu
@@ -45,7 +46,7 @@ export function ActiveLodgeProvider({ children }: { children: ReactNode }) {
   const house = houseOf(lodges.find((l) => l.id === activeId));
   useEffect(() => {
     if (house) document.documentElement.dataset.house = house;
-    else delete document.documentElement.dataset.house;
+    else ensureHouse();
   }, [house]);
   const value = useMemo(() => ({ activeId, setActiveId }), [activeId, setActiveId]);
   return <ActiveLodgeContext.Provider value={value}>{children}</ActiveLodgeContext.Provider>;
