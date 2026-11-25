@@ -1,15 +1,24 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Scale } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Plus, Printer, Scale } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { write } from '../../lib/useTable';
-import { addDays, formatDay, toDay } from '../../lib/dates';
+import { addDays, formatDay, toDay, type Day } from '../../lib/dates';
 import { change, num } from '../../lib/format';
 import {
-  MUSCLE_LABEL, activeExerciseIds, exerciseProgression, weekStart, weeklyStats, weeklyVolumeByMuscle,
+  MUSCLE_LABEL, activeExerciseIds, exerciseProgression, weekStart, weeklyStats, weeklyVolumeByMuscle, workoutSummary,
   type WeekStats,
 } from '../../lib/training';
 import { averageIntake, estimatedMaintenance, weeklyRate, weightTrend } from '../../lib/energy';
-import { AreaChart, ColumnChart, DonutChart, RankedBars } from '../../components/Charts';
+import {
+  COMPARISON_METRICS,
+  buildFoodLogsCsv,
+  buildHealthComparisonSeries,
+  buildPeriodNutritionReport,
+  type ComparisonMetricId,
+  type ReportDayFilter,
+} from '../../lib/nutritionReport';
+import { HIGHLIGHTED_KEYS, MICRONUTRIENTS, rdaFor } from '../../lib/micronutrients';
+import { AreaChart, ColumnChart, DonutChart, DualAxisChart, NutrientRing, RankedBars } from '../../components/Charts';
 import { Empty, Field, Modal, Stat } from '../../components/ui';
 import type { Health } from './useHealth';
 
@@ -31,6 +40,16 @@ export default function Dashboard({ h }: { h: Health }) {
   const [monday, setMonday] = useState(weekStart(today));
   const [weighing, setWeighing] = useState(false);
   const [loadMode, setLoadMode] = useState<LoadMode>('maxLoad');
+
+  // Dual-Axis Comparison Chart state
+  const [compDays, setCompDays] = useState<number>(30);
+  const [leftMetric, setLeftMetric] = useState<ComparisonMetricId>('weight_kg');
+  const [rightMetric, setRightMetric] = useState<ComparisonMetricId>('kcal');
+
+  // Nutrition Period Report state
+  const [reportDays, setReportDays] = useState<number>(7);
+  const [dayFilter, setDayFilter] = useState<ReportDayFilter>('all_logged');
+  const [includeSupplements, setIncludeSupplements] = useState<boolean>(true);
 
   const exerciseIds = useMemo(
     () => activeExerciseIds(h.sets.rows, h.workouts.rows, h.typeById),
@@ -61,6 +80,66 @@ export default function Dashboard({ h }: { h: Health }) {
   const intake = averageIntake(daily, today);
   const maintenance = intake.avg !== null && rate !== null && intake.days >= 7 ? estimatedMaintenance(intake.avg, rate) : null;
   const vs = 'semana passada';
+
+  // Daily workout tonnage map for Dual-Axis comparison
+  const tonnageByDay = useMemo(() => {
+    const map = new Map<Day, number>();
+    for (const w of h.workouts.rows) {
+      const s = workoutSummary(w, h.sets.rows, h.workouts.rows, h.typeById);
+      map.set(w.date, (map.get(w.date) ?? 0) + s.tonnage);
+    }
+    return map;
+  }, [h.workouts.rows, h.sets.rows, h.typeById]);
+
+  const leftDef = COMPARISON_METRICS.find((x) => x.id === leftMetric)!;
+  const rightDef = COMPARISON_METRICS.find((x) => x.id === rightMetric)!;
+  const dualSeries = useMemo(
+    () =>
+      buildHealthComparisonSeries({
+        endDay: today,
+        days: compDays,
+        leftMetric,
+        rightMetric,
+        foodLogs: h.foodLogs.rows,
+        waterLogs: h.waterLogs.rows,
+        measurements: h.measurements.rows,
+        fasts: h.fasts.rows,
+        tonnageByDay,
+      }),
+    [today, compDays, leftMetric, rightMetric, h.foodLogs.rows, h.waterLogs.rows, h.measurements.rows, h.fasts.rows, tonnageByDay],
+  );
+
+  const completedDays = useMemo(
+    () => new Set<Day>(h.overrides.rows.filter((o) => o.completed).map((o) => o.date)),
+    [h.overrides.rows],
+  );
+
+  const report = useMemo(
+    () =>
+      buildPeriodNutritionReport({
+        endDay: today,
+        days: reportDays,
+        foodLogs: h.foodLogs.rows,
+        waterLogs: h.waterLogs.rows,
+        completedDays,
+        dayFilter,
+        includeSupplements,
+        sex: h.profile?.sex,
+      }),
+    [today, reportDays, h.foodLogs.rows, h.waterLogs.rows, completedDays, dayFilter, includeSupplements, h.profile?.sex],
+  );
+
+  function downloadCsv() {
+    const csv = buildFoodLogsCsv(h.foodLogs.rows);
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `painel-diario-nutricional-${today}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   const selector = (
     <div className="segmented">
       {[4, 8, 12].map((n) => <button key={n} className={n === weeks ? 'tab-active' : 'tab'} onClick={() => setWeeks(n)}>{n} sem</button>)}
@@ -81,6 +160,159 @@ export default function Dashboard({ h }: { h: Health }) {
         <Stat label="Treinos" value={cur.sessions} loading={loading} hint={cur.sessions === prev.sessions ? 'igual à semana passada' : `${prev.sessions} na semana passada`} />
         <Stat label="Densidade" value={num(cur.density)} unit={cur.density === null ? undefined : 'kg/min'} loading={loading} hint={cur.density && prev.density ? change(cur.density, prev.density, vs) : 'registre a duração dos treinos'} />
         <Stat label="Intensidade" value={num(cur.intensityPct)} unit={cur.intensityPct === null ? undefined : '% 1RM'} loading={loading} hint={cur.avgEffort ? `esforço médio ${num(cur.avgEffort)}` : 'registre o esforço das séries'} />
+      </section>
+
+      {/* Dual-Axis Analytics Comparison Chart (Cronometer Trends -> Charts) */}
+      <div className="mb-6">
+        <DualAxisChart
+          title="Análise Cruzada · Duplo Eixo"
+          subtitle="Correlacione peso, calorias, carboidratos líquidos, hidratação, jejum e volume de treino"
+          rows={dualSeries}
+          leftLabel={leftDef.label}
+          leftUnit={leftDef.unit}
+          rightLabel={rightDef.label}
+          rightUnit={rightDef.unit}
+          aside={
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                aria-label="Métrica esquerda"
+                className="input h-8 w-auto py-0 text-xs"
+                value={leftMetric}
+                onChange={(e) => setLeftMetric(e.target.value as ComparisonMetricId)}
+              >
+                {COMPARISON_METRICS.map((cm) => <option key={cm.id} value={cm.id}>{cm.label}</option>)}
+              </select>
+              <span className="text-xs text-fg3">×</span>
+              <select
+                aria-label="Métrica direita"
+                className="input h-8 w-auto py-0 text-xs"
+                value={rightMetric}
+                onChange={(e) => setRightMetric(e.target.value as ComparisonMetricId)}
+              >
+                {COMPARISON_METRICS.map((cm) => <option key={cm.id} value={cm.id}>{cm.label}</option>)}
+              </select>
+              <div className="segmented">
+                {[14, 30, 90].map((d) => (
+                  <button key={d} type="button" className={compDays === d ? 'tab-active' : 'tab'} onClick={() => setCompDays(d)}>
+                    {d}d
+                  </button>
+                ))}
+              </div>
+            </div>
+          }
+        />
+      </div>
+
+      {/* Period Nutrition Report + Clinical Print / CSV Export */}
+      <section className="card mb-8">
+        <div className="mb-4 flex flex-wrap items-start gap-3">
+          <div className="mr-auto">
+            <h2 className="text-base font-medium text-fg">Relatório Nutricional por Período</h2>
+            <p className="text-xs text-fg3">
+              Média diária calculada sobre <strong>{report.countedDays}</strong> de {report.totalCalendarDays} dias ({short(report.startDay)} a {short(report.endDay)}).
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="segmented">
+              {[7, 14, 30, 90].map((d) => (
+                <button key={d} type="button" className={reportDays === d ? 'tab-active' : 'tab'} onClick={() => setReportDays(d)}>
+                  {d}d
+                </button>
+              ))}
+            </div>
+            <select
+              aria-label="Filtro de dias do relatório"
+              className="input h-8 w-auto py-0 text-xs"
+              value={dayFilter}
+              onChange={(e) => setDayFilter(e.target.value as ReportDayFilter)}
+            >
+              <option value="all_logged">Dias com registros</option>
+              <option value="completed_only">Apenas dias completos</option>
+              <option value="all_calendar">Todos os dias do calendário</option>
+            </select>
+            <label className="flex items-center gap-1.5 text-xs text-fg2">
+              <input type="checkbox" checked={includeSupplements} onChange={(e) => setIncludeSupplements(e.target.checked)} />
+              Suplementos
+            </label>
+            <button type="button" className="btn-secondary h-8 px-2.5 text-xs" onClick={downloadCsv}>
+              <Download size={14} strokeWidth={1.5} /> CSV
+            </button>
+            <button type="button" className="btn-secondary h-8 px-2.5 text-xs" onClick={() => window.print()}>
+              <Printer size={14} strokeWidth={1.5} /> Imprimir / PDF
+            </button>
+          </div>
+        </div>
+
+        <div className="mb-5 grid grid-cols-2 gap-3 rounded-xl border border-line bg-raised/40 p-3.5 sm:grid-cols-3 lg:grid-cols-6">
+          <div>
+            <div className="text-[11px] text-fg3">Média kcal/dia</div>
+            <div className="figure mt-0.5 text-lg font-medium text-fg">{num(report.averageMacros.kcal)}</div>
+          </div>
+          <div>
+            <div className="text-[11px] text-fg3">Proteína/dia</div>
+            <div className="figure mt-0.5 text-lg font-medium text-fg">{num(report.averageMacros.protein_g)} g</div>
+          </div>
+          <div>
+            <div className="text-[11px] text-fg3">Carbo Líq./dia</div>
+            <div className="figure mt-0.5 text-lg font-medium text-fg">{num(report.averageMacros.net_carbs_g)} g</div>
+          </div>
+          <div>
+            <div className="text-[11px] text-fg3">Gordura/dia</div>
+            <div className="figure mt-0.5 text-lg font-medium text-fg">{num(report.averageMacros.fat_g)} g</div>
+          </div>
+          <div>
+            <div className="text-[11px] text-fg3">Fibras/dia</div>
+            <div className="figure mt-0.5 text-lg font-medium text-fg">{num(report.averageMacros.fiber_g)} g</div>
+          </div>
+          <div>
+            <div className="text-[11px] text-fg3">Água bebida/dia</div>
+            <div className="figure mt-0.5 text-lg font-medium text-fg">{num(report.averageWaterMl)} mL</div>
+          </div>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div>
+            <div className="label mb-3">Scores Médios do Período</div>
+            <div className="space-y-2.5">
+              {report.scores.map((s) => (
+                <div key={s.id}>
+                  <div className="mb-1 flex items-baseline justify-between text-xs">
+                    <span className="text-fg2">{s.label}</span>
+                    <span className="figure font-medium text-fg">{s.pct}%</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-raised">
+                    <div
+                      className="h-1.5 rounded-full"
+                      style={{ width: `${s.pct}%`, background: s.pct >= 80 ? 'var(--positive)' : 'var(--brand)' }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="label mb-3">Média de Micronutrientes Chave</div>
+            <div className="grid grid-cols-4 gap-3">
+              {HIGHLIGHTED_KEYS.map((key) => {
+                const meta = MICRONUTRIENTS.find((x) => x.key === key)!;
+                const rda = rdaFor(meta, h.profile?.sex);
+                const val = report.averageMicros[key] ?? 0;
+                const pct = rda > 0 ? Math.round((val / rda) * 100) : 0;
+                return (
+                  <NutrientRing
+                    key={key}
+                    label={meta.shortLabel}
+                    pct={pct}
+                    sublabel={`${num(val, val < 10 ? 1 : 0)}${meta.unit}`}
+                    size={56}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Exercise load & 1RM progression curve */}
@@ -187,7 +419,7 @@ function WeighInForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
           <Field label="Peso (kg)"><input className="input" type="number" min={20} max={400} step="0.1" value={kg} onChange={(e) => setKg(e.target.value)} required autoFocus /></Field>
           <Field label="Data"><input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></Field>
         </div>
-        <button className="btn-primary w-full">Salvar</button>
+        <button className="btn-primary w-full justify-center">Salvar</button>
       </form>
     </Modal>
   );

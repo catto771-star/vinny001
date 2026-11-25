@@ -5,6 +5,9 @@ import type { CardioSession, Exercise, ExerciseSettings, SetType, Workout, Worko
 import type { DayTarget, DayType, FoodLog, Override } from '../../lib/nutrition';
 import type { WeighIn } from '../../lib/energy';
 import type { PlanExercise, PlanSession } from '../../lib/plans';
+import type { ActivityLevel, RecipeIngredient } from '../../lib/metabolism';
+import type { FastingSession } from '../../lib/fasting';
+import type { MicronutrientMap } from '../../lib/micronutrients';
 
 export interface DietPlan { id: string; name: string; is_active: boolean; training_target_mode: 'fixed' | 'dynamic' }
 export interface PlanTarget extends DayTarget { plan_id: string; day_type: DayType }
@@ -15,8 +18,67 @@ export interface WorkoutPlan { id: string; name: string; is_active: boolean; sta
 export interface WeekdayTarget extends DayTarget { plan_id: string; weekday: number }
 export interface BodyAssessment { id: string; date: string; notes: string | null; created_at: string }
 export interface BodyPhoto { id: string; assessment_id: string; pose: 'front' | 'side' | 'back'; storage_path: string }
-export interface UserSettings { user_id: string; height_cm: number | null; sex: 'M' | 'F' | null }
+export interface UserSettings {
+  user_id: string;
+  height_cm: number | null;
+  sex: 'M' | 'F' | null;
+  birth_date?: string | null;
+  activity_level?: ActivityLevel;
+  custom_bmr?: number | null;
+  include_tef?: boolean;
+  net_carbs_mode?: boolean;
+  water_goal_ml?: number;
+  water_cup_ml?: number;
+  target_weight_kg?: number | null;
+  weekly_rate_kg?: number | null;
+}
 export interface SettingsRow extends ExerciseSettings { exercise_id: string }
+
+export interface FavoriteFood { user_id: string; food_id: string }
+export interface WaterLog { id: string; date: Day; ml: number; logged_time: string | null; created_at: string }
+export interface CustomRecipe {
+  id: string;
+  name: string;
+  servings: number;
+  cooked_weight_g: number | null;
+  notes: string | null;
+  items: RecipeIngredient[];
+  created_at: string;
+}
+export interface CustomMealItem extends RecipeIngredient {
+  measure_label?: string | null;
+  measure_qty?: number | null;
+}
+export interface CustomMeal {
+  id: string;
+  name: string;
+  default_meal: string;
+  items: CustomMealItem[];
+  created_at: string;
+}
+export interface RepeatFoodItem {
+  id: string;
+  meal: string;
+  weekdays: number[];
+  food_id: string | null;
+  food_name: string;
+  quantity_g: number;
+  measure_label: string | null;
+  measure_qty: number | null;
+  kcal: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fiber_g: number | null;
+  nutrients: MicronutrientMap;
+  is_supplement: boolean;
+  active: boolean;
+}
+export interface MacroTemplate extends DayTarget {
+  id: string;
+  name: string;
+  weekdays: number[];
+}
 
 /** Everything the health screens read, loaded once and shared by the tabs. */
 export function useHealth() {
@@ -39,7 +101,17 @@ export function useHealth() {
   const weekdayTargets = useTable<WeekdayTarget>('diet_weekday_targets');
   const assessments = useTable<BodyAssessment>('body_assessments', '*', { column: 'date', ascending: false });
   const bodyPhotos = useTable<BodyPhoto>('body_photos');
-  const userSettings = useTable<UserSettings>('user_settings', 'user_id,height_cm,sex');
+  const userSettings = useTable<UserSettings>(
+    'user_settings',
+    'user_id,height_cm,sex,birth_date,activity_level,custom_bmr,include_tef,net_carbs_mode,water_goal_ml,water_cup_ml,target_weight_kg,weekly_rate_kg',
+  );
+  const favorites = useTable<FavoriteFood>('favorite_foods');
+  const waterLogs = useTable<WaterLog>('water_logs', '*', { column: 'created_at' });
+  const customRecipes = useTable<CustomRecipe>('custom_recipes', '*', { column: 'created_at', ascending: false });
+  const customMeals = useTable<CustomMeal>('custom_meals', '*', { column: 'created_at', ascending: false });
+  const repeatItems = useTable<RepeatFoodItem>('repeat_food_items', '*', { column: 'created_at' });
+  const fasts = useTable<FastingSession>('fasting_sessions', '*', { column: 'started_at', ascending: false });
+  const macroTemplates = useTable<MacroTemplate>('macro_templates', '*', { column: 'created_at' });
 
   const derived = useMemo(() => {
     const exerciseById = new Map(exercises.rows.map((e) => [e.id, e]));
@@ -49,16 +121,38 @@ export function useHealth() {
       .filter((m) => m.metric === 'weight_kg')
       .map((m) => ({ date: toDay(new Date(m.measured_at)), weight_kg: Number(m.value) }));
     const latestWeight = weighIns.length ? weighIns[weighIns.length - 1].weight_kg : null;
+    const bfRows = measurements.rows.filter((m) => m.metric === 'body_fat_pct');
+    const latestBodyFatPct = bfRows.length ? Number(bfRows[bfRows.length - 1].value) : null;
     const trainedDays = new Set<Day>([...workouts.rows.map((w) => w.date), ...cardio.rows.map((c) => c.date)]);
     const plan = plans.rows.find((p) => p.is_active) ?? null;
     const workoutPlan = workoutPlans.rows.find((p) => p.is_active) ?? null;
     const profile = userSettings.rows[0] ?? null;
-    return { exerciseById, typeById, settingsById, weighIns, latestWeight, trainedDays, plan, workoutPlan, profile };
-  }, [exercises.rows, setTypes.rows, settings.rows, measurements.rows, workouts.rows, cardio.rows, plans.rows, workoutPlans.rows, userSettings.rows]);
+    const favoriteIds = new Set(favorites.rows.map((f) => f.food_id));
+    const activeFast = fasts.rows.find((f) => f.ended_at === null) ?? null;
+    return {
+      exerciseById,
+      typeById,
+      settingsById,
+      weighIns,
+      latestWeight,
+      latestBodyFatPct,
+      trainedDays,
+      plan,
+      workoutPlan,
+      profile,
+      favoriteIds,
+      activeFast,
+    };
+  }, [
+    exercises.rows, setTypes.rows, settings.rows, measurements.rows, workouts.rows, cardio.rows,
+    plans.rows, workoutPlans.rows, userSettings.rows, favorites.rows, fasts.rows,
+  ]);
 
   return {
     exercises, setTypes, settings, workouts, sets, cardio, measurements, foodLogs, plans, targets, overrides, meals, items,
-    workoutPlans, planSessions, planExercises, weekdayTargets, assessments, bodyPhotos, userSettings, ...derived,
+    workoutPlans, planSessions, planExercises, weekdayTargets, assessments, bodyPhotos, userSettings,
+    favorites, waterLogs, customRecipes, customMeals, repeatItems, fasts, macroTemplates,
+    ...derived,
   };
 }
 

@@ -377,3 +377,27 @@ main.tab-swap > :not(header) {
   .segmented[data-ind="glide"]::before,
   .slide-group[data-ind="glide"]::before { transition: none; }
 }
+
+@media print {
+  aside,
+  nav,
+  .glass-nav,
+  button,
+  [role="dialog"] {
+    display: none !important;
+  }
+  html, body {
+    background: #ffffff !important;
+    color: #161614 !important;
+  }
+  main {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  .surface {
+    box-shadow: none !important;
+    border: 1px solid #d4d1c9 !important;
+    break-inside: avoid;
+  }
+}
+

@@ -161,8 +161,35 @@ export const TOOLS = [
     notas: str('Observações, opcional'),
     data: str('YYYY-MM-DD, opcional (hoje)'),
   }, ['tipo', 'duracao_min']),
-  fn('resumo_saude_hoje', 'Consulta peso mais recente, calorias/macros consumidos e treinos/cardio de uma data (padrão hoje).', {
+  fn('resumo_saude_hoje', 'Consulta peso mais recente, calorias/macros consumidos, água, jejum ativo e treinos/cardio de uma data (padrão hoje).', {
     data: str('YYYY-MM-DD, opcional (hoje)'),
+  }),
+  fn('consultar_oraculo_nutrientes', 'Consulta o Oráculo de Nutrientes: ranqueia alimentos mais ricos em um macro ou micronutriente (por densidade combinada, por 100 kcal ou por 100 g).', {
+    nutriente: str('Nutriente alvo (ex.: proteina, fibra, ferro, potassio, magnesio, calcio, zinco, selenio, vitamina_c, vitamina_d, vitamina_a, b12, folato, colina, omega3, sodio)'),
+    modo: { type: 'string', enum: ['oraculo', 'por_100kcal', 'por_100g'], description: 'Critério de ranking (padrão oraculo)' },
+    limite: { type: 'integer', description: 'Quantidade de alimentos no ranking (1 a 20, padrão 8)' },
+  }, ['nutriente']),
+  fn('sugerir_alimentos_dia', 'Analisa calorias/macros restantes e lacunas de micronutrientes do dia no diário de Saúde e retorna alimentos candidatos ideais para fechar as metas.', {
+    data: str('YYYY-MM-DD, opcional (hoje)'),
+    refeicao: { type: 'string', enum: ['cafe', 'almoco', 'jantar', 'lanche'], description: 'Refeição alvo, opcional' },
+    restricoes: str('Preferência alimentar ou exclusões (ex.: vegetariana, sem lactose), opcional'),
+  }),
+  fn('registrar_agua', 'Registra ingestão de água (mL) no diário de Saúde.', {
+    ml: { type: 'integer', description: 'Volume em mililitros (ex.: 250, 300, 500)' },
+    data: str('YYYY-MM-DD, opcional (hoje)'),
+    hora: str('HH:MM, opcional'),
+  }, ['ml']),
+  fn('iniciar_jejum', 'Inicia um timer de jejum intermitente com protocolo pré-definido (14:10, 16:8, 18:6, 20:4, 23:1, 24h, 36h) ou horas customizadas.', {
+    protocolo: str('Protocolo (ex.: 16:8, 18:6, 20:4, 14:10, 23:1, 24h, 36h ou custom)'),
+    horas_alvo: { type: 'number', description: 'Meta de horas de jejum (opcional se protocolo padrão)' },
+    inicio_data: str('Data de início YYYY-MM-DD, opcional (hoje)'),
+    inicio_hora: str('Hora de início HH:MM, opcional (agora)'),
+    notas: str('Observação opcional'),
+  }),
+  fn('encerrar_jejum', 'Encerra o jejum intermitente ativo no momento e calcula o tempo total jejuado.', {
+    fim_data: str('Data de término YYYY-MM-DD, opcional (hoje)'),
+    fim_hora: str('Hora de término HH:MM, opcional (agora)'),
+    notas: str('Observação opcional'),
   }),
   fn('registrar_transferencia', 'Transfere saldo entre duas contas bancárias do usuário (ex.: Revolut para Wise).', {
     origem: str('Nome da conta de origem'),
@@ -204,6 +231,60 @@ const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const UUID = /^[0-9a-f-]{36}$/i;
 const PRIORITY: Record<string, 'high' | 'medium' | 'low'> = { alta: 'high', media: 'medium', média: 'medium', baixa: 'low' };
 const MEAL_MAP: Record<string, string> = { cafe: 'breakfast', almoco: 'lunch', jantar: 'dinner', lanche: 'snack' };
+
+export const ORACLE_NUTRIENT_ALIASES: Record<string, { key: string; label: string; unit: string; rda: number }> = {
+  proteina: { key: 'protein_g', label: 'Proteína', unit: 'g', rda: 140 },
+  protein_g: { key: 'protein_g', label: 'Proteína', unit: 'g', rda: 140 },
+  fibra: { key: 'fiber_g', label: 'Fibra', unit: 'g', rda: 30 },
+  fiber_g: { key: 'fiber_g', label: 'Fibra', unit: 'g', rda: 30 },
+  potassio: { key: 'potassium_mg', label: 'Potássio', unit: 'mg', rda: 3400 },
+  potassium_mg: { key: 'potassium_mg', label: 'Potássio', unit: 'mg', rda: 3400 },
+  ferro: { key: 'iron_mg', label: 'Ferro', unit: 'mg', rda: 14 },
+  iron_mg: { key: 'iron_mg', label: 'Ferro', unit: 'mg', rda: 14 },
+  magnesio: { key: 'magnesium_mg', label: 'Magnésio', unit: 'mg', rda: 400 },
+  magnesium_mg: { key: 'magnesium_mg', label: 'Magnésio', unit: 'mg', rda: 400 },
+  calcio: { key: 'calcium_mg', label: 'Cálcio', unit: 'mg', rda: 1000 },
+  calcium_mg: { key: 'calcium_mg', label: 'Cálcio', unit: 'mg', rda: 1000 },
+  zinco: { key: 'zinc_mg', label: 'Zinco', unit: 'mg', rda: 11 },
+  zinc_mg: { key: 'zinc_mg', label: 'Zinco', unit: 'mg', rda: 11 },
+  selenio: { key: 'selenium_ug', label: 'Selênio', unit: 'µg', rda: 55 },
+  selenium_ug: { key: 'selenium_ug', label: 'Selênio', unit: 'µg', rda: 55 },
+  cobre: { key: 'copper_mg', label: 'Cobre', unit: 'mg', rda: 0.9 },
+  fosforo: { key: 'phosphorus_mg', label: 'Fósforo', unit: 'mg', rda: 700 },
+  vitamina_c: { key: 'vit_c_mg', label: 'Vitamina C', unit: 'mg', rda: 90 },
+  vit_c_mg: { key: 'vit_c_mg', label: 'Vitamina C', unit: 'mg', rda: 90 },
+  vitamina_d: { key: 'vit_d_ug', label: 'Vitamina D', unit: 'µg', rda: 15 },
+  vit_d_ug: { key: 'vit_d_ug', label: 'Vitamina D', unit: 'µg', rda: 15 },
+  vitamina_a: { key: 'vit_a_ug', label: 'Vitamina A', unit: 'µg', rda: 900 },
+  vit_a_ug: { key: 'vit_a_ug', label: 'Vitamina A', unit: 'µg', rda: 900 },
+  vitamina_e: { key: 'vit_e_mg', label: 'Vitamina E', unit: 'mg', rda: 15 },
+  vitamina_k: { key: 'vit_k_ug', label: 'Vitamina K', unit: 'µg', rda: 120 },
+  b12: { key: 'vit_b12_ug', label: 'Vitamina B12', unit: 'µg', rda: 2.4 },
+  vitamina_b12: { key: 'vit_b12_ug', label: 'Vitamina B12', unit: 'µg', rda: 2.4 },
+  vit_b12_ug: { key: 'vit_b12_ug', label: 'Vitamina B12', unit: 'µg', rda: 2.4 },
+  b6: { key: 'vit_b6_mg', label: 'Vitamina B6', unit: 'mg', rda: 1.3 },
+  folato: { key: 'folate_ug', label: 'Folato (B9)', unit: 'µg', rda: 400 },
+  b9: { key: 'folate_ug', label: 'Folato (B9)', unit: 'µg', rda: 400 },
+  folate_ug: { key: 'folate_ug', label: 'Folato (B9)', unit: 'µg', rda: 400 },
+  colina: { key: 'choline_mg', label: 'Colina', unit: 'mg', rda: 550 },
+  omega3: { key: 'omega3_g', label: 'Ômega-3', unit: 'g', rda: 1.6 },
+  omega_3: { key: 'omega3_g', label: 'Ômega-3', unit: 'g', rda: 1.6 },
+  omega3_g: { key: 'omega3_g', label: 'Ômega-3', unit: 'g', rda: 1.6 },
+  sodio: { key: 'sodium_mg', label: 'Sódio', unit: 'mg', rda: 2300 },
+  sodium_mg: { key: 'sodium_mg', label: 'Sódio', unit: 'mg', rda: 2300 },
+};
+
+const FASTING_HOURS_BY_PROTOCOL: Record<string, number> = {
+  '12:12': 12,
+  '14:10': 14,
+  '16:8': 16,
+  '18:6': 18,
+  '20:4': 20,
+  '23:1': 23,
+  omad: 23,
+  '24h': 24,
+  '36h': 36,
+};
 
 /**
  * Checks and normalizes a tool call's arguments. Returns the clean arguments
@@ -418,6 +499,72 @@ export function checkArgs(name: string, raw: unknown): { ok: true; args: ToolArg
       if (data && !DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
       return { ok: true, args: { data: data || null } };
     }
+    case 'consultar_oraculo_nutrientes': {
+      const rawNut = text('nutriente', 60)
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase().replace(/[\s-]+/g, '_');
+      const spec = ORACLE_NUTRIENT_ALIASES[rawNut];
+      if (!spec) {
+        return fail(`nutriente desconhecido: informe um de ${Object.keys(ORACLE_NUTRIENT_ALIASES).filter((k) => !k.includes('_g') && !k.includes('_mg') && !k.includes('_ug')).join(', ')}`);
+      }
+      const modoRaw = text('modo').toLowerCase();
+      const modo = ['oraculo', 'por_100kcal', 'por_100g'].includes(modoRaw) ? modoRaw : 'oraculo';
+      const lim = a.limite == null ? 8 : Math.round(Number(a.limite));
+      if (!(lim >= 1 && lim <= 20)) return fail('limite deve estar entre 1 e 20');
+      return { ok: true, args: { key: spec.key, label: spec.label, unit: spec.unit, rda: spec.rda, modo, limite: lim } };
+    }
+    case 'sugerir_alimentos_dia': {
+      const data = text('data');
+      if (data && !DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
+      const refRaw = text('refeicao').toLowerCase();
+      const refeicao = refRaw && MEAL_MAP[refRaw] ? refRaw : null;
+      const restricoes = text('restricoes', 240) || null;
+      return { ok: true, args: { data: data || null, refeicao, restricoes } };
+    }
+    case 'registrar_agua': {
+      const ml = Math.round(Number(a.ml));
+      const data = text('data');
+      const hora = text('hora');
+      if (!(Number.isFinite(ml) && ml >= 10 && ml <= 5000)) return fail('ml deve estar entre 10 e 5000');
+      if (data && !DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
+      if (hora && !TIME.test(hora)) return fail('hora deve ser HH:MM');
+      return { ok: true, args: { ml, data: data || null, hora: hora || null } };
+    }
+    case 'iniciar_jejum': {
+      const explicitProt = text('protocolo', 30).toLowerCase();
+      const presetHours = explicitProt ? FASTING_HOURS_BY_PROTOCOL[explicitProt] : undefined;
+      const horas = a.horas_alvo != null ? Math.round(Number(a.horas_alvo) * 10) / 10 : (presetHours ?? 16);
+      if (!(Number.isFinite(horas) && horas >= 1 && horas <= 168)) return fail('horas_alvo deve estar entre 1 e 168');
+      const inicio_data = text('inicio_data');
+      const inicio_hora = text('inicio_hora');
+      if (inicio_data && !DATE.test(inicio_data)) return fail('inicio_data deve ser YYYY-MM-DD');
+      if (inicio_hora && !TIME.test(inicio_hora)) return fail('inicio_hora deve ser HH:MM');
+      const protocolo = presetHours ? (explicitProt === 'omad' ? '23:1' : explicitProt) : (a.horas_alvo != null ? 'custom' : '16:8');
+      return {
+        ok: true,
+        args: {
+          protocolo,
+          horas_alvo: horas,
+          inicio_data: inicio_data || null,
+          inicio_hora: inicio_hora || null,
+          notas: text('notas', 240) || null,
+        },
+      };
+    }
+    case 'encerrar_jejum': {
+      const fim_data = text('fim_data');
+      const fim_hora = text('fim_hora');
+      if (fim_data && !DATE.test(fim_data)) return fail('fim_data deve ser YYYY-MM-DD');
+      if (fim_hora && !TIME.test(fim_hora)) return fail('fim_hora deve ser HH:MM');
+      return {
+        ok: true,
+        args: {
+          fim_data: fim_data || null,
+          fim_hora: fim_hora || null,
+          notas: text('notas', 240) || null,
+        },
+      };
+    }
     case 'registrar_transferencia': {
       const origem = text('origem', 100);
       const destino = text('destino', 100);
@@ -488,6 +635,7 @@ export const WRITES = new Set([
   'registrar_transferencia', 'definir_orcamento', 'criar_nota', 'registrar_progresso_meta',
   'criar_marco_projeto', 'criar_plano_projeto', 'concluir_marco_projeto',
   'registrar_refeicao', 'registrar_peso', 'registrar_treino', 'registrar_cardio',
+  'registrar_agua', 'iniciar_jejum', 'encerrar_jejum',
   'salvar_memoria', 'esquecer_memoria',
 ]);
 
@@ -535,12 +683,13 @@ export interface Snapshot {
 
 export function systemPrompt(now: LocalNow, tz: string, s: Snapshot): string {
   const lines = [
-    'Você é o assistente autônomo do Painel, o sistema pessoal do usuário (tarefas, hábitos, agenda, lembretes, saúde, finanças multimoeda, projetos, metas e notas).',
+    'Você é o assistente autônomo do Painel, o sistema pessoal do usuário (tarefas, hábitos, agenda, lembretes, saúde/nutrição estilo Cronometer, jejum intermitente, finanças multimoeda, projetos, metas e notas).',
     `Hoje é ${WEEKDAYS[now.weekday]}, ${now.date.split('-').reverse().join('/')}, ${now.time} (${tz}).${s.name ? ` O usuário se chama ${s.name}.` : ''}${s.displayCurrency ? ` Moeda principal de exibição: ${s.displayCurrency}.` : ''}`,
     'Responda em português do Brasil, direto, claro e prático. Use listas curtas só quando ajudarem.',
     'Autonomia e precisão:',
     '- Use as ferramentas para consultar e agir; nunca invente dados nem ids. Encadeie quantas ferramentas forem necessárias para resolver o pedido por completo numa única resposta.',
     '- Para criar várias etapas e subetapas de um projeto, use criar_plano_projeto em uma única chamada.',
+    '- Em Saúde e Nutrição: para sugerir refeições que fechem macros e micronutrientes faltantes do dia, chame sugerir_alimentos_dia (e consultar_oraculo_nutrientes se quiser focar num nutriente específico), monte 2 a 3 opções com gramatura/medidas caseiras exatas e ofereça registrar a escolhida com registrar_refeicao. Para hidratação use registrar_agua e para jejum intermitente use iniciar_jejum / encerrar_jejum.',
     '- Para concluir/reagendar tarefa ou marcar hábito, passe o título/nome. Nunca diga que algo não existe sem consultar antes (listar_tarefas com periodo "todas").',
     '- Converta datas relativas (hoje, amanhã, sexta) para YYYY-MM-DD a partir de hoje. Em finanças, respeite a moeda citada (EUR, USD ou BRL) e escolha a conta adequada conforme o que você sabe do usuário.',
     '- Se o usuário enviar uma foto de recibo/nota fiscal ou prato de comida, extraia os dados com cuidado e registre usando a ferramenta certa (ou confirme se algum valor estiver ilegível).',

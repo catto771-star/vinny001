@@ -207,5 +207,22 @@ describe('threads, screen context, and extended tool args', () => {
     expect(checkArgs('registrar_transferencia', { origem: 'Revolut', destino: 'Wise', valor: 150, moeda: 'eur' }))
       .toEqual({ ok: true, args: { origem: 'Revolut', destino: 'Wise', valor: 150, moeda: 'EUR', descricao: null, data: null } });
   });
+
+  it('validates Oracle, daily food suggestion, water, and intermittent fasting arguments', () => {
+    expect(checkArgs('consultar_oraculo_nutrientes', { nutriente: 'Potássio', modo: 'por_100kcal', limite: 5 }))
+      .toEqual({ ok: true, args: { key: 'potassium_mg', label: 'Potássio', unit: 'mg', rda: 3400, modo: 'por_100kcal', limite: 5 } });
+    expect(checkArgs('consultar_oraculo_nutrientes', { nutriente: 'kryptonita' })).toMatchObject({ ok: false });
+    expect(checkArgs('sugerir_alimentos_dia', { refeicao: 'jantar', restricoes: 'sem lactose' }))
+      .toEqual({ ok: true, args: { data: null, refeicao: 'jantar', restricoes: 'sem lactose' } });
+    expect(checkArgs('registrar_agua', { ml: 350 })).toEqual({ ok: true, args: { ml: 350, data: null, hora: null } });
+    expect(checkArgs('registrar_agua', { ml: 2 })).toMatchObject({ ok: false });
+    expect(checkArgs('iniciar_jejum', { protocolo: '18:6', inicio_data: '2026-11-25', inicio_hora: '20:00' }))
+      .toEqual({ ok: true, args: { protocolo: '18:6', horas_alvo: 18, inicio_data: '2026-11-25', inicio_hora: '20:00', notas: null } });
+    expect(checkArgs('iniciar_jejum', { horas_alvo: 22 }))
+      .toEqual({ ok: true, args: { protocolo: 'custom', horas_alvo: 22, inicio_data: null, inicio_hora: null, notas: null } });
+    expect(checkArgs('encerrar_jejum', { notas: 'Me senti bem' }))
+      .toEqual({ ok: true, args: { fim_data: null, fim_hora: null, notas: 'Me senti bem' } });
+  });
 });
+
 
