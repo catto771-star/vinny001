@@ -122,6 +122,29 @@ describe("Handover", () => {
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("add_handover_note", expect.objectContaining({ p_body: "Covered the desk", p_filled_by: "ana" })));
   });
 
+  it("Revisão 25/11: sem turno aberto, abre com quem está no Roster; com turno aberto, encerra passando o serviço", async () => {
+    station = true;
+    post = null;
+    tables.staff = [
+      { id: "pedro", full_name: "Pedro Almeida", display_name: null, role: "porter" },
+      { id: "ana", full_name: "Ana Lima", display_name: null, role: "porter" },
+    ];
+    tables.rota_shifts = [{ id: "r1", staff_id: "pedro", function: "office", lodge_id: "a", started_at: "2026-11-20T07:00:00Z", ends_at: "2099-01-01T00:00:00Z", staff: { full_name: "Pedro Almeida", display_name: null } }];
+    wrap(<Handover />);
+    fireEvent.click(await screen.findByRole("button", { name: "Open shift" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("open_handover_shift", { p_lodge: "a", p_staff: "pedro" }));
+    cleanup();
+    tables.handover_shifts = [{ id: "sh1", staff_id: "pedro", opened_at: "2026-11-25T07:02:00Z" }];
+    wrap(<Handover />);
+    expect(await screen.findByText("Shift of Pedro Almeida")).toBeTruthy();
+    await waitFor(() => expect((screen.getByLabelText("Filled in by") as HTMLSelectElement).value).toBe("pedro"));
+    fireEvent.click(screen.getByRole("button", { name: "Close shift / hand over" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Hand over to"), { target: { value: "ana" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Hand over" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("close_handover_shift", { p_shift: "sh1", p_handed_to: "ana", p_note: "" }));
+  });
+
   it("B38: fato de turno encerrado → Office precisa escolher motivo; sem motivo o botão fica bloqueado", async () => {
     wrap(<Handover />);
     const box = await screen.findByPlaceholderText(/Write in the Handover/);

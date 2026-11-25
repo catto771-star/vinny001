@@ -130,6 +130,19 @@ describe("Horas", () => {
     fireEvent.click(save);
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("adjust_work_interval", expect.objectContaining({ p_post: "post1", p_reason: "Forgot to take post" })));
   });
+  it("Revisão 25/11: turnos do Handover ao lado do Roster; os que batem são confirmados em lote, a diferença usa o Roster ou o Handover", async () => {
+    rpcResult.staff_hours = [];
+    rpcResult.shift_hours_review = [
+      { shift_id: "a1", lodge_id: "a", staff_id: "s1", full_name: "Ana Porter", opened_at: "2026-11-24T07:02:00Z", closed_at: "2026-11-24T19:05:00Z", rota_shift_id: "r1", rota_starts_at: "2026-11-24T07:00:00Z", rota_ends_at: "2026-11-24T19:00:00Z", mismatch: false, hours_status: "pending", confirmed_start: null, confirmed_end: null },
+      { shift_id: "b1", lodge_id: "a", staff_id: "s2", full_name: "Bia Porter", opened_at: "2026-11-24T07:00:00Z", closed_at: "2026-11-24T12:00:00Z", rota_shift_id: "r2", rota_starts_at: "2026-11-24T07:00:00Z", rota_ends_at: "2026-11-24T19:00:00Z", mismatch: true, hours_status: "pending", confirmed_start: null, confirmed_end: null },
+    ];
+    wrap(<Hours />);
+    expect(await screen.findByText("Shifts to confirm (2)")).toBeTruthy();
+    expect(screen.getByText("differs from Roster")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Confirm the 1 that match the Roster" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("confirm_shift_hours", { p_shift: "a1", p_start: "2026-11-24T07:02:00Z", p_end: "2026-11-24T19:05:00Z" }));
+    expect(rpc).not.toHaveBeenCalledWith("confirm_shift_hours", expect.objectContaining({ p_shift: "b1" }));
+  });
 });
 
 describe("Férias", () => {

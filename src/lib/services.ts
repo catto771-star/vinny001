@@ -45,6 +45,8 @@ export function notificationText(
       return t("notifications.coverage_below_minimum", { gaps: p.gaps });
     case "vacation_conflict":
       return t("notifications.vacation_conflict", { name: p.name, conflicts: p.conflicts });
+    case "shift_hours_review":
+      return t("notifications.shift_hours_review", { name: p.name, lodge: lodgeName(n.lodge_id) });
     default:
       return t("notifications.unknown");
   }

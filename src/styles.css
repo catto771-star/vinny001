@@ -812,3 +812,16 @@ html, body { background: var(--paper); transition: background-color var(--base);
 .bottom-nav a, .bottom-nav button { color: var(--chrome-muted); }
 .bottom-nav a.active { color: #fff; background: rgb(255 255 255 / 12%); }
 .bottom-nav a.active svg { color: var(--house-strong); }
+
+/* Handover por turno (revisão 25/11) */
+.shift-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; padding: 0.75rem 1rem; margin-bottom: 1rem; border-radius: var(--radius-lg); background: var(--surface); border: 1px dashed var(--line-strong); }
+.shift-bar.is-open { border: 1px solid var(--line); box-shadow: inset 4px 0 0 var(--house); }
+.shift-bar > button { margin-left: auto; }
+.shift-dot { width: 10px; height: 10px; border-radius: 999px; background: var(--ok); box-shadow: 0 0 0 4px var(--ok-soft); }
+.timeline-item.kind-shift { background: var(--chrome); color: var(--chrome-ink); border-radius: var(--radius); }
+.timeline-item.kind-shift .timeline-time, .timeline-item.kind-shift strong, .timeline-item.kind-shift .timeline-text { color: var(--chrome-ink); }
+.timeline-item.kind-shift .tag { background: rgb(255 255 255 / 14%); color: var(--chrome-ink); }
+.review-card { margin-bottom: 1.25rem; }
+.review-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+.row-warn td { background: var(--warn-soft); }
+.tag-warn { background: var(--warn-soft); color: var(--warn); margin-left: 0.5rem; }

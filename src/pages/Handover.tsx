@@ -26,7 +26,7 @@ import { WarningDialog } from "@/components/WarningDialog";
 export type Entry = {
   id: string;
   lodge_id: string;
-  kind: "note" | "round" | "maintenance" | "warning" | "laundry";
+  kind: "note" | "round" | "maintenance" | "warning" | "laundry" | "shift";
   body: string;
   occurred_at: string;
   operational_day: string;
@@ -49,6 +49,7 @@ const KIND_LABEL: Record<Entry["kind"], MessageKey> = {
   maintenance: "handover.filterMaintenance",
   warning: "handover.filterWarnings",
   laundry: "handover.filterLaundry",
+  shift: "handover.shiftTag",
 };
 
 /** Agrupa linhas de ronda seguidas numa só (s.6: o Handover não fica poluído). */
@@ -78,6 +79,7 @@ export function Handover() {
   const [roundSlots, setRoundSlots] = useState<string[]>([]);
   const [dialog, setDialog] = useState<"maintenance" | "warning" | null>(null);
   const [editing, setEditing] = useState<{ entry: Entry; mode: "edit" | "void" } | null>(null);
+  const [shiftStaff, setShiftStaff] = useState<string | null>(null);
   const canWrite = canWriteLodge(lodgeId);
   const begin = useLatestRequest();
   const today = operationalDay(new Date(Date.now() + serverOffsetMs));
@@ -102,6 +104,11 @@ export function Handover() {
   }, [lodgeId, day, begin]);
 
   useEffect(() => {
+    void load();
+  }, [load]);
+
+  const onShiftChange = useCallback((id: string | null) => {
+    setShiftStaff(id);
     void load();
   }, [load]);
 
@@ -164,9 +171,12 @@ export function Handover() {
         </div>
       )}
 
+      {canWrite && day === today && <ShiftBar lodgeId={lodgeId} onChange={onShiftChange} />}
+
       {canWrite && day === today && (
         <Composer
           lodgeId={lodgeId}
+          shiftStaff={shiftStaff}
           residents={beds}
           onPosted={() => {
             toast.success(t("handover.posted"));
@@ -294,14 +304,103 @@ export function Handover() {
 
 const FILLER_ROLES = ["porter", "manager", "owner", "developer"];
 
+type OpenShift = { id: string; staff_id: string; opened_at: string };
+
+/** Turno do Livro Ata (revisão 25/11): abertura com quem assume, encerramento passando o serviço. */
+function ShiftBar({ lodgeId, onChange }: { lodgeId: string; onChange: (staffId: string | null) => void }) {
+  const { t, locale } = useI18n();
+  const toast = useToast();
+  const staffList = useStaffList();
+  const { posts } = useOnDuty();
+  const [shift, setShift] = useState<OpenShift | null | undefined>(undefined);
+  const [who, setWho] = useState("");
+  const [closing, setClosing] = useState(false);
+  const [handTo, setHandTo] = useState("");
+  const [note, setNote] = useState("");
+  const fillers = staffList.filter((s) => FILLER_ROLES.includes(s.role));
+  const rostered = onDutyFor(posts, lodgeId)?.staff_id ?? "";
+  const nameOf = (id: string) => staffName(staffList.find((s) => s.id === id)) || "—";
+
+  const load = useCallback(async () => {
+    const { data } = await supabase.from("handover_shifts").select("id, staff_id, opened_at").eq("lodge_id", lodgeId).is("closed_at", null).limit(1);
+    const open = ((data ?? []) as OpenShift[])[0] ?? null;
+    setShift(open);
+    onChange(open?.staff_id ?? null);
+  }, [lodgeId, onChange]);
+  useEffect(() => void load(), [load]);
+
+  async function open() {
+    const { error } = await supabase.rpc("open_handover_shift", { p_lodge: lodgeId, p_staff: who || rostered });
+    if (error) return toast.error(t(errorKey(error)));
+    toast.success(t("handover.shiftOpened"));
+    void load();
+  }
+  async function close() {
+    if (!shift) return;
+    const { error } = await supabase.rpc("close_handover_shift", { p_shift: shift.id, p_handed_to: handTo || null, p_note: note });
+    if (error) return toast.error(t(errorKey(error)));
+    setClosing(false);
+    setNote("");
+    setHandTo("");
+    toast.success(handTo ? t("handover.shiftHandedOver", { name: nameOf(handTo) }) : t("handover.shiftClosed"));
+    void load();
+  }
+
+  if (shift === undefined) return null;
+  return (
+    <div className={`shift-bar${shift ? " is-open" : ""}`}>
+      {shift ? (
+        <>
+          <span className="shift-dot" aria-hidden="true" />
+          <span><strong>{t("handover.shiftOf", { name: nameOf(shift.staff_id) })}</strong> <span className="mono muted">{t("today.since", { time: formatTime(shift.opened_at, locale) })}</span></span>
+          <button className="primary" onClick={() => setClosing(true)}>{t("handover.closeShift")}</button>
+        </>
+      ) : (
+        <>
+          <span><strong>{t("handover.noShift")}</strong> <span className="muted">{t("handover.noShiftHint")}</span></span>
+          <label className="inline">
+            {t("handover.takingOver")}
+            <select value={who || rostered} onChange={(e) => setWho(e.target.value)}>
+              <option value="">{t("handover.filledByChoose")}</option>
+              {fillers.map((s) => <option key={s.id} value={s.id}>{staffName(s)}{s.id === rostered ? ` · ${t("handover.onRoster")}` : ""}</option>)}
+            </select>
+          </label>
+          <button className="primary" disabled={!(who || rostered)} onClick={() => void open()}>{t("handover.openShift")}</button>
+        </>
+      )}
+      {closing && shift && (
+        <Dialog
+          title={t("handover.closeShift")}
+          onClose={() => setClosing(false)}
+          footer={<><DialogCancel>{t("app.cancel")}</DialogCancel><button className="primary" onClick={() => void close()}>{handTo ? t("handover.handOver") : t("handover.closeOnly")}</button></>}
+        >
+          <div className="form">
+            <p className="muted">{t("handover.closeHint", { name: nameOf(shift.staff_id) })}</p>
+            <label>
+              {t("handover.handTo")}
+              <select value={handTo} onChange={(e) => setHandTo(e.target.value)} autoFocus>
+                <option value="">{t("handover.nobodyYet")}</option>
+                {fillers.filter((s) => s.id !== shift.staff_id).map((s) => <option key={s.id} value={s.id}>{staffName(s)}</option>)}
+              </select>
+            </label>
+            <label>{t("handover.closeNote")} <small>({t("app.optional")})</small><textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} /></label>
+          </div>
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
 function Composer({
   lodgeId,
+  shiftStaff,
   residents,
   onPosted,
   onMaintenance,
   onWarning,
 }: {
   lodgeId: string;
+  shiftStaff?: string | null;
   residents: ReturnType<typeof useOccupancy>["beds"];
   onPosted: () => void;
   onMaintenance: () => void;
@@ -312,7 +411,8 @@ function Composer({
   const staffList = useStaffList();
   const { posts } = useOnDuty();
   // Beta: quem está preenchendo — começa com a pessoa escalada no Roster; dá para trocar.
-  const rostered = onDutyFor(posts, lodgeId)?.staff_id ?? "";
+  // Quem está no turno aberto vem primeiro; sem turno aberto, a pessoa escalada no Roster.
+  const rostered = shiftStaff ?? onDutyFor(posts, lodgeId)?.staff_id ?? "";
   const [filledBy, setFilledBy] = useState<string | null>(null);
   const fillers = staffList.filter((s) => FILLER_ROLES.includes(s.role));
   const chosenFiller = filledBy ?? rostered;

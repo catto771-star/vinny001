@@ -368,10 +368,11 @@ describe("No Show", () => {
     expect((await db.one("select public.no_show_review($1, $2::date) as r", [amiens, day])).r.candidates).toHaveLength(0);
   });
 
-  it("Não confirma antes das 06h30 do fim do dia operacional", async () => {
+  it("Não confirma antes das 06h30 do fim do dia operacional (dia que ainda não acabou)", async () => {
     const a = await admit("AMIENS", "Ana");
     await db.as(officeA);
-    const today = (await db.one("select public.operational_day(now())::text as d")).d;
+    // Dia que nunca terminou na hora do teste (antes o teste usava hoje e falhava entre 06h30 e 07h00).
+    const today = (await db.one("select (public.operational_day(now()) + 1)::text as d")).d;
     expect(await db.error("select public.confirm_no_shows($1, $2::date, $3::uuid[])", [amiens, today, [a.stay]])).toMatch(/day_not_finished/);
   });
 

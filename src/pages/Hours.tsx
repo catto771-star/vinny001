@@ -80,6 +80,7 @@ export function Hours() {
         </div>
         <label className="inline">{t("hours.period")}<input type="month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} /></label>
       </header>
+      <ShiftReview onConfirmed={() => void load()} />
       {rows === null ? (
         <div className="card"><Skeleton rows={6} label={t("app.loading")} /></div>
       ) : (
@@ -181,5 +182,74 @@ function IntervalDialog({ item, staffId, onClose, onDone }: { item?: LogItem; st
         <Notice kind="error">{error}</Notice>
       </form>
     </Dialog>
+  );
+}
+
+export type ReviewRow = {
+  shift_id: string; lodge_id: string; staff_id: string; full_name: string; opened_at: string; closed_at: string;
+  rota_shift_id: string | null; rota_starts_at: string | null; rota_ends_at: string | null; mismatch: boolean;
+  hours_status: "pending" | "confirmed"; confirmed_start: string | null; confirmed_end: string | null;
+};
+
+/**
+ * Revisão 25/11: cada turno fechado no Handover (abertura → encerramento) aparece ao lado do previsto no Roster.
+ * Quem bate com o Roster pode ser confirmado em lote; diferenças pedem a decisão do Manager.
+ */
+export function ShiftReview({ onConfirmed }: { onConfirmed: () => void }) {
+  const { t, locale } = useI18n();
+  const { lodges } = useAuth();
+  const toast = useToast();
+  const [rows, setRows] = useState<ReviewRow[] | null>(null);
+  const load = useCallback(async () => {
+    const { data } = await supabase.rpc("shift_hours_review");
+    setRows(((data ?? []) as ReviewRow[]).filter((r) => r.hours_status === "pending"));
+  }, []);
+  useEffect(() => void load(), [load]);
+
+  async function confirm(r: ReviewRow, useRoster: boolean) {
+    const { error } = await supabase.rpc("confirm_shift_hours", {
+      p_shift: r.shift_id,
+      p_start: useRoster ? r.rota_starts_at : r.opened_at,
+      p_end: useRoster ? r.rota_ends_at : r.closed_at,
+    });
+    if (error) return toast.error(t(errorKey(error)));
+    await load();
+    onConfirmed();
+  }
+  async function confirmMatching() {
+    for (const r of rows?.filter((x) => !x.mismatch) ?? []) await confirm(r, false);
+    toast.success(t("hours.saved"));
+  }
+
+  if (!rows || rows.length === 0) return null;
+  const span = (a: string | null, b: string | null) => (a && b ? `${formatDateTime(a, locale)} → ${formatDateTime(b, locale).slice(-5)}` : t("hours.notOnRoster"));
+  const matching = rows.filter((r) => !r.mismatch).length;
+  return (
+    <section className="card review-card">
+      <div className="review-head">
+        <div>
+          <h2 className="section-title">{t("hours.toConfirm", { n: rows.length })}</h2>
+          <p className="hint">{t("hours.toConfirmHint")}</p>
+        </div>
+        {matching > 0 && <button className="primary" onClick={() => void confirmMatching()}>{t("hours.confirmMatching", { n: matching })}</button>}
+      </div>
+      <table className="table">
+        <thead><tr><th>{t("users.name")}</th><th>Lodge</th><th>{t("hours.rosterPlanned")}</th><th>{t("hours.handoverActual")}</th><th /></tr></thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.shift_id} className={r.mismatch ? "row-warn" : ""}>
+              <td><strong>{r.full_name}</strong>{r.mismatch && <span className="tag tag-warn">{t("hours.mismatch")}</span>}</td>
+              <td>{lodges.find((l) => l.id === r.lodge_id)?.short_name}</td>
+              <td className="mono">{span(r.rota_starts_at, r.rota_ends_at)}</td>
+              <td className="mono">{span(r.opened_at, r.closed_at)}</td>
+              <td className="actions">
+                <button className="small" onClick={() => void confirm(r, false)}>{t("hours.confirmActual")}</button>
+                {r.rota_starts_at && <button className="small" onClick={() => void confirm(r, true)}>{t("hours.useRoster")}</button>}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
   );
 }
