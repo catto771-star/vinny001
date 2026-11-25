@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { MaintenanceReminder } from "@/pages/Maintenance";
 import { Clock } from "./Clock";
 import { Dialog } from "./Dialog";
+import { ThemeToggle } from "./ThemeToggle";
 import { onDutyFor, useOnDuty } from "@/lib/useOnDuty";
 import { ActiveLodgeProvider, houseOf, useActiveLodge } from "@/lib/activeLodge";
 
@@ -223,6 +224,7 @@ function Shell() {
         <HouseSwitch />
         <div className="topbar-right">
           <OnDutyChip />
+          <ThemeToggle />
           <span className="user-name hide-mobile">
             {staffName(staff)} · {staff ? t(`users.roles.${staff.role}`) : ""}
           </span>
@@ -264,6 +266,7 @@ function Shell() {
           <div className="drawer-list">
             {renderNav(menuOpen === "presence" ? "nav.groupResidents" : undefined)}
             <div className="inline">
+              <ThemeToggle withLabel />
               <button type="button" className="link-button" onClick={() => void signOut()}>
                 {t("auth.signOut")} · {staffName(staff)}
               </button>

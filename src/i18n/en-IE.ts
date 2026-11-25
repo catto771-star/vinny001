@@ -955,6 +955,10 @@ const enIE = {
     openedProfileOf: "opened the profile of {name}",
     system: "System",
   },
+  theme: {
+    toDark: "Dark mode",
+    toLight: "Light mode",
+  },
   settings: {
     title: "Settings",
     eyebrow: "Admin — notifications and Handover tags",

@@ -84,3 +84,12 @@ Espaçamento na grade de 4 px (raiz 16 px; `0.25rem` = 4 px).
 
 `lucide-react`, 16 px no menu (18 px nos demais), traço padrão, cor do texto apagado;
 o item ativo do menu usa o acento. Nunca emoji na interface.
+
+## Revisão 6 (25/11): visual "app de banco"
+
+- Fonte **Plus Jakarta Sans** (400–800), números fortes e grandes.
+- **Modo claro e escuro** (`src/theme.css`, `src/lib/theme.ts`): escuro por padrão no celular e no app instalado,
+  claro no computador; o botão sol/lua no topo troca e a escolha fica guardada.
+- **Cor da casa em tudo**: Amiens âmbar→cobre, Connolly azul→azul-marinho — cartão de destaque da Home, faixa sob a
+  barra superior, nome da casa, item ativo do menu, seletor de casa, gráficos e botões. O resto é neutro.
+- Cartões bem arredondados sem borda, botões e seletores em pílula, ícones do menu em círculos.
