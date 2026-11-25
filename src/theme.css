@@ -246,3 +246,20 @@ a { color: var(--hc, var(--accent)); }
 .staff-options li.is-active { background:var(--hc-soft) }
 .staff-none { color:var(--ink-3);cursor:default!important }
 .person-chip:focus-visible, .staff-options li:focus-visible { outline:2px solid var(--hc);outline-offset:2px }
+
+/* ---- Revisão 8: barra de filtros ---- */
+.filter-bar { display:grid;gap:.5rem;margin:.75rem 0 }
+.filter-row { display:flex;flex-wrap:wrap;gap:.5rem;align-items:end }
+.filter-search { display:flex;align-items:center;gap:.5rem;flex:1 1 14rem;min-width:0;padding:0 .875rem;min-height:40px;border-radius:22px;background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--line);color:var(--ink-3) }
+.filter-search input { flex:1;min-width:0;min-height:36px;padding:0;border:none!important;background:transparent!important;box-shadow:none!important;color:var(--ink) }
+.filter-field { display:grid;gap:2px;min-width:0;font-size:.8125rem;color:var(--ink-2);font-weight:600 }
+.filter-field select, .filter-field input { min-height:38px;max-width:100% }
+.filter-multi { border:none;padding:0;margin:0 }
+.filter-multi legend { padding:0;margin-bottom:2px }
+:root[data-theme] button.filter-more { display:inline-flex;align-items:center;gap:.375rem;min-height:40px;padding:0 .875rem;font-weight:600;border:none!important;background:var(--surface-2)!important;color:var(--ink)!important;box-shadow:inset 0 0 0 1px var(--line) }
+.filter-panel { display:flex;flex-wrap:wrap;gap:.75rem 1rem;padding:.875rem;border-radius:18px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--line-strong) }
+.filter-active { display:flex;flex-wrap:wrap;gap:6px;align-items:center }
+.filter-chip { display:inline-flex;align-items:center;gap:.25rem;min-height:28px;padding:0 .25rem 0 .625rem;border-radius:999px;background:var(--hc-soft);color:var(--ink);font-size:.8125rem;font-weight:600;max-width:100% }
+.filter-chip button { display:inline-grid;place-items:center;width:20px;height:20px;min-height:20px;padding:0;border-radius:999px!important;background:transparent!important;border:none!important;color:var(--ink-2)!important }
+.filter-chip button:hover { background:var(--line-strong)!important }
+@media print { .filter-bar { display:none!important } }

@@ -116,3 +116,14 @@ describe("Tabs com ponto de status (revisão 8)", () => {
     expect(screen.getByRole("tab", { name: /Check 18:00/ }).querySelector(".status-dot.is-done")).not.toBeNull();
   });
 });
+
+describe("Tabs não rola a página (revisão 8)", () => {
+  afterEach(cleanup);
+  it("ao montar, mantém a aba escolhida à vista só dentro da faixa, sem scrollIntoView da página", () => {
+    const spy = vi.fn();
+    (Element.prototype as unknown as { scrollIntoView: () => void }).scrollIntoView = spy;
+    render(<Tabs label="x" value="b" onChange={() => {}} items={[{ value: "a", label: "A" }, { value: "b", label: "B" }]} />);
+    expect(spy).not.toHaveBeenCalled();
+    delete (Element.prototype as unknown as { scrollIntoView?: () => void }).scrollIntoView;
+  });
+});

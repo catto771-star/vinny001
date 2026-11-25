@@ -1,4 +1,7 @@
 import { StaffPicker } from "@/components/StaffPicker";
+import { FilterBar } from "@/components/FilterBar";
+import { csv, type FilterDef } from "@/lib/filters";
+import { useUrlFilters } from "@/lib/useUrlFilters";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthProvider";
@@ -7,7 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { errorKey } from "@/lib/errors";
 import { insertMention, isLateFact, mentionQuery } from "@/lib/occurrences";
 import { slotInstant } from "@/lib/presence";
-import { formatCivilDate, formatTime, operationalDay, operationalDayBounds } from "@/lib/time";
+import { addDays, formatCivilDate, formatTime, operationalDay, operationalDayBounds } from "@/lib/time";
 import { residentName, staffName } from "@/lib/types";
 import { useLatestRequest } from "@/lib/useLatestRequest";
 import { useOccupancy } from "@/lib/useOccupancy";
@@ -84,8 +87,22 @@ export function Handover() {
   const [shiftStaff, setShiftStaff] = useState<string | null>(null);
   const [entryTags, setEntryTags] = useState<{ entry_id: string; tag_id: string }[]>([]);
   const [coAuthors, setCoAuthors] = useState<{ entry_id: string; staff_id: string; position: number }[]>([]);
-  const [tagFilter, setTagFilter] = useState("");
   const allTags = useHandoverTags(false);
+  const fillerList = useMemo(() => staffList.filter((x) => FILLER_ROLES.includes(x.role)), [staffList]);
+  const filterDefs: FilterDef[] = useMemo(() => [
+    { key: "q", label: t("filters.search"), type: "search" },
+    { key: "tags", label: t("filters.tags"), type: "multi", primary: true, options: allTags.map((g) => ({ value: g.id, label: g.label })) },
+    { key: "staff", label: t("filters.author"), type: "select", options: fillerList.map((x) => ({ value: x.id, label: staffName(x) })) },
+    { key: "resident", label: t("filters.resident"), type: "select", options: beds.filter((b) => b.resident_id).map((b) => ({ value: b.resident_id!, label: residentName(b) })) },
+    { key: "fn", label: t("filters.function"), type: "select", options: [{ value: "office", label: t("handover.officeShift") }, { value: "float", label: t("handover.floatShift") }] },
+    { key: "from", label: t("filters.from"), type: "date" },
+    { key: "to", label: t("filters.to"), type: "date" },
+    { key: "voided", label: t("filters.includeVoided"), type: "select", options: [{ value: "1", label: t("filters.includeVoided") }] },
+  ], [t, allTags, fillerList, beds]);
+  const { values: fv, set: setFilters, clear: clearFilters } = useUrlFilters(filterDefs);
+  // Qualquer filtro além das abas procura em vários dias (padrão: últimos 30 dias até o dia escolhido).
+  const searching = Object.keys(fv).length > 0;
+  const fvKey = JSON.stringify(fv);
   const canWrite = canWriteLodge(lodgeId);
   const begin = useLatestRequest();
   const today = operationalDay(new Date(Date.now() + serverOffsetMs));
@@ -93,13 +110,24 @@ export function Handover() {
   const load = useCallback(async () => {
     const isLatest = begin();
     setEntries(null);
-    const { start, end } = operationalDayBounds(day);
-    const { data } = await supabase
-      .from("handover_entries")
-      .select(COLUMNS)
-      .eq("lodge_id", lodgeId)
-      .or(`and(occurred_at.gte.${start.toISOString()},occurred_at.lt.${end.toISOString()}),operational_day.eq.${day}`)
-      .order("occurred_at", { ascending: false });
+    let data: unknown[] | null;
+    if (searching) {
+      const to = fv.to || fv.from || day;
+      const from = fv.from || addDays(to, -29);
+      ({ data } = await supabase.rpc("search_handover", {
+        p_lodge: lodgeId, p_from: from, p_to: to < from ? from : to, p_q: fv.q || null,
+        p_tags: csv(fv.tags), p_staff: fv.staff || null, p_resident: fv.resident || null,
+        p_function: fv.fn || null, p_include_voided: fv.voided === "1", p_limit: 100,
+      }));
+    } else {
+      const { start, end } = operationalDayBounds(day);
+      ({ data } = await supabase
+        .from("handover_entries")
+        .select(COLUMNS)
+        .eq("lodge_id", lodgeId)
+        .or(`and(occurred_at.gte.${start.toISOString()},occurred_at.lt.${end.toISOString()}),operational_day.eq.${day}`)
+        .order("occurred_at", { ascending: false }));
+    }
     const list = (data ?? []) as Entry[];
     const ids = list.map((e) => e.id);
     const [{ data: m }, { data: et }, { data: co }] = list.length
@@ -114,7 +142,8 @@ export function Handover() {
     setMentions((m ?? []) as Mention[]);
     setEntryTags((et ?? []) as { entry_id: string; tag_id: string }[]);
     setCoAuthors((co ?? []) as { entry_id: string; staff_id: string; position: number }[]);
-  }, [lodgeId, day, begin]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lodgeId, day, begin, fvKey]);
 
   useEffect(() => {
     void load();
@@ -134,9 +163,9 @@ export function Handover() {
   const nameOf = (id: string) => staffName(staffList.find((s) => s.id === id)) || "—";
 
   const visible = useMemo(() => {
-    const list = (entries ?? []).filter((e) => (filter === "all" || e.kind === filter) && (!tagFilter || entryTags.some((x) => x.entry_id === e.id && x.tag_id === tagFilter)));
+    const list = (entries ?? []).filter((e) => (filter === "all" || e.kind === filter));
     return filter === "all" ? groupRounds(list) : list;
-  }, [entries, filter, tagFilter, entryTags]);
+  }, [entries, filter]);
 
   const doneRounds = new Set((entries ?? []).filter((e) => e.kind === "round" && e.operational_day === day).map((e) => e.round_slot));
 
@@ -218,11 +247,8 @@ export function Handover() {
             { value: "laundry", label: t("handover.filterLaundry") },
           ]}
         />
-        <select className="tag-filter" value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} aria-label={t("handover.tags")}>
-          <option value="">{t("handover.allTags")}</option>
-          {allTags.map((g) => <option key={g.id} value={g.id}>{g.label}</option>)}
-        </select>
       </div>
+      <FilterBar defs={filterDefs} values={fv} onChange={setFilters} onClear={clearFilters} count={searching && entries ? entries.length : undefined} />
 
       {entries === null ? (
         <div className="card"><Skeleton rows={6} label={t("app.loading")} /></div>
@@ -246,7 +272,7 @@ export function Handover() {
               </li>
             ) : (
               <li key={item.id} className={`timeline-item kind-${item.kind}${item.status === "voided" ? " is-voided" : ""}`}>
-                <span className="timeline-time">{formatTime(item.occurred_at, locale)}</span>
+                <span className="timeline-time">{formatTime(item.occurred_at, locale)}{searching && item.operational_day && <small className="muted">{formatCivilDate(item.operational_day, locale).slice(0, 5)}</small>}</span>
                 <div className="timeline-body">
                   <div className="timeline-meta">
                     <strong>{nameOf(item.filled_by ?? item.author_id)}</strong>

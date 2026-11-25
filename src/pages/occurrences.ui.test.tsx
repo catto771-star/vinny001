@@ -39,6 +39,8 @@ import { groupRounds, Handover, type Entry } from "./Handover";
 import { Tasks } from "./Tasks";
 import { TicketDialog, type Ticket } from "./Maintenance";
 import { MaintenanceDialog } from "@/components/MaintenanceDialog";
+import { Maintenance } from "./Maintenance";
+import { Warnings } from "./Warnings";
 
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
@@ -183,6 +185,18 @@ describe("Handover", () => {
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("add_handover_note", expect.objectContaining({ p_body: "Fight in room 4", p_tags: ["g1"] })));
   });
 
+  it("Revisão 8: filtro na URL procura em vários dias pelo banco e mostra a contagem; sem filtro volta ao dia", async () => {
+    rpcResult.search_handover = [
+      { id: "e1", lodge_id: "a", kind: "note", body: "Fire alarm test", occurred_at: "2026-11-20T10:00:00Z", operational_day: "2026-11-20", round_slot: null, author_id: "me", filled_by: null, late_reason: null, status: "active", void_reason: null, version: 1 },
+    ];
+    render(<I18nProvider><MemoryRouter initialEntries={["/handover?q=alarm&from=2026-11-01&to=2026-11-25"]}><Handover /></MemoryRouter></I18nProvider>);
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("search_handover", expect.objectContaining({ p_lodge: "a", p_q: "alarm", p_from: "2026-11-01", p_to: "2026-11-25" })));
+    expect(await screen.findByText("Fire alarm test")).toBeTruthy();
+    expect(screen.getByText("1 result(s)")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
+    await waitFor(() => expect(screen.queryByText("1 result(s)")).toBeNull());
+  });
+
   it("B38: fato de turno encerrado → Office precisa escolher motivo; sem motivo o botão fica bloqueado", async () => {
     wrap(<Handover />);
     const box = await screen.findByPlaceholderText(/Write an entry/);
@@ -293,5 +307,34 @@ describe("Daily Tasks (de volta na revisão 25/11)", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Mon" }));
     fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("create_task_template", expect.objectContaining({ p_lodge: "a", p_shift: "day", p_weekdays: [1], p_title: { "en-IE": "Check fire exits" } })));
+  });
+});
+
+describe("Revisão 8: filtros em Maintenance e Warnings", () => {
+  const ticket = (id: string, priority: string, location: string, overdue = false) => ({
+    id, lodge_id: "a", priority, status: "open", location, description: `Fix ${location}`, deadline_at: "2026-11-30T10:00:00Z",
+    created_at: "2026-11-10T10:00:00Z", created_by: "me", resolved_at: null, overdue,
+  });
+  it("Maintenance: prioridade e busca de texto reduzem a lista e mostram a contagem", async () => {
+    rpcResult.maintenance_list = [ticket("t1", "urgent", "Room 4 sink"), ticket("t2", "low", "Garden light"), ticket("t3", "urgent", "Boiler", true)];
+    render(<I18nProvider><MemoryRouter initialEntries={["/maintenance?priority=urgent&q=boiler"]}><Maintenance /></MemoryRouter></I18nProvider>);
+    expect(await screen.findByText("Boiler")).toBeTruthy();
+    expect(screen.queryByText("Room 4 sink")).toBeNull();
+    expect(screen.queryByText("Garden light")).toBeNull();
+    expect(screen.getByText("1 result(s)")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
+    expect(await screen.findByText("Garden light")).toBeTruthy();
+  });
+  it("Warnings: filtro por tipo e por situação (ativo/inativo)", async () => {
+    const w = (id: string, type: string, active: boolean, name: string) => ({
+      id, resident_id: `r-${id}`, type, note: null, issued_by: "me", issued_at: "2026-11-12T10:00:00Z", active, deactivation_reason: null,
+      residents: { first_name: name, last_name: "Test" },
+    });
+    tables.warnings = [w("1", "verbal", true, "Alice"), w("2", "final_written", true, "Bruno"), w("3", "final_written", false, "Carla")];
+    render(<I18nProvider><MemoryRouter initialEntries={["/warnings?type=final_written&status=active"]}><Warnings /></MemoryRouter></I18nProvider>);
+    expect(await screen.findByText("Bruno Test")).toBeTruthy();
+    expect(screen.queryByText("Alice Test")).toBeNull();
+    expect(screen.queryByText("Carla Test")).toBeNull();
+    expect(screen.getByText("1 result(s)")).toBeTruthy();
   });
 });

@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { FilterBar } from "@/components/FilterBar";
+import { matchesText, type FilterDef } from "@/lib/filters";
+import { useUrlFilters } from "@/lib/useUrlFilters";
 import { useAuth } from "@/auth/AuthProvider";
 import { useI18n, type MessageKey } from "@/i18n";
 import { supabase } from "@/lib/supabase";
@@ -65,7 +68,21 @@ export function Maintenance() {
     void load();
   }, [load]);
 
-  const list = (tickets ?? []).filter((x) => (tab === "open" ? x.status !== "resolved" : x.status === "resolved"));
+  const filterDefs: FilterDef[] = useMemo(() => [
+    { key: "q", label: t("filters.search"), type: "search" },
+    { key: "priority", label: t("filters.priority"), type: "select", primary: true, options: (["urgent", "normal", "low"] as const).map((k) => ({ value: k, label: t(PRIORITY_LABEL[k]) })) },
+    { key: "overdue", label: t("maintenance.overdue"), type: "select", options: [{ value: "1", label: t("maintenance.overdue") }] },
+    { key: "from", label: t("filters.from"), type: "date" },
+    { key: "to", label: t("filters.to"), type: "date" },
+  ], [t]);
+  const { values: fv, set: setFilters, clear: clearFilters } = useUrlFilters(filterDefs);
+  const filtering = Object.keys(fv).length > 0;
+  const list = (tickets ?? [])
+    .filter((x) => (tab === "open" ? x.status !== "resolved" : x.status === "resolved"))
+    .filter((x) => matchesText([x.location, x.description], fv.q ?? ""))
+    .filter((x) => !fv.priority || x.priority === fv.priority)
+    .filter((x) => fv.overdue !== "1" || x.overdue)
+    .filter((x) => (!fv.from || x.created_at.slice(0, 10) >= fv.from) && (!fv.to || x.created_at.slice(0, 10) <= fv.to));
 
   return (
     <section className="page">
@@ -86,6 +103,7 @@ export function Maintenance() {
         />
         {canWriteLodge(lodgeId) && <button className="primary" onClick={() => setCreating(true)}>{t("maintenance.new")}</button>}
       </div>
+      <FilterBar defs={filterDefs} values={fv} onChange={setFilters} onClear={clearFilters} count={filtering && tickets ? list.length : undefined} />
 
       {tickets === null ? (
         <div className="card"><Skeleton rows={5} label={t("app.loading")} /></div>

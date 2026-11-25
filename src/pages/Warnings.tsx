@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { FilterBar } from "@/components/FilterBar";
+import { matchesText, type FilterDef } from "@/lib/filters";
+import { useUrlFilters } from "@/lib/useUrlFilters";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthProvider";
 import { useI18n } from "@/i18n";
@@ -59,6 +62,23 @@ export function Warnings() {
     void load();
   }, [load]);
 
+  const filterDefs: FilterDef[] = useMemo(() => [
+    { key: "q", label: t("filters.search"), type: "search" },
+    { key: "type", label: t("filters.type"), type: "select", primary: true, options: (Object.keys(WARNING_LABEL) as WarningType[]).map((k) => ({ value: k, label: t(WARNING_LABEL[k]) })) },
+    { key: "status", label: t("filters.status"), type: "select", options: [{ value: "active", label: t("filters.active") }, { value: "inactive", label: t("warnings.inactive") }] },
+    { key: "by", label: t("filters.issuedBy"), type: "select", options: staffList.map((x) => ({ value: x.id, label: staffName(x) })) },
+    { key: "from", label: t("filters.from"), type: "date" },
+    { key: "to", label: t("filters.to"), type: "date" },
+  ], [t, staffList]);
+  const { values: fv, set: setFilters, clear: clearFilters } = useUrlFilters(filterDefs);
+  const filtering = Object.keys(fv).length > 0;
+  const shown = (rows ?? [])
+    .filter((w) => matchesText([w.residents ? residentName(w.residents) : "", w.note], fv.q ?? ""))
+    .filter((w) => !fv.type || w.type === fv.type)
+    .filter((w) => !fv.status || (fv.status === "active" ? w.active : !w.active))
+    .filter((w) => !fv.by || w.issued_by === fv.by)
+    .filter((w) => (!fv.from || w.issued_at.slice(0, 10) >= fv.from) && (!fv.to || w.issued_at.slice(0, 10) <= fv.to));
+
   async function deactivate() {
     if (!deactivating) return;
     const { error } = await supabase.rpc("deactivate_final_warning", { p_id: deactivating.id, p_reason: reason });
@@ -81,15 +101,16 @@ export function Warnings() {
         {canWriteLodge(lodgeId) && <button className="primary" onClick={() => setRecording(true)}>{t("warnings.record")}</button>}
         <span className="hint">{t("warnings.neverExpire")}</span>
       </div>
+      <FilterBar defs={filterDefs} values={fv} onChange={setFilters} onClear={clearFilters} count={filtering && rows ? shown.length : undefined} />
 
       {rows === null ? (
         <div className="card"><Skeleton rows={5} label={t("app.loading")} /></div>
-      ) : rows.length === 0 ? (
+      ) : shown.length === 0 ? (
         <div className="card empty-state"><p className="muted">{t("warnings.empty")}</p></div>
       ) : (
         <table className="table table-cards">
           <tbody>
-            {rows.map((w) => (
+            {shown.map((w) => (
               <tr key={w.id} className={!w.active ? "row-inactive" : ""}>
                 <td className="cell-main">
                   <Link to={`/residents/${w.resident_id}`}>{w.residents ? residentName(w.residents) : ""}</Link>

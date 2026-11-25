@@ -27,8 +27,10 @@ export function Tabs({
       const active = list.querySelector<HTMLElement>('[aria-selected="true"]');
       if (active) {
         setIndicator({ left: active.offsetLeft, width: active.offsetWidth, ready: true });
-        // Em telas estreitas a faixa rola: mantém a aba escolhida à vista.
-        active.scrollIntoView?.({ inline: "nearest", block: "nearest" });
+        // Em telas estreitas a faixa rola: mantém a aba escolhida à vista, só na horizontal e só dentro da faixa.
+        const left = active.offsetLeft, right = left + active.offsetWidth;
+        if (left < list.scrollLeft) list.scrollLeft = Math.max(0, left - 8);
+        else if (right > list.scrollLeft + list.clientWidth) list.scrollLeft = right - list.clientWidth + 8;
       }
     };
     measure();

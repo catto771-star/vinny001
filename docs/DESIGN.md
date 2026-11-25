@@ -106,3 +106,6 @@ o item ativo do menu usa o acento. Nunca emoji na interface.
 - Abas: trilho com polegar deslizante; ponto de status (`idle/progress/done/danger`) no lugar do texto "· not started" (texto só para leitor de tela e `title`). Chips: contorno; selecionado = gradiente com ✓.
 - Interruptor das casas (`HouseSwitch`): só Admin vê e alterna; conta de casa (station) vê apenas a sua casa e ignora a casa guardada no navegador.
 - Menu lateral: módulos retraídos; o da rota ativa abre sozinho; o cabeçalho soma as pendências dos submódulos e cada submódulo mostra a sua (ex.: Occurrences 23 = Handover 10 + Maintenance 13). Estado guardado em `nav.open`.
+- Handover: **Author** + até 3 colegas (`StaffPicker`: chip do autor com avatar, chips removíveis, "+ Add colleague n/4" com busca). Banco: `handover_entry_staff` (máx. 3 por anotação), `add_handover_note(... p_co_authors)`. Vocabulário revisto (Author, Time of occurrence, Raise maintenance request, Amend…).
+- Filtros: `FilterBar` + `useUrlFilters` (filtros na URL, chips, Clear all, contagem). Handover procura em vários dias via `search_handover` (até 92 dias, 100 resultados); Maintenance e Warnings filtram no navegador.
+- Abas não rolam a página (corrigido o `scrollIntoView`).
