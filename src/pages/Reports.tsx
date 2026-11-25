@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useI18n, type MessageKey } from "@/i18n";
 import { supabase } from "@/lib/supabase";
-import { breakdownLabelKey, detailMetric, formatMetric, orderedMetrics, periodRange, reportBlocks, type PeriodKind } from "@/lib/management";
+import { blocksOf, breakdownLabelKey, detailMetric, formatEUR, formatMetric, orderedMetrics, periodRange, REPORT_CATEGORIES, reportBlocks, type PeriodKind } from "@/lib/management";
 import { addDays, formatCivilDate, formatDateTime, operationalDay } from "@/lib/time";
 import { useAuth } from "@/auth/AuthProvider";
 import { useLatestRequest } from "@/lib/useLatestRequest";
@@ -11,6 +11,49 @@ import { Skeleton } from "@/components/Skeleton";
 
 type Detail = { ref_id: string; label: string; at: string | null; extra: string | null; lodge_id: string | null };
 type Report = Record<string, unknown>;
+type Purch = { orders: number; placed: number; items: number; total: number; lines_without_price: number;
+  by_category: { category: string; total: number; items: number }[]; top_items: { name: string; qty: number; total: number }[] };
+
+/** Categoria Compras: pedidos do Tesco no período (as duas casas juntas). */
+function PurchasesReport({ data }: { data: Purch | null }) {
+  const { t, locale } = useI18n();
+  if (!data) return <div className="card"><Skeleton rows={4} label={t("app.loading")} /></div>;
+  const max = Math.max(...data.by_category.map((c) => Number(c.total)), 1);
+  return (
+    <div className="report-grid">
+      <article className="card report-block">
+        <h2 className="eyebrow">{t("reports.c_purchases")}</h2>
+        <dl className="report-metrics">
+          <div className="report-metric"><dt>{t("reports.p_orders")}</dt><dd>{data.orders}</dd></div>
+          <div className="report-metric"><dt>{t("reports.p_items")}</dt><dd>{data.items}</dd></div>
+          <div className="report-metric"><dt>{t("reports.p_total")}</dt><dd>{formatEUR(Number(data.total), locale)}</dd></div>
+        </dl>
+        {data.lines_without_price > 0 && <p className="hint">{t("reports.p_missing", { n: data.lines_without_price })}</p>}
+        <p className="hint">{t("reports.p_note")}</p>
+      </article>
+      <article className="card report-block">
+        <h2 className="eyebrow">{t("reports.p_byCategory")}</h2>
+        <ul className="report-bars">
+          {data.by_category.map((c) => (
+            <li key={c.category}>
+              <span className="report-bar-label">{c.category}</span>
+              <span className="report-bar"><span style={{ width: `${(Number(c.total) / max) * 100}%` }} /></span>
+              <span className="mono">{formatEUR(Number(c.total), locale)}</span>
+            </li>
+          ))}
+        </ul>
+      </article>
+      <article className="card report-block">
+        <h2 className="eyebrow">{t("reports.p_top")}</h2>
+        <ul className="report-bars">
+          {data.top_items.map((i) => (
+            <li key={i.name}><span className="report-bar-label">{i.name}</span><span className="mono muted">× {i.qty}</span><span className="mono">{formatEUR(Number(i.total), locale)}</span></li>
+          ))}
+        </ul>
+      </article>
+    </div>
+  );
+}
 
 /** Resumo mensal por Lodge (s.15): cada número abre os registros que o formam. */
 export function Reports() {
@@ -22,6 +65,8 @@ export function Reports() {
   const [anchor, setAnchor] = useState(() => operationalDay(new Date()));
   const [custom, setCustom] = useState(() => ({ from: addDays(operationalDay(new Date()), -6), to: operationalDay(new Date()) }));
   const [house, setHouse] = useState("both");
+  const [category, setCategory] = useState("occupancy");
+  const [purchases, setPurchases] = useState<Purch | null>(null);
   const [report, setReport] = useState<Report | null>(null);
   const [perHouse, setPerHouse] = useState<Record<string, Report>>({});
   const [detail, setDetail] = useState<{ title: string; rows: Detail[] | null } | null>(null);
@@ -47,6 +92,12 @@ export function Reports() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (category !== "purchases") return;
+    setPurchases(null);
+    void supabase.rpc("report_purchases", { p_from: range.from, p_to: range.to }).then(({ data }) => setPurchases((data ?? null) as Purch | null));
+  }, [category, range.from, range.to]);
 
   async function openDetail(metric: string, title: string) {
     setDetail({ title, rows: null });
@@ -101,11 +152,15 @@ export function Reports() {
         />
         <span className="eyebrow">{formatCivilDate(range.from, locale)} → {formatCivilDate(addDays(range.to, -1), locale)}</span>
       </div>
-      {report === null ? (
+      <Tabs label={t("reports.category")} value={category} onChange={setCategory}
+        items={REPORT_CATEGORIES.map((c) => ({ value: c.key, label: t(`reports.c_${c.key}` as MessageKey) }))} />
+      {category === "purchases" ? (
+        <PurchasesReport data={purchases} />
+      ) : report === null ? (
         <div className="report-grid">{[0, 1, 2, 3].map((i) => <div key={i} className="card"><Skeleton rows={3} label={t("app.loading")} /></div>)}</div>
       ) : (
         <div className="report-grid">
-          {reportBlocks(report).map((b) => (
+          {blocksOf(category, reportBlocks(report)).map((b) => (
             <article key={b.key} className={`card report-block block-${b.key}`}>
               <h2 className="eyebrow">{t(`reports.b_${b.key}` as MessageKey)}</h2>
               <dl className="report-metrics">
@@ -129,13 +184,20 @@ export function Reports() {
               {Object.entries(b.data).filter(([, v]) => v && typeof v === "object").map(([k, v]) => {
                 const entries = Array.isArray(v) ? (v as { location: string; count: number }[]).map((x) => [x.location, x.count] as const) : Object.entries(v as Record<string, number>);
                 if (entries.length === 0) return null;
+                const max = Math.max(...entries.map(([, n]) => Number(n) || 0), 1);
                 return (
-                  <p key={k} className="report-breakdown muted">
+                  <ul key={k} className="report-bars">
                     {entries.map(([name, n]) => {
                       const key = breakdownLabelKey(k, String(name));
-                      return `${key ? t(key) : name}: ${n}`;
-                    }).join(" · ")}
-                  </p>
+                      return (
+                        <li key={String(name)}>
+                          <span className="report-bar-label">{key ? t(key) : name}</span>
+                          <span className="report-bar"><span style={{ width: `${(Number(n) / max) * 100}%` }} /></span>
+                          <span className="mono">{n}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 );
               })}
             </article>

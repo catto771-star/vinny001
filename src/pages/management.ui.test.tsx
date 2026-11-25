@@ -195,12 +195,27 @@ describe("Reports (Beta: período e casa)", () => {
     rpcResult.report_details_period = [{ ref_id: "x", label: "Ana X — bed 4/1", at: "2026-11-03T15:00:00Z", extra: null, lodge_id: "a" }];
     wrap(<Reports />);
     const headings = (await screen.findAllByRole("heading", { level: 2 })).map((h) => h.textContent);
-    expect(headings).toEqual(["Bed occupancy", "Laundry", "Hours"]);
+    expect(headings).toEqual(["Bed occupancy"]);
+    fireEvent.click(screen.getByRole("tab", { name: "Services" }));
+    expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(["Laundry"]);
+    fireEvent.click(screen.getByRole("tab", { name: "Hours & Roster" }));
     expect(screen.getByText("24 h 00")).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Occupancy" }));
     fireEvent.click(screen.getByRole("button", { name: "3" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("report_details_period", expect.objectContaining({ p_metric: "occupancy.admissions" })));
     expect(await screen.findByText("Ana X — bed 4/1")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "44" })).toBeNull();
+  });
+
+  it("Revisão 25/11: categoria Compras mostra pedidos, gasto e gasto por categoria", async () => {
+    rpcResult.report_period = report;
+    rpcResult.report_purchases = { orders: 2, placed: 1, items: 40, total: 123.45, lines_without_price: 3, by_category: [{ category: "Dairy & Chilled", total: 80, items: 20 }], top_items: [{ name: "Milk", qty: 18, total: 23.22 }] };
+    wrap(<Reports />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Purchases" }));
+    expect(await screen.findByText("Spent by category")).toBeTruthy();
+    expect(screen.getByText("Dairy & Chilled")).toBeTruthy();
+    expect(screen.getByText(/3 line\(s\) without a price/)).toBeTruthy();
+    expect(rpc).toHaveBeenCalledWith("report_purchases", expect.objectContaining({ p_from: expect.any(String) }));
   });
 
   it("semana e casa: pede o período certo e só a casa escolhida; nas duas casas mostra o número de cada uma", async () => {

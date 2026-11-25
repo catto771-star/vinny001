@@ -14,8 +14,9 @@ function query(result: unknown) {
   q.then = (resolve: (v: unknown) => void) => resolve({ data: result, error: null });
   return q;
 }
+const rpcPerson = vi.fn(async () => ({ data: { functions: { float: 3, office: 5 }, roster_upcoming: [], shifts_recent: [], notes_recent: [{ id: "n1", lodge_id: "a", kind: "note", body: "Fire alarm tested", occurred_at: "2026-11-24T10:00:00Z" }], hours_month: { planned_minutes: 720, effective_minutes: 600 }, tasks_signed_30d: 4 }, error: null }));
 const invoke = vi.fn(async (_n: string, _o: unknown) => ({ data: { staff_id: "new" }, error: null }));
-vi.mock("@/lib/supabase", () => ({ supabaseConfigured: true, supabase: { from: () => query(staff), functions: { invoke: (n: string, o: unknown) => invoke(n, o) } } }));
+vi.mock("@/lib/supabase", () => ({ supabaseConfigured: true, supabase: { rpc: () => rpcPerson(), from: () => query(staff), functions: { invoke: (n: string, o: unknown) => invoke(n, o) } } }));
 vi.mock("@/auth/AuthProvider", () => ({ useAuth: () => ({ lodges: [{ id: "a", code: "AMIENS", name: "Amiens St.", short_name: "Amiens" }], staff: { id: "me" } }) }));
 
 import { I18nProvider } from "@/i18n";
@@ -50,5 +51,13 @@ describe("Usuários", () => {
     fireEvent.change(again.querySelectorAll("select")[0], { target: { value: "station" } });
     expect(again.querySelector('input[type="email"]')).not.toBeNull();
     expect((again.querySelectorAll("select")[1] as HTMLSelectElement).required).toBe(true);
+  });
+
+  it("Pessoas (revisão 25/11): abrir a pessoa mostra função no Roster, horas do mês e anotações do Handover", async () => {
+    render(<I18nProvider><MemoryRouter><Users /></MemoryRouter></I18nProvider>);
+    fireEvent.click(await screen.findByRole("button", { name: "Paddy Active" }));
+    expect(await screen.findByText("Fire alarm tested")).toBeTruthy();
+    expect(screen.getByText(/Office ×5 · Float ×3/)).toBeTruthy();
+    expect(screen.getByText("10 h 00 / 12 h 00")).toBeTruthy();
   });
 });

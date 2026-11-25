@@ -144,3 +144,69 @@ describe("Daily Tasks de volta (item 10)", () => {
     expect(await db.error("select public.sign_task('extra', $1, $2, $3::date, $4)", [extra, amiens, day.d, day.s])).toMatch(/invalid_filled_by/);
   });
 });
+
+describe("Reports por categoria: Compras (item 6)", () => {
+  it("pedidos do período, total gasto e gasto por categoria; só Admin", async () => {
+    const admin = await db.createStaff("manager", "Admin");
+    const station = await db.createStaff("station", "Amiens Reception");
+    await db.as(admin);
+    const order = (await db.one<{ id: string }>("select public.create_shop_order(current_date, null) as id")).id;
+    const milk = (await db.one<{ id: string }>("select l.id from public.shop_order_lines l join public.shop_items i on i.id = l.item_id where l.order_id = $1 and i.name = 'Milk'", [order])).id;
+    const bleach = (await db.one<{ id: string }>("select l.id from public.shop_order_lines l join public.shop_items i on i.id = l.item_id where l.order_id = $1 and i.name = 'Bleach'", [order])).id;
+    await db.query("select public.set_shop_line($1, 'standard', 0, 1.00)", [milk]);
+    await db.query("select public.set_shop_line($1, 'standard', 0, 2.50)", [bleach]);
+    const r = (await db.one("select public.report_purchases(current_date - 1, current_date + 1) as r")).r;
+    expect(r.orders).toBe(1);
+    expect(Number(r.total)).toBeCloseTo(18 * 1 + 1 * 2.5, 2);
+    expect(r.by_category.find((c: { category: string }) => c.category === "Dairy & Chilled").total).toBeCloseTo(18, 2);
+    expect(r.top_items[0].name).toBe("Milk");
+    await db.as(station);
+    expect(await db.error("select public.report_purchases(current_date - 1, current_date + 1)")).toMatch(/not_authorised/);
+  });
+});
+
+describe("Pessoas (item 7): resumo de uma pessoa", () => {
+  it("mostra função no Roster (Office/Float), turnos do Handover, anotações e horas do mês; só Admin", async () => {
+    const admin = await db.createStaff("manager", "Admin");
+    const station = await db.createStaff("station", "Amiens Reception");
+    const pedro = await db.createStaff("porter", "Pedro", { login: false });
+    const amiens = await db.lodgeId("AMIENS");
+    await db.as(admin);
+    await db.query("select public.save_rota_shift(null, $1, null, 'float', now() - interval '30 hours', now() - interval '20 hours')", [pedro.staffId]);
+    await db.query("select public.save_rota_shift(null, $1, $2, 'office', now() + interval '20 hours', now() + interval '32 hours')", [pedro.staffId, amiens]);
+    await db.query("select public.publish_rota(now() - interval '31 hours', now() + interval '33 hours')");
+    await db.as(station);
+    await db.query("select public.open_handover_shift($1, $2)", [amiens, pedro.staffId]);
+    await db.query("select public.add_handover_note($1, 'Fire alarm tested', null, '[]'::jsonb, null, null)", [amiens]);
+    await db.as(admin);
+    const r = (await db.one("select public.person_summary($1) as r", [pedro.staffId])).r;
+    expect(r.functions.float).toBe(1);
+    expect(r.roster_upcoming).toHaveLength(1);
+    expect(r.shifts_recent).toHaveLength(1);
+    expect(r.notes_recent.map((n: { body: string }) => n.body)).toContain("Fire alarm tested");
+    expect(r.hours_month.planned_minutes).toBeGreaterThan(0);
+    await db.as(station);
+    expect(await db.error("select public.person_summary($1)", [pedro.staffId])).toMatch(/not_authorised/);
+  });
+});
+
+describe("Home com painéis (item 11)", () => {
+  it("ocupação por casa, Seen de hoje, série de 14 dias e manutenção aberta — para a equipe também", async () => {
+    const admin = await db.createStaff("manager", "Admin");
+    const station = await db.createStaff("station", "Amiens Reception");
+    const amiens = await db.lodgeId("AMIENS");
+    const [bed] = await db.freeBeds("AMIENS");
+    await db.as(admin);
+    await db.query("select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => 'Nova', p_admitted_at => now() - interval '2 days')", [amiens, bed]);
+    await db.query("select public.create_maintenance($1, 'Kitchen', 'Tap', 'urgent', gen_random_uuid())", [amiens]);
+    await db.as(station);
+    const d = (await db.one("select public.home_dashboard() as d")).d;
+    const a = d.lodges.find((l: { lodge_id: string }) => l.lodge_id === amiens);
+    expect(a.occupied).toBeGreaterThanOrEqual(1);
+    expect(a.beds_total).toBeGreaterThan(a.occupied - 1);
+    expect(a.seen_today).toBeLessThanOrEqual(a.occupied);
+    expect(d.series).toHaveLength(14);
+    expect(d.series.reduce((s: number, x: { admissions: number }) => s + x.admissions, 0)).toBeGreaterThanOrEqual(1);
+    expect(d.maintenance_open.urgent).toBeGreaterThanOrEqual(1);
+  });
+});

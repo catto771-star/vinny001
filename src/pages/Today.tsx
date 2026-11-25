@@ -8,6 +8,7 @@ import { staffName } from "@/lib/types";
 import { useNextCheck } from "@/lib/useNextCheck";
 import { onDutyFor, useOnDuty } from "@/lib/useOnDuty";
 import { useActiveLodge } from "@/lib/activeLodge";
+import { HomeDashboard } from "@/components/HomeDashboard";
 import { useOccupancy } from "@/lib/useOccupancy";
 import { PresenceAlertCard } from "@/components/PresenceAlertCard";
 import { PendingTile } from "@/components/PendingTile";
@@ -107,6 +108,8 @@ export function Today() {
           </ul>
         </aside>
       </div>
+
+      <HomeDashboard />
 
       {/* Assinatura: a régua do dia operacional com rondas e checks */}
       {lodges.length > 0 && <ShiftRuler lodgeIds={rulerLodges} />}

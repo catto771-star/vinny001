@@ -100,3 +100,14 @@ describe("Beta: período do relatório", () => {
     expect(periodRange("custom", "2026-11-24", { from: "2026-11-10", to: "2026-11-01" })).toEqual({ from: "2026-11-10", to: "2026-11-11" });
   });
 });
+
+describe("Revisão 25/11: relatório por categorias", () => {
+  it("cada bloco do relatório cai em uma categoria só; a ordem da categoria é respeitada", async () => {
+    const { REPORT_CATEGORIES, blocksOf } = await import("./management");
+    const all = REPORT_CATEGORIES.flatMap((c) => c.blocks);
+    expect(new Set(all).size).toBe(all.length);
+    for (const b of ["occupancy", "maintenance", "no_shows", "warnings", "dinner", "laundry", "hours", "rounds_checks", "temperature", "movements", "late_entries", "coverage"]) expect(all).toContain(b);
+    const blocks = [{ key: "warnings", data: {} }, { key: "no_shows", data: {} }, { key: "hours", data: {} }];
+    expect(blocksOf("presence", blocks).map((b) => b.key)).toEqual(["no_shows", "warnings"]);
+  });
+});

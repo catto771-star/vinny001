@@ -138,3 +138,17 @@ export function periodRange(kind: PeriodKind, anchor: string, custom?: { from: s
     }
   }
 }
+
+/** Revisão 25/11: o relatório é dividido em categorias, cada uma com os seus blocos. */
+export const REPORT_CATEGORIES: { key: string; blocks: string[] }[] = [
+  { key: "occupancy", blocks: ["occupancy", "movements"] },
+  { key: "presence", blocks: ["no_shows", "warnings", "rounds_checks", "late_entries"] },
+  { key: "maintenance", blocks: ["maintenance"] },
+  { key: "services", blocks: ["dinner", "laundry", "temperature"] },
+  { key: "hours", blocks: ["hours", "coverage"] },
+  { key: "purchases", blocks: [] },
+];
+export function blocksOf(category: string, blocks: ReportBlock[]): ReportBlock[] {
+  const wanted = REPORT_CATEGORIES.find((c) => c.key === category)?.blocks ?? [];
+  return wanted.map((k) => blocks.find((b) => b.key === k)).filter((b): b is ReportBlock => !!b);
+}

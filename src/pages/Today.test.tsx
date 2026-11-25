@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 let onDuty: { posts: unknown[]; loading: boolean } = { posts: [], loading: true };
 
+vi.mock("@/components/HomeDashboard", () => ({ HomeDashboard: () => null }));
 vi.mock("@/lib/useOnDuty", () => ({ useOnDuty: () => ({ ...onDuty, reload: vi.fn() }) }));
 vi.mock("@/lib/useOccupancy", async (orig) => ({
   ...(await orig<typeof import("@/lib/useOccupancy")>()),

@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "@/auth/AuthProvider";
-import { useI18n } from "@/i18n";
+import { Link } from "react-router-dom";
+import { useI18n, type MessageKey } from "@/i18n";
+import { minutesLabel } from "@/lib/management";
 import { supabase } from "@/lib/supabase";
 import { errorKey } from "@/lib/errors";
 import { generateTemporaryPassword } from "@/lib/password";
-import { formatDate } from "@/lib/time";
+import { formatDate, formatDateTime, formatTime } from "@/lib/time";
 import { staffName, type Staff, type StaffRole } from "@/lib/types";
 import { Dialog, DialogCancel } from "@/components/Dialog";
 import { Tabs } from "@/components/Tabs";
 import { Notice } from "@/components/Notice";
+import { Skeleton } from "@/components/Skeleton";
 import { useToast } from "@/components/Toast";
 
 // Beta: dois perfis com login — conta da casa (Staff) e gestão (Admin). Porter e Cleaner não entram no sistema.
@@ -41,6 +44,8 @@ export function Users() {
   const [password, setPassword] = useState<{ name: string; value: string } | null>(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState<Staff | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [group, setGroup] = useState<"team" | "accounts">("team");
+  const [person, setPerson] = useState<Staff | null>(null);
   const toast = useToast();
 
   const load = useCallback(async () => {
@@ -90,6 +95,11 @@ export function Users() {
         </div>
       </header>
 
+      <div className="toolbar">
+        <Tabs label={t("users.title")} value={group} onChange={(v) => setGroup(v as "team" | "accounts")}
+          items={[{ value: "team", label: t("users.tabTeam") }, { value: "accounts", label: t("users.tabAccounts") }]} />
+        <Link className="button-link" to="/residents">{t("users.residentsLink")} →</Link>
+      </div>
       <Notice kind="error">{error}</Notice>
       {password && (
         <Notice kind="warning">
@@ -111,10 +121,10 @@ export function Users() {
           </tr>
         </thead>
         <tbody>
-          {list.filter((s) => s.active === showActive).map((s) => (
+          {list.filter((s) => s.active === showActive && (group === "accounts" ? !!s.user_id : s.role !== "station")).map((s) => (
             <tr key={s.id} className={s.active ? "" : "row-inactive"}>
               <td>
-                <strong>{s.full_name}</strong>
+                {s.role === "station" ? <strong>{s.full_name}</strong> : <button type="button" className="link-button person-link" onClick={() => setPerson(s)}>{s.full_name}</button>}
                 {s.display_name && <span className="muted"> ({s.display_name})</span>}
               </td>
               <td>{t(`users.roles.${s.role}`)}</td>
@@ -150,6 +160,7 @@ export function Users() {
           }}
         />
       )}
+      {person && <PersonDialog person={person} onClose={() => setPerson(null)} />}
       {editing && (
         <StaffForm
           existing={editing}
@@ -176,6 +187,59 @@ export function Users() {
         </Dialog>
       )}
     </section>
+  );
+}
+
+type Summary = {
+  functions: Record<string, number>;
+  roster_upcoming: { id: string; function: string; lodge_id: string | null; starts_at: string; ends_at: string }[];
+  shifts_recent: { id: string; lodge_id: string; opened_at: string; closed_at: string | null; hours_status: string }[];
+  notes_recent: { id: string; lodge_id: string; kind: string; body: string; occurred_at: string }[];
+  hours_month: { planned_minutes: number; effective_minutes: number } | null;
+  tasks_signed_30d: number;
+};
+
+/** Pessoas (revisão 25/11): ficha de uma pessoa — função no Roster, turnos, anotações do Handover e horas. */
+function PersonDialog({ person, onClose }: { person: Staff; onClose: () => void }) {
+  const { t, locale } = useI18n();
+  const { lodges } = useAuth();
+  const [data, setData] = useState<Summary | null>(null);
+  useEffect(() => {
+    void supabase.rpc("person_summary", { p_staff: person.id }).then(({ data: d }) => setData((d ?? null) as Summary | null));
+  }, [person.id]);
+  const short = (id: string | null) => lodges.find((l) => l.id === id)?.short_name ?? "Float";
+  const fn = data ? Object.entries(data.functions).sort((a, b) => b[1] - a[1]) : [];
+  return (
+    <Dialog wide title={person.full_name} onClose={onClose}>
+      {!data ? <Skeleton rows={6} label={t("app.loading")} /> : (
+        <div className="person-sheet">
+          <div className="person-stats">
+            <div><span className="eyebrow">{t("users.role")}</span><strong>{t(`users.roles.${person.role}`)}</strong></div>
+            <div><span className="eyebrow">{t("users.worksAs")}</span><strong>{fn.length ? fn.map(([k, n]) => `${t(`rota.${k === "manager" ? "managerFn" : k}` as MessageKey)} ×${n}`).join(" · ") : "—"}</strong></div>
+            <div><span className="eyebrow">{t("users.hoursMonth")}</span><strong className="mono">{data.hours_month ? `${minutesLabel(data.hours_month.effective_minutes)} / ${minutesLabel(data.hours_month.planned_minutes)}` : "—"}</strong></div>
+            <div><span className="eyebrow">{t("users.tasks30")}</span><strong className="mono">{data.tasks_signed_30d}</strong></div>
+          </div>
+          <section>
+            <h3 className="section-title">{t("users.nextShifts")}</h3>
+            {data.roster_upcoming.length === 0 ? <p className="muted">—</p> : (
+              <ul className="log-list">{data.roster_upcoming.map((r) => <li key={r.id}><span className="mono">{formatDateTime(r.starts_at, locale)} → {formatTime(r.ends_at, locale)}</span><span className="muted">{short(r.lodge_id)} · {r.function}</span></li>)}</ul>
+            )}
+          </section>
+          <section>
+            <h3 className="section-title">{t("users.handoverShifts")}</h3>
+            {data.shifts_recent.length === 0 ? <p className="muted">—</p> : (
+              <ul className="log-list">{data.shifts_recent.map((s) => <li key={s.id}><span className="mono">{formatDateTime(s.opened_at, locale)} → {s.closed_at ? formatTime(s.closed_at, locale) : t("hours.open")}</span><span className="muted">{short(s.lodge_id)}</span></li>)}</ul>
+            )}
+          </section>
+          <section>
+            <h3 className="section-title">{t("users.handoverNotes")}</h3>
+            {data.notes_recent.length === 0 ? <p className="muted">—</p> : (
+              <ul className="log-list">{data.notes_recent.map((n) => <li key={n.id}><span className="mono muted">{formatDateTime(n.occurred_at, locale)}</span><span>{n.body}</span></li>)}</ul>
+            )}
+          </section>
+        </div>
+      )}
+    </Dialog>
   );
 }
 
