@@ -36,6 +36,8 @@ function fakeDb(rows: Record<string, unknown[]>) {
 /** A query is the user's when it filters by user_id = UID or writes rows carrying it. */
 function isScoped(q: Query): boolean {
   if (q.table === 'project_tasks') return q.calls.some(([m, a]) => (m === 'in' && a[0] === 'project_id') || m === 'insert');
+  if (q.table === 'diet_day_targets') return q.calls.some(([m, a]) => m === 'in' && a[0] === 'plan_id');
+  if (q.table === 'foods') return q.calls.some(([m, a]) => m === 'or' && String(a[0]).includes(`user_id.eq.${UID}`));
   return q.calls.some(([m, a]) =>
     (m === 'eq' && a[0] === 'user_id' && a[1] === UID) ||
     ((m === 'insert' || m === 'upsert') && (a[0] as { user_id?: string }).user_id === UID));
@@ -67,6 +69,11 @@ const SAMPLE: Record<string, Record<string, unknown>> = {
   registrar_treino: { titulo: 'Superior A', duracao_min: 55, notas: 'Supino 4x8' },
   registrar_cardio: { tipo: 'corrida', duracao_min: 30, distancia_km: 5, kcal: 320 },
   resumo_saude_hoje: {},
+  consultar_oraculo_nutrientes: { nutriente: 'potassio', modo: 'oraculo', limite: 5 },
+  sugerir_alimentos_dia: { refeicao: 'jantar' },
+  registrar_agua: { ml: 300 },
+  iniciar_jejum: { protocolo: '16:8', inicio_data: '2026-11-18', inicio_hora: '20:00' },
+  encerrar_jejum: { fim_data: '2026-11-19', fim_hora: '12:30' },
   registrar_transferencia: { origem: 'Revolut', destino: 'Wise', valor: 100, moeda: 'EUR', cotacao: 6.45 },
   definir_orcamento: { categoria: 'Mercado', limite: 400, moeda: 'EUR' },
   concluir_lembrete: { titulo: 'Vitamina' },
@@ -95,6 +102,13 @@ describe('tools stay inside the user', () => {
         reminders: [{ id: 'r1', title: 'Tomar Vitamina', datetime: '2026-11-20T12:00:00Z', completed: false }],
         events: [{ id: 'e1', title: 'Dentista', start_at: '2026-11-21T18:00:00Z', end_at: '2026-11-21T19:00:00Z', all_day: false }],
         assistant_memories: [{ id: MEM, category: 'financas', content: 'Gastos em euro na Revolut' }],
+        foods: [
+          { id: 'f1', name: 'Espinafre refogado', kcal: 23, protein_g: 2.9, carbs_g: 3.6, fat_g: 0.4, fiber_g: 2.2 },
+          { id: 'f2', name: 'Peito de frango grelhado', kcal: 165, protein_g: 31, carbs_g: 0, fat_g: 3.6, fiber_g: 0 },
+        ],
+        diet_plans: [{ id: 'dp1', name: 'Cutting', is_active: true }],
+        diet_day_targets: [{ plan_id: 'dp1', day_type: 'training', kcal: 2100, protein_g: 165, carbs_g: 210, fat_g: 60 }],
+        fasting_sessions: [{ id: 'fs1', protocol: '16:8', target_hours: 16, started_at: '2026-11-18T23:00:00.000Z', notes: null }],
       });
       const checked = checkArgs(name, SAMPLE[name]);
       expect(checked.ok).toBe(true);
@@ -116,4 +130,45 @@ describe('tools stay inside the user', () => {
     expect(update?.calls.some(([m, a]) => m === 'eq' && a[0] === 'id' && a[1] === TASK)).toBe(true);
     expect(res.undo).toMatchObject({ table: 'tasks', op: 'update', id: TASK });
   });
+  it('ranks foods in Oracle, computes daily gaps, and starts/ends intermittent fasts with undo', async () => {
+    const { db } = fakeDb({
+      foods: [
+        { id: 'f1', name: 'Espinafre cru', kcal: 23, protein_g: 2.9, carbs_g: 3.6, fat_g: 0.4, fiber_g: 2.2 },
+        { id: 'f2', name: 'Castanha do Pará', kcal: 656, protein_g: 14, carbs_g: 12, fat_g: 66, fiber_g: 7.5 },
+      ],
+      food_logs: [{ food_name: 'Peito de frango', quantity_g: 200, kcal: 330, protein_g: 62, carbs_g: 0, fat_g: 7, fiber_g: 0 }],
+      fasting_sessions: [{ id: 'fs-open', protocol: '16:8', target_hours: 16, started_at: '2026-11-18T01:00:00.000Z', notes: null }],
+    });
+    const oracleChecked = checkArgs('consultar_oraculo_nutrientes', { nutriente: 'potassio', modo: 'por_100kcal', limite: 2 });
+    expect(oracleChecked.ok).toBe(true);
+    if (oracleChecked.ok) {
+      const r = await runTool(db, UID, 'consultar_oraculo_nutrientes', oracleChecked.args, NOW, 'America/Sao_Paulo');
+      expect((r.ranking as { alimento: string }[])[0].alimento).toBe('Espinafre cru');
+    }
+
+    const sugChecked = checkArgs('sugerir_alimentos_dia', { refeicao: 'jantar' });
+    expect(sugChecked.ok).toBe(true);
+    if (sugChecked.ok) {
+      const s = await runTool(db, UID, 'sugerir_alimentos_dia', sugChecked.args, NOW, 'America/Sao_Paulo');
+      expect((s.restante as { kcal: number }).kcal).toBeGreaterThan(1000);
+      expect(Array.isArray(s.principais_lacunas_micronutrientes)).toBe(true);
+    }
+
+    const startChecked = checkArgs('iniciar_jejum', { protocolo: '16:8', inicio_data: '2026-11-18', inicio_hora: '20:00' });
+    expect(startChecked.ok).toBe(true);
+    if (startChecked.ok) {
+      const f = await runTool(db, UID, 'iniciar_jejum', startChecked.args, NOW, 'America/Sao_Paulo');
+      expect(f.previsao_termino).toBe('19/11/2026 às 12:00');
+      expect(f.link).toBe('/saude?aba=Jejum');
+    }
+
+    const endChecked = checkArgs('encerrar_jejum', { fim_data: '2026-11-18', fim_hora: '15:00' });
+    expect(endChecked.ok).toBe(true);
+    if (endChecked.ok) {
+      const e = await runTool(db, UID, 'encerrar_jejum', endChecked.args, NOW, 'America/Sao_Paulo');
+      expect(e.meta_atingida).toBe(true);
+      expect(e.undo).toMatchObject({ table: 'fasting_sessions', op: 'update', id: 'fs-open' });
+    }
+  });
 });
+

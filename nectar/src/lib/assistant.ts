@@ -67,7 +67,7 @@ const SCREEN_META: Record<string, { label: string; hint: string }> = {
   tarefas: { label: 'Tarefas', hint: 'Lista de tarefas pendentes, atrasadas e concluídas.' },
   habitos: { label: 'Hábitos', hint: 'Rotina diária, streaks e constância.' },
   lembretes: { label: 'Lembretes', hint: 'Lembretes programados com data e hora.' },
-  saude: { label: 'Saúde', hint: 'Treinos, cardio, alimentação, calorias, macros e evolução de peso.' },
+  saude: { label: 'Saúde', hint: 'Diário alimentar com micronutrientes, Oráculo IA de alimentos, jejum intermitente, hidratação, metabolismo (TMB/TEF), treinos, cardio e peso.' },
   financas: { label: 'Finanças', hint: 'Contas (Revolut/Wise), lançamentos multimoeda, transferências, orçamentos e previsão 30d.' },
   projetos: { label: 'Projetos', hint: 'Projetos ativos, marcos (etapas), subetapas e prazos.' },
   metas: { label: 'Metas', hint: 'Metas financeiras, de projetos, hábitos e pessoais.' },
@@ -82,10 +82,16 @@ export function screenContextFromLocation(pathname: string, search = ''): Screen
   const meta = SCREEN_META[seg] ?? SCREEN_META.inicio;
   const params = new URLSearchParams(search);
   const projectId = seg === 'projetos' ? (params.get('p') || undefined) : undefined;
+  const saudeTab = seg === 'saude' ? (params.get('aba') || undefined) : undefined;
+  const extra = projectId
+    ? ` Projeto aberto atualmente (id: ${projectId}).`
+    : saudeTab
+      ? ` Aba ativa em Saúde: ${saudeTab}.`
+      : '';
   return {
     route: `/${seg}`,
     label: meta.label,
-    hint: projectId ? `${meta.hint} Projeto aberto atualmente (id: ${projectId}).` : meta.hint,
+    hint: `${meta.hint}${extra}`,
     ...(projectId ? { projectId } : {}),
   };
 }
@@ -166,6 +172,19 @@ export const ASSISTANT_SLASH_COMMANDS: readonly SlashCommand[] = [
     description: 'Cruza tarefas, hábitos e agenda e monta prioridades de hoje',
     template: 'Organize meu dia de hoje: liste o que está atrasado, os compromissos, os hábitos pendentes e sugira a melhor ordem de foco.',
     immediate: true,
+  },
+  {
+    cmd: '/oraculo',
+    label: 'Oráculo de nutrientes',
+    description: 'Analisa macros/micronutrientes faltantes hoje e sugere refeições exatas',
+    template: 'Use o Oráculo Nutricional (sugerir_alimentos_dia) para analisar minhas calorias, macros e micronutrientes faltantes hoje e sugira 3 opções práticas de refeição.',
+    immediate: true,
+  },
+  {
+    cmd: '/jejum',
+    label: 'Iniciar ou encerrar jejum',
+    description: 'Controla o timer de jejum intermitente (ex.: 16:8, 18:6, encerrar)',
+    template: 'Gerencie meu jejum intermitente: ',
   },
   {
     cmd: '/etapas',
@@ -263,10 +282,14 @@ export function actionLinkOf(action: Pick<ChatActionItem, 'tool' | 'link'>): str
     case 'concluir_marco_projeto':
       return '/projetos';
     case 'registrar_refeicao':
+    case 'registrar_agua':
     case 'registrar_peso':
     case 'registrar_treino':
     case 'registrar_cardio':
       return '/saude';
+    case 'iniciar_jejum':
+    case 'encerrar_jejum':
+      return '/saude?aba=Jejum';
     default:
       return null;
   }
@@ -291,15 +314,17 @@ export function playbooksForRoute(pathname: string): Playbook[] {
   }
   if (seg === 'saude') {
     return [
-      { id: 'hlth-today', label: 'Resumo de saúde hoje', prompt: 'Consulte meu resumo de saúde hoje (peso, calorias, treinos e cardio) e me diga o que falta registrar.' },
-      { id: 'hlth-cardio', label: 'Registrar cardio 30m', prompt: 'Registre uma sessão de cardio hoje: caminhada/corrida de 30 minutos.' },
-      { id: 'hlth-meal', label: 'Registrar refeição', prompt: 'Quero registrar uma refeição de hoje. Me ajude estimando calorias e macros.' },
+      { id: 'hlth-today', label: 'Resumo de saúde hoje', prompt: 'Consulte meu resumo de saúde hoje (peso, calorias, água, jejum ativo, treinos e cardio) e me diga o que falta registrar.' },
+      { id: 'hlth-oracle', label: 'Oráculo: sugerir refeição', prompt: 'Use sugerir_alimentos_dia para analisar meus macros e micronutrientes faltantes hoje e sugira 3 refeições práticas.' },
+      { id: 'hlth-fast', label: 'Iniciar jejum 16:8', prompt: 'Inicie um jejum intermitente 16:8 agora e me informe o horário exato previsto de término.' },
+      { id: 'hlth-water', label: 'Registrar +500 mL água', prompt: 'Registre 500 mL de água hoje no meu diário de Saúde.' },
     ];
   }
   return [
     { id: 'day', label: 'Planejar meu dia', prompt: 'Organize meu dia de hoje: tarefas pendentes e atrasadas, compromissos e hábitos que ainda faltam.' },
     { id: 'proj', label: 'Montar etapas de projeto', prompt: 'Liste meus projetos em andamento e me ajude a criar etapas e subetapas práticas para o próximo prazo.' },
     { id: 'fin', label: 'Analisar finanças', prompt: 'Faça um resumo financeiro deste mês e das minhas contas bancárias ativas.' },
-    { id: 'hlth', label: 'Checar saúde hoje', prompt: 'Consulte meu resumo de saúde de hoje (peso, alimentação e treinos) e sugira o próximo passo.' },
+    { id: 'hlth', label: 'Checar saúde hoje', prompt: 'Consulte meu resumo de saúde de hoje (peso, alimentação, hidratação e jejum) e sugira o próximo passo.' },
   ];
 }
+

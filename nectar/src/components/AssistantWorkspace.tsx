@@ -40,7 +40,7 @@ const MEMORY_CATEGORIES = [
 const UNDO_TABLES = new Set([
   'tasks', 'reminders', 'events', 'habit_completions', 'transactions', 'transfers',
   'category_budgets', 'knowledge_blocks', 'goal_entries', 'project_steps',
-  'food_logs', 'body_measurements', 'workouts', 'cardio_sessions', 'assistant_memories',
+  'food_logs', 'water_logs', 'fasting_sessions', 'body_measurements', 'workouts', 'cardio_sessions', 'assistant_memories',
 ]);
 
 const I = { size: 16, strokeWidth: 1.5, 'aria-hidden': true } as const;

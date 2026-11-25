@@ -1,16 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { num } from '../../lib/format';
-import { Plus, X } from 'lucide-react';
+import { Calendar, Plus, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { write } from '../../lib/useTable';
 import { kcalFromMacros, nutrientsFor, shoppingList, sumNutrients, type DayTarget, type DayType } from '../../lib/nutrition';
 import { gramsFromPercent, percentFromGrams } from '../../lib/diary';
-import { weekdayShort } from '../../lib/dates';
+import { formatDay, toDay, weekdayShort } from '../../lib/dates';
+import {
+  ACTIVITY_LEVELS,
+  KETO_PRESETS,
+  calculateBmr,
+  computeKetoTargets,
+  computeWeightGoalForecast,
+  type ActivityLevel,
+  type KetoPreset,
+} from '../../lib/metabolism';
 import { Empty, Field, Modal } from '../../components/ui';
 import FoodSearch from './FoodSearch';
-import type { Health } from './useHealth';
+import { DEFAULT_WEIGHT_KG, type Health } from './useHealth';
 
-const VIEWS = ['Metas', 'Refeições do plano', 'Lista de compras'] as const;
+const VIEWS = ['Metas', 'Metabolismo & Peso', 'Macro Scheduler', 'Refeições do plano', 'Lista de compras'] as const;
 
 export default function DietPlan({ h }: { h: Health }) {
   const [view, setView] = useState<(typeof VIEWS)[number]>('Metas');
@@ -21,6 +30,8 @@ export default function DietPlan({ h }: { h: Health }) {
         {VIEWS.map((v) => <button key={v} className={v === view ? 'tab-active' : 'tab'} onClick={() => setView(v)}>{v}</button>)}
       </div>
       {view === 'Metas' && <Targets h={h} />}
+      {view === 'Metabolismo & Peso' && <MetabolicProfileView h={h} />}
+      {view === 'Macro Scheduler' && <MacroSchedulerView h={h} />}
       {view === 'Refeições do plano' && <PlanMeals h={h} />}
       {view === 'Lista de compras' && <Shopping h={h} />}
     </>
@@ -31,7 +42,7 @@ function CreatePlan({ h }: { h: Health }) {
   const [name, setName] = useState('Meu plano');
   return (
     <div className="card max-w-md">
-      <p className="mb-3 text-sm text-fg2">Cadastre o plano do seu nutricionista: metas para dia de treino e de descanso, e as refeições, que geram a lista de compras.</p>
+      <p className="mb-3 text-sm text-fg2">Cadastre o plano nutricional: metas para dia de treino e de descanso, metabolismo, agenda semanal de macros e refeições.</p>
       <Field label="Nome do plano"><input className="input" value={name} onChange={(e) => setName(e.target.value)} /></Field>
       <button className="btn-primary" onClick={async () => {
         if (await write(supabase.from('diet_plans').insert({ name, is_active: true }))) void h.plans.reload();
@@ -43,11 +54,58 @@ function CreatePlan({ h }: { h: Health }) {
 function Targets({ h }: { h: Health }) {
   const plan = h.plan!;
   const get = (t: DayType) => h.targets.rows.find((x) => x.plan_id === plan.id && x.day_type === t);
+  const [ketoPreset, setKetoPreset] = useState<KetoPreset>('moderate');
+  const [ketoKcal, setKetoKcal] = useState<number>(get('rest')?.kcal || 2000);
+
+  const ketoPreview = useMemo(
+    () =>
+      computeKetoTargets({
+        kcal: ketoKcal || 2000,
+        weightKg: h.latestWeight ?? DEFAULT_WEIGHT_KG,
+        bodyFatPct: h.latestBodyFatPct,
+        preset: ketoPreset,
+      }),
+    [ketoKcal, h.latestWeight, h.latestBodyFatPct, ketoPreset],
+  );
+
+  async function applyKetoToRestAndTraining() {
+    const ok1 = await write(supabase.from('diet_day_targets').upsert({ plan_id: plan.id, day_type: 'rest', ...ketoPreview }, { onConflict: 'plan_id,day_type' }));
+    const ok2 = await write(supabase.from('diet_day_targets').upsert({ plan_id: plan.id, day_type: 'training', ...ketoPreview }, { onConflict: 'plan_id,day_type' }));
+    if (ok1 || ok2) await h.targets.reload();
+  }
+
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <TargetForm h={h} dayType="rest" current={get('rest')} />
       <TargetForm h={h} dayType="training" current={get('training')} />
+
+      {/* Keto / Low-Carb Calculator */}
+      <section className="card md:col-span-2">
+        <div className="mb-1 font-medium">Calculadora Cetogênica / Low-Carb</div>
+        <p className="mb-3 text-[13px] text-fg3">
+          Calcula proteína pela sua massa magra ({num(h.latestWeight ?? DEFAULT_WEIGHT_KG)} kg{h.latestBodyFatPct ? ` · ${num(h.latestBodyFatPct)}% BF` : ''}), limita carboidratos líquidos e completa a energia com gorduras.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Field label="Nível Low-Carb / Keto">
+            <select className="input" value={ketoPreset} onChange={(e) => setKetoPreset(e.target.value as KetoPreset)}>
+              {(Object.keys(KETO_PRESETS) as KetoPreset[]).map((k) => (
+                <option key={k} value={k}>{KETO_PRESETS[k].label}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Calorias alvo">
+            <input className="input figure" type="number" min={1000} max={6000} value={ketoKcal} onChange={(e) => setKetoKcal(Number(e.target.value))} />
+          </Field>
+          <div className="flex items-end pb-4">
+            <button type="button" className="btn-secondary w-full justify-center" onClick={() => void applyKetoToRestAndTraining()}>
+              Aplicar ({ketoPreview.protein_g}P / {ketoPreview.carbs_g}C / {ketoPreview.fat_g}G)
+            </button>
+          </div>
+        </div>
+      </section>
+
       <WeekdayTargets h={h} />
+
       <div className="card md:col-span-2">
         <div className="label mb-2">Meta nos dias de treino</div>
         <label className="mb-1 flex items-start gap-2 text-sm">
@@ -63,8 +121,331 @@ function Targets({ h }: { h: Health }) {
   );
 }
 
+/** Metabolic Profile (BMR Mifflin/Katch-McArdle, Baseline Activity, TEF, Hydration) + Weight Goal Forecast. */
+function MetabolicProfileView({ h }: { h: Health }) {
+  const p = h.profile;
+  const [sex, setSex] = useState<'M' | 'F'>(p?.sex ?? 'M');
+  const [heightCm, setHeightCm] = useState(String(p?.height_cm ?? '175'));
+  const [birthDate, setBirthDate] = useState(p?.birth_date ?? '1996-01-01');
+  const [activityLevel, setActivityLevel] = useState<ActivityLevel>(p?.activity_level ?? 'lightly_active');
+  const [customBmr, setCustomBmr] = useState(p?.custom_bmr ? String(p.custom_bmr) : '');
+  const [includeTef, setIncludeTef] = useState(p?.include_tef ?? true);
+  const [netCarbsMode, setNetCarbsMode] = useState(p?.net_carbs_mode ?? false);
+  const [waterGoalMl, setWaterGoalMl] = useState(String(p?.water_goal_ml ?? 2500));
+  const [waterCupMl, setWaterCupMl] = useState(String(p?.water_cup_ml ?? 250));
+  const [targetWeightKg, setTargetWeightKg] = useState(p?.target_weight_kg ? String(p.target_weight_kg) : '');
+  const [weeklyRateKg, setWeeklyRateKg] = useState(p?.weekly_rate_kg ? String(p.weekly_rate_kg) : '-0.5');
+  const [savedMsg, setSavedMsg] = useState<string | null>(null);
+
+  const today = toDay(new Date());
+  const currentWeight = h.latestWeight ?? DEFAULT_WEIGHT_KG;
+
+  const bmrInfo = useMemo(
+    () =>
+      calculateBmr({
+        weightKg: currentWeight,
+        heightCm: Number(heightCm) || null,
+        sex,
+        birthDate,
+        bodyFatPct: h.latestBodyFatPct,
+        customBmr: customBmr ? Number(customBmr) : null,
+        asOfDate: today,
+      }),
+    [currentWeight, heightCm, sex, birthDate, h.latestBodyFatPct, customBmr, today],
+  );
+
+  const baselineKcal = Math.round(bmrInfo.bmr * ACTIVITY_LEVELS[activityLevel].factor);
+  const maintenanceKcal = bmrInfo.bmr + baselineKcal;
+
+  const forecast = useMemo(() => {
+    const tw = Number(targetWeightKg);
+    if (!tw || tw < 25) return null;
+    return computeWeightGoalForecast({
+      currentWeightKg: currentWeight,
+      targetWeightKg: tw,
+      weeklyRateKg: Number(weeklyRateKg) || -0.5,
+      maintenanceKcal,
+      today,
+    });
+  }, [currentWeight, targetWeightKg, weeklyRateKg, maintenanceKcal, today]);
+
+  async function saveProfile(e: FormEvent) {
+    e.preventDefault();
+    setSavedMsg(null);
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) return;
+    const payload = {
+      user_id: auth.user.id,
+      sex,
+      height_cm: Number(heightCm) || null,
+      birth_date: birthDate || null,
+      activity_level: activityLevel,
+      custom_bmr: customBmr ? Number(customBmr) : null,
+      include_tef: includeTef,
+      net_carbs_mode: netCarbsMode,
+      water_goal_ml: Math.max(500, Number(waterGoalMl) || 2500),
+      water_cup_ml: Math.max(50, Number(waterCupMl) || 250),
+      target_weight_kg: targetWeightKg ? Number(targetWeightKg) : null,
+      weekly_rate_kg: weeklyRateKg ? Number(weeklyRateKg) : null,
+    };
+    if (await write(supabase.from('user_settings').upsert(payload, { onConflict: 'user_id' }))) {
+      await h.userSettings.reload();
+      setSavedMsg('Perfil metabólico salvo.');
+    }
+  }
+
+  async function applySuggestedCalories() {
+    if (!forecast || !h.plan) return;
+    const kcal = forecast.suggestedTargetKcal;
+    const protein_g = Math.round(currentWeight * 1.8);
+    const fat_g = Math.round((kcal * 0.27) / 9);
+    const carbs_g = Math.max(30, Math.round((kcal - protein_g * 4 - fat_g * 9) / 4));
+    if (await write(supabase.from('diet_day_targets').upsert({ plan_id: h.plan.id, day_type: 'rest', kcal, protein_g, carbs_g, fat_g }, { onConflict: 'plan_id,day_type' }))) {
+      await h.targets.reload();
+      setSavedMsg(`Meta de ${kcal} kcal aplicada ao Dia de Descanso.`);
+    }
+  }
+
+  return (
+    <form onSubmit={saveProfile} className="grid gap-4 lg:grid-cols-2">
+      <section className="card space-y-3">
+        <div>
+          <h3 className="font-medium text-fg">Taxa Metabólica Basal (TMB) & Gasto Diário</h3>
+          <p className="text-xs text-fg3">
+            Usa <strong>Katch-McArdle</strong> automaticamente quando você tem % de gordura em Corpo, ou <strong>Mifflin-St Jeor</strong>.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 rounded-xl border border-line bg-raised/40 p-3 text-center">
+          <div>
+            <div className="text-[11px] text-fg3">TMB ({bmrInfo.formula === 'katch_mcardle' ? 'Katch-McArdle' : bmrInfo.formula === 'custom' ? 'Manual' : 'Mifflin'})</div>
+            <div className="figure mt-0.5 text-base font-medium text-fg">{num(bmrInfo.bmr)} kcal</div>
+          </div>
+          <div className="border-x border-line">
+            <div className="text-[11px] text-fg3">Atividade basal</div>
+            <div className="figure mt-0.5 text-base font-medium text-fg">+{num(baselineKcal)} kcal</div>
+          </div>
+          <div>
+            <div className="text-[11px] text-fg3">Manutenção base</div>
+            <div className="figure mt-0.5 text-base font-medium text-fg">{num(maintenanceKcal)} kcal</div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          <Field label="Sexo biológico">
+            <select className="input" value={sex} onChange={(e) => setSex(e.target.value as 'M' | 'F')}>
+              <option value="M">Masculino</option>
+              <option value="F">Feminino</option>
+            </select>
+          </Field>
+          <Field label="Altura (cm)">
+            <input className="input figure" type="number" min={100} max={250} value={heightCm} onChange={(e) => setHeightCm(e.target.value)} />
+          </Field>
+          <Field label="Nascimento">
+            <input className="input" type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+          </Field>
+        </div>
+
+        <Field label="Nível de atividade fora dos treinos">
+          <select className="input" value={activityLevel} onChange={(e) => setActivityLevel(e.target.value as ActivityLevel)}>
+            {(Object.keys(ACTIVITY_LEVELS) as ActivityLevel[]).map((lvl) => (
+              <option key={lvl} value={lvl}>
+                {ACTIVITY_LEVELS[lvl].label} — {ACTIVITY_LEVELS[lvl].description}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="TMB manual kcal (opcional — deixe vazio para cálculo automático)">
+          <input className="input figure" type="number" min={800} max={5000} placeholder={`${bmrInfo.bmr} kcal`} value={customBmr} onChange={(e) => setCustomBmr(e.target.value)} />
+        </Field>
+
+        <label className="flex items-center gap-2 text-xs text-fg2">
+          <input type="checkbox" checked={includeTef} onChange={(e) => setIncludeTef(e.target.checked)} />
+          Somar Efeito Térmico dos Alimentos (TEF) no gasto calórico diário
+        </label>
+        <label className="flex items-center gap-2 text-xs text-fg2">
+          <input type="checkbox" checked={netCarbsMode} onChange={(e) => setNetCarbsMode(e.target.checked)} />
+          Rastrear Carboidratos Líquidos (Total − Fibras) por padrão no Diário
+        </label>
+      </section>
+
+      <section className="card flex flex-col space-y-3">
+        <div>
+          <h3 className="font-medium text-fg">Meta de Peso, Previsão (`Goal Forecast`) & Água</h3>
+          <p className="text-xs text-fg3">
+            Peso atual: <strong className="figure text-fg2">{num(currentWeight)} kg</strong>{bmrInfo.leanMassKg ? ` · Massa magra: ${num(bmrInfo.leanMassKg)} kg` : ''}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Peso meta (kg)">
+            <input className="input figure" type="number" min={30} max={350} step="0.1" placeholder="Ex.: 94.0" value={targetWeightKg} onChange={(e) => setTargetWeightKg(e.target.value)} />
+          </Field>
+          <Field label="Ritmo semanal (kg/sem)">
+            <input className="input figure" type="number" min={-2} max={2} step="0.1" value={weeklyRateKg} onChange={(e) => setWeeklyRateKg(e.target.value)} />
+          </Field>
+        </div>
+
+        {forecast && (
+          <div className="rounded-xl border border-line bg-raised/50 p-3.5 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 text-xs text-fg3">
+                <Calendar size={14} strokeWidth={1.5} /> Previsão da meta
+              </span>
+              <span className="font-medium text-fg">
+                {forecast.forecastDate ? formatDay(forecast.forecastDate) : 'Meta atingida'}
+              </span>
+            </div>
+            <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs text-fg2">
+              <span>
+                Variação: <strong className="figure">{forecast.deltaKg > 0 ? '+' : ''}{num(forecast.deltaKg)} kg</strong> ({forecast.daysToGoal} dias · {forecast.dailyKcalAdjustment > 0 ? '+' : ''}{num(forecast.dailyKcalAdjustment)} kcal/dia)
+              </span>
+              <button type="button" className="btn-secondary h-7 px-2.5 text-xs" onClick={() => void applySuggestedCalories()}>
+                Usar {num(forecast.suggestedTargetKcal)} kcal
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3 pt-2">
+          <Field label="Meta diária de água (mL)">
+            <input className="input figure" type="number" min={500} max={10000} step={100} value={waterGoalMl} onChange={(e) => setWaterGoalMl(e.target.value)} />
+          </Field>
+          <Field label="Tamanho de 1 copo rápido (mL)">
+            <input className="input figure" type="number" min={50} max={1500} step={50} value={waterCupMl} onChange={(e) => setWaterCupMl(e.target.value)} />
+          </Field>
+        </div>
+
+        {savedMsg && <p className="text-xs text-positive">{savedMsg}</p>}
+        <button className="btn-primary mt-auto w-full justify-center">Salvar configurações metabólicas</button>
+      </section>
+    </form>
+  );
+}
+
+/** Named Macro Scheduler templates assigned to specific weekdays. */
+function MacroSchedulerView({ h }: { h: Health }) {
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState('');
+  const [macros, setMacros] = useState<DayTarget>({ kcal: 2200, protein_g: 160, carbs_g: 240, fat_g: 65 });
+  const [weekdays, setWeekdays] = useState<number[]>([]);
+
+  function toggleWd(wd: number) {
+    setWeekdays((prev) => (prev.includes(wd) ? prev.filter((x) => x !== wd) : [...prev, wd].sort()));
+  }
+
+  async function saveTemplate(e: FormEvent) {
+    e.preventDefault();
+    const kcal = macros.kcal > 0 ? macros.kcal : kcalFromMacros(macros);
+    if (await write(supabase.from('macro_templates').insert({ name: name.trim(), ...macros, kcal, weekdays }))) {
+      setCreating(false);
+      setName('');
+      setWeekdays([]);
+      await h.macroTemplates.reload();
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <section className="card">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-medium text-fg">Macro Scheduler · Templates da Semana</h3>
+            <p className="text-xs text-fg3">
+              Crie perfis reutilizáveis (ex.: <em>High Carb / Pernas</em>, <em>Low Carb / Descanso</em>, <em>Refeed Sábado</em>) e vincule aos dias da semana.
+            </p>
+          </div>
+          <button type="button" className="btn-primary text-xs" onClick={() => setCreating(true)}>
+            <Plus size={16} strokeWidth={1.5} /> Novo template
+          </button>
+        </div>
+
+        {!h.macroTemplates.rows.length ? (
+          <Empty>Nenhum template criado. Clique em Novo template para agendar macros na semana.</Empty>
+        ) : (
+          <ul className="divide-y divide-line text-sm">
+            {h.macroTemplates.rows.map((t) => (
+              <li key={t.id} className="flex flex-wrap items-center gap-3 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-fg">{t.name}</div>
+                  <div className="figure text-xs text-fg3">
+                    {num(t.kcal)} kcal · P {t.protein_g} g · C {t.carbs_g} g · G {t.fat_g} g
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {[1, 2, 3, 4, 5, 6, 0].map((wd) => {
+                    const active = t.weekdays?.includes(wd);
+                    return (
+                      <button
+                        key={wd}
+                        type="button"
+                        onClick={async () => {
+                          const next = active ? t.weekdays.filter((x) => x !== wd) : [...(t.weekdays ?? []), wd];
+                          if (await write(supabase.from('macro_templates').update({ weekdays: next }).eq('id', t.id))) {
+                            void h.macroTemplates.reload();
+                          }
+                        }}
+                        className={`rounded border px-2 py-0.5 text-xs ${
+                          active ? 'border-brand bg-raised font-medium text-fg' : 'border-line text-fg3 hover:text-fg2'
+                        }`}
+                      >
+                        {weekdayShort(wd)}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  className="text-fg3 hover:text-negative"
+                  aria-label={`Excluir template ${t.name}`}
+                  onClick={async () => {
+                    if (await write(supabase.from('macro_templates').delete().eq('id', t.id))) {
+                      void h.macroTemplates.reload();
+                    }
+                  }}
+                >
+                  <Trash2 size={15} strokeWidth={1.5} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {creating && (
+        <Modal title="Novo template de macros" onClose={() => setCreating(false)}>
+          <form onSubmit={saveTemplate}>
+            <Field label="Nome do template">
+              <input className="input" placeholder="Ex.: High Carb · Treino Inferior" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
+            </Field>
+            <MacroEditor value={macros} onChange={setMacros} idSuffix="template" />
+            <div className="mb-4">
+              <div className="label mb-1.5">Dias da semana ativos</div>
+              <div className="flex flex-wrap gap-1.5">
+                {[1, 2, 3, 4, 5, 6, 0].map((wd) => (
+                  <button
+                    key={wd}
+                    type="button"
+                    onClick={() => toggleWd(wd)}
+                    className={`rounded-md border px-2.5 py-1 text-xs ${
+                      weekdays.includes(wd) ? 'border-brand bg-raised text-fg font-medium' : 'border-line text-fg3'
+                    }`}
+                  >
+                    {WEEKDAY_FULL[wd]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button className="btn-primary w-full justify-center">Salvar template</button>
+          </form>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
 async function setMode(h: Health, mode: 'fixed' | 'dynamic') {
-  // Show the choice at once; the reload brings the saved state.
   h.plans.setRows((rows) => rows.map((p) => (p.id === h.plan!.id ? { ...p, training_target_mode: mode } : p)));
   if (await write(supabase.from('diet_plans').update({ training_target_mode: mode }).eq('id', h.plan!.id))) void h.plans.reload();
 }
@@ -128,7 +509,7 @@ function WeekdayTargets({ h }: { h: Health }) {
   const rows = h.weekdayTargets.rows.filter((t) => t.plan_id === plan.id);
   return (
     <section className="card md:col-span-2">
-      <div className="mb-1 font-medium">Metas por dia da semana</div>
+      <div className="mb-1 font-medium">Metas fixas por dia da semana</div>
       <p className="mb-4 text-[13px] text-fg3">Opcional. Um dia com meta própria ignora a de treino ou descanso; os outros seguem as metas acima</p>
       <ul className="divide-y divide-line">
         {[1, 2, 3, 4, 5, 6, 0].map((wd) => {
@@ -210,7 +591,7 @@ function PlanMeals({ h }: { h: Health }) {
         );
       })}
       {adding && (
-        <FoodSearch title="Adicionar ao plano" onClose={() => setAdding(null)} onPick={async (food, grams) => {
+        <FoodSearch title="Adicionar ao plano" favoriteIds={h.favoriteIds} onClose={() => setAdding(null)} onPick={async (food, grams) => {
           if (await write(supabase.from('diet_plan_items').insert({ meal_id: adding, food_id: food.id, quantity_g: grams }))) { setAdding(null); void h.items.reload(); }
         }} />
       )}

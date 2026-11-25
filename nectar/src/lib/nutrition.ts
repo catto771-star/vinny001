@@ -1,19 +1,40 @@
 import type { Day } from './dates';
+import type { FoodMeasure, MicronutrientMap } from './micronutrients';
 
 export interface Food {
   id: string; name: string; brand?: string | null; source: string; country: string | null;
   kcal: number; protein_g: number; carbs_g: number; fat_g: number; fiber_g: number | null; default_serving_g: number;
+  nutrients?: MicronutrientMap | null;
+  measures?: FoodMeasure[] | null;
+  is_supplement?: boolean;
 }
 
 export interface Nutrients { kcal: number; protein_g: number; carbs_g: number; fat_g: number; fiber_g: number }
 
-export interface FoodLog extends Nutrients { id: string; date: Day; meal: string; food_id: string | null; food_name: string; quantity_g: number }
+export interface FoodLog extends Nutrients {
+  id: string; date: Day; meal: string; food_id: string | null; food_name: string; quantity_g: number;
+  nutrients?: MicronutrientMap | null;
+  measure_label?: string | null;
+  measure_qty?: number | null;
+  logged_time?: string | null;
+  is_supplement?: boolean;
+  group_id?: string | null;
+  group_name?: string | null;
+}
 
 export type DayType = 'training' | 'rest';
 
 export interface DayTarget { kcal: number; protein_g: number; carbs_g: number; fat_g: number }
 
-export interface Override { date: Day; day_type: DayType | null; kcal: number | null; protein_g: number | null; carbs_g: number | null; fat_g: number | null }
+export interface Override {
+  date: Day; day_type: DayType | null; kcal: number | null; protein_g: number | null; carbs_g: number | null; fat_g: number | null;
+  completed?: boolean;
+  notes?: string | null;
+}
+
+export function netCarbsG(carbs_g: number, fiber_g: number | null | undefined): number {
+  return Math.max(0, Math.round((carbs_g - (fiber_g ?? 0)) * 10) / 10);
+}
 
 export const MEALS = ['Café da manhã', 'Almoço', 'Lanche', 'Jantar', 'Ceia'] as const;
 

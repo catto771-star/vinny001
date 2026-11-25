@@ -606,3 +606,246 @@ export function RankedBars({ rows, unit, format = num }: { rows: { label: string
   );
 }
 
+/** Compact circular SVG ring gauge for highlighted micronutrients and fasting progress. */
+export function NutrientRing({
+  label,
+  pct,
+  sublabel,
+  size = 64,
+  overLimit = false,
+}: {
+  label: string;
+  pct: number;
+  sublabel?: string;
+  size?: number;
+  overLimit?: boolean;
+}) {
+  const stroke = 5;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const clamped = Math.max(0, Math.min(100, pct));
+  const offset = c * (1 - clamped / 100);
+  const color = overLimit ? 'var(--negative)' : clamped >= 100 ? 'var(--positive)' : ACCENT;
+  return (
+    <div className="flex flex-col items-center text-center">
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--line)" strokeWidth={stroke} />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke={color}
+            strokeWidth={stroke}
+            strokeLinecap="round"
+            strokeDasharray={c}
+            strokeDashoffset={offset}
+            transform={`rotate(-90 ${size / 2} ${size / 2})`}
+            className="transition-[stroke-dashoffset] duration-300"
+          />
+        </svg>
+        <div className="figure absolute inset-0 flex items-center justify-center text-[12px] font-medium text-fg">
+          {Math.round(pct)}%
+        </div>
+      </div>
+      <div className="mt-1.5 max-w-[84px] truncate text-[12px] font-medium text-fg2">{label}</div>
+      {sublabel && <div className="figure text-[11px] text-fg3">{sublabel}</div>}
+    </div>
+  );
+}
+
+/** Cronometer-style Dual-Axis Chart comparing two independent health series over shared days. */
+export function DualAxisChart({
+  title,
+  subtitle,
+  rows,
+  leftLabel,
+  leftUnit,
+  rightLabel,
+  rightUnit,
+  aside,
+  height = 260,
+}: {
+  title: string;
+  subtitle?: string;
+  rows: { label: string; left: number | null; right: number | null }[];
+  leftLabel: string;
+  leftUnit: string;
+  rightLabel: string;
+  rightUnit: string;
+  aside?: ReactNode;
+  height?: number;
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  const [table, setTable] = useState(false);
+  const W = 680;
+  const H = height;
+  const padL = 56;
+  const padR = 56;
+  const padT = 28;
+  const padB = 28;
+
+  const leftVals = rows.map((r) => r.left).filter((v): v is number => v !== null);
+  const rightVals = rows.map((r) => r.right).filter((v): v is number => v !== null);
+  const hasAny = leftVals.length > 0 || rightVals.length > 0;
+
+  const bounds = (vals: number[]) => {
+    if (!vals.length) return { lo: 0, hi: 1 };
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    if (max === min) {
+      const p = Math.max(1, Math.abs(max) * 0.1);
+      return { lo: Math.max(0, Math.floor(min - p)), hi: Math.ceil(max + p) };
+    }
+    const lo = Math.max(0, Math.floor(min - (max - min) * 0.12));
+    const hi = Math.ceil(max + (max - min) * 0.12);
+    return { lo, hi: Math.max(lo + 1, hi) };
+  };
+
+  const bL = bounds(leftVals);
+  const bR = bounds(rightVals);
+  const plotW = W - padL - padR;
+  const step = rows.length > 1 ? plotW / (rows.length - 1) : 0;
+  const x = (i: number) => padL + (rows.length > 1 ? step * i : plotW / 2);
+  const yL = (v: number) => padT + (H - padT - padB) * (1 - (v - bL.lo) / (bL.hi - bL.lo || 1));
+  const yR = (v: number) => padT + (H - padT - padB) * (1 - (v - bR.lo) / (bR.hi - bR.lo || 1));
+
+  const buildSegs = (pick: (r: (typeof rows)[number]) => number | null, yFn: (v: number) => number) => {
+    const segs: { x: number; y: number }[][] = [];
+    let cur: { x: number; y: number }[] = [];
+    rows.forEach((r, i) => {
+      const v = pick(r);
+      if (v === null) {
+        if (cur.length) { segs.push(cur); cur = []; }
+        return;
+      }
+      cur.push({ x: x(i), y: yFn(v) });
+    });
+    if (cur.length) segs.push(cur);
+    return segs;
+  };
+
+  const leftSegs = buildSegs((r) => r.left, yL);
+  const rightSegs = buildSegs((r) => r.right, yR);
+  const stride = rows.length > 12 ? Math.ceil(rows.length / 7) : 1;
+
+  return (
+    <figure className="card">
+      <figcaption className="mb-4 flex flex-wrap items-start gap-3">
+        <div className="mr-auto min-w-0">
+          <div className="font-medium">{title}</div>
+          {subtitle && <div className="mt-0.5 text-[13px] text-fg3">{subtitle}</div>}
+          <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-fg2">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full" style={{ background: ACCENT }} />
+              {leftLabel} ({leftUnit})
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full" style={{ background: 'var(--info)' }} />
+              {rightLabel} ({rightUnit})
+            </span>
+          </div>
+        </div>
+        {aside}
+        {hasAny && (
+          <button
+            type="button"
+            className="rounded-lg px-2.5 py-1 text-[13px] font-medium text-fg2 hover:bg-raised hover:text-fg"
+            onClick={() => setTable(!table)}
+          >
+            {table ? 'Ver gráfico' : 'Ver tabela'}
+          </button>
+        )}
+      </figcaption>
+      {!hasAny ? (
+        <div className="flex min-h-[160px] items-center justify-center rounded-[12px] bg-raised/50 px-4 py-8 text-center text-sm text-fg3">
+          Registre dados nas duas métricas selecionadas para comparar a correlação no tempo
+        </div>
+      ) : table ? (
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs text-fg3">
+              <th className="pb-2 font-normal">Dia</th>
+              <th className="pb-2 text-right font-normal">{leftLabel}</th>
+              <th className="pb-2 text-right font-normal">{rightLabel}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.filter((r) => r.left !== null || r.right !== null).map((r, i) => (
+              <tr key={`${r.label}-${i}`} className="border-t border-line">
+                <td className="py-1.5 text-fg2">{r.label}</td>
+                <td className="figure py-1.5 text-right">{r.left === null ? '—' : `${fmt(r.left)} ${leftUnit}`}</td>
+                <td className="figure py-1.5 text-right">{r.right === null ? '—' : `${fmt(r.right)} ${rightUnit}`}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          className="w-full rounded-[8px] outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          role="img"
+          tabIndex={0}
+          aria-label={`${title}: ${leftLabel} versus ${rightLabel}`}
+          onMouseLeave={() => setHover(null)}
+        >
+          {[0, 0.5, 1].map((f, idx) => {
+            const vl = bL.lo + (bL.hi - bL.lo) * f;
+            const vr = bR.lo + (bR.hi - bR.lo) * f;
+            const yy = yL(vl);
+            return (
+              <g key={idx}>
+                <line x1={padL} x2={W - padR} y1={yy} y2={yy} className="stroke-line" strokeDasharray={idx === 0 ? undefined : '3 3'} strokeWidth={1} />
+                <text x={padL - 8} y={yy + 4} textAnchor="end" className="fill-fg3 font-mono text-[11px]">{fmt(vl)}</text>
+                <text x={W - padR + 8} y={yy + 4} textAnchor="start" className="fill-fg3 font-mono text-[11px]">{fmt(vr)}</text>
+              </g>
+            );
+          })}
+          <text x={padL - 8} y={padT - 10} textAnchor="end" className="fill-fg3 font-mono text-[11px]">{leftUnit}</text>
+          <text x={W - padR + 8} y={padT - 10} textAnchor="start" className="fill-fg3 font-mono text-[11px]">{rightUnit}</text>
+
+          {leftSegs.map((seg, si) => (
+            <path key={`l-${si}`} d={smoothSvgPath(seg)} fill="none" stroke={ACCENT} strokeWidth={2} />
+          ))}
+          {rightSegs.map((seg, si) => (
+            <path key={`r-${si}`} d={smoothSvgPath(seg)} fill="none" stroke="var(--info)" strokeWidth={2} strokeDasharray="4 3" />
+          ))}
+
+          {rows.map((r, i) => {
+            const cx = x(i);
+            const showLbl = i % stride === 0 || i === rows.length - 1 || i === hover;
+            return (
+              <g key={`${r.label}-${i}`} onMouseEnter={() => setHover(i)} onClick={() => setHover(i)} className="cursor-pointer">
+                <rect x={cx - Math.max(8, step / 2)} y={padT} width={Math.max(16, step)} height={H - padT - padB} fill="transparent" />
+                {r.left !== null && <circle cx={cx} cy={yL(r.left)} r={hover === i ? 4.5 : 3} fill={ACCENT} />}
+                {r.right !== null && <circle cx={cx} cy={yR(r.right)} r={hover === i ? 4.5 : 3} fill="var(--info)" />}
+                {showLbl && <text x={cx} y={H - 8} textAnchor="middle" className="fill-fg3 font-mono text-[11px]">{r.label}</text>}
+              </g>
+            );
+          })}
+
+          {hover !== null && (
+            <g pointerEvents="none">
+              <line x1={x(hover)} x2={x(hover)} y1={padT} y2={H - padB} className="stroke-line-strong" strokeWidth={1} />
+              {(() => {
+                const pt = rows[hover];
+                const txt = `${pt.label} · ${leftLabel}: ${pt.left === null ? '—' : `${fmt(pt.left)} ${leftUnit}`} | ${rightLabel}: ${pt.right === null ? '—' : `${fmt(pt.right)} ${rightUnit}`}`;
+                const tw = Math.min(480, txt.length * 6.1 + 24);
+                const left = Math.min(Math.max(x(hover) - tw / 2, 4), W - tw - 4);
+                return (
+                  <>
+                    <rect x={left} y={2} width={tw} height={24} rx={6} className="fill-surface stroke-line-strong" strokeWidth={1} />
+                    <text x={left + 12} y={18} className="fill-fg text-[11px] font-medium">{txt}</text>
+                  </>
+                );
+              })()}
+            </g>
+          )}
+        </svg>
+      )}
+    </figure>
+  );
+}
+
+
