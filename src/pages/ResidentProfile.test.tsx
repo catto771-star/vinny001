@@ -25,7 +25,7 @@ describe("Perfil de residente inexistente", () => {
         </MemoryRouter>
       </I18nProvider>,
     );
-    await waitFor(() => expect(screen.getByText(/This record was not found/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Not found/)).toBeTruthy());
     expect(screen.getByRole("link", { name: /Residents/ }).getAttribute("href")).toBe("/residents");
   });
 });

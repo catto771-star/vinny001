@@ -3,7 +3,7 @@ export type FilterOption = { value: string; label: string };
 export type FilterDef = {
   key: string;
   label: string;
-  type: "search" | "select" | "multi" | "date";
+  type: "search" | "select" | "multi" | "date" | "text";
   options?: FilterOption[];
   /** Fica visível na barra, sem abrir "More filters". */
   primary?: boolean;

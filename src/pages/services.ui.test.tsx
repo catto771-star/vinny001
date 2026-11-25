@@ -113,7 +113,7 @@ describe("Dinner", () => {
     wrap(<Dinner />);
     fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: "2099-01-01" } });
     fireEvent.click(await screen.findByRole("button", { name: "Took the meal — Ana X" }));
-    expect(await screen.findByText(/Record the meal for Ana X now/)).toBeTruthy();
+    expect(await screen.findByText(/Record Ana X's meal now/)).toBeTruthy();
     expect(rpc).not.toHaveBeenCalledWith("mark_dinner", expect.anything());
     fireEvent.click(screen.getByRole("button", { name: "Record now" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("mark_dinner", { p_lodge: "a", p_day: "2099-01-01", p_stay: "s1", p_served: true }));

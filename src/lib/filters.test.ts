@@ -29,6 +29,11 @@ describe("filtros na URL", () => {
     expect(chips.map((c) => `${c.key}:${c.label}`)).toEqual(["kind:Type: Rounds", "tags:Tags: Incident", "tags:Tags: Delivery", "from:From: 2026-11-01"]);
     expect(chips.find((c) => c.label.includes("Delivery"))!.remove).toEqual({ tags: "a" });
   });
+  it("campo de texto livre (ex.: id do registro) vira chip e é lido da URL", () => {
+    const defs: FilterDef[] = [{ key: "record", label: "Record", type: "text" }];
+    expect(parseFilters(new URLSearchParams("record=abc-123"), defs)).toEqual({ record: "abc-123" });
+    expect(activeFilters(defs, { record: "abc-123" }).map((c) => c.label)).toEqual(["Record: abc-123"]);
+  });
   it("busca de texto ignora acento e caixa e exige todas as palavras", () => {
     expect(matchesText(["Pedro Silva", "Fire alarm"], "pedro alarm")).toBe(true);
     expect(matchesText(["Ó Briain"], "o briain")).toBe(true);

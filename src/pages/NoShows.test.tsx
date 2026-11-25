@@ -54,7 +54,7 @@ describe("No Shows", () => {
   it("B27: com check por lançar, avisa lista incompleta e bloqueia confirmar", async () => {
     review = { operational_day: "2026-11-19", day_finished: true, complete: false, pending_slots: ["22:00"], candidates: [candidate], confirmed: [] };
     await renderPage();
-    expect(screen.getByText(/Incomplete list: checks still to enter \(22:00\)/)).toBeTruthy();
+    expect(screen.getByText(/Incomplete: checks to enter \(22:00\)/)).toBeTruthy();
     expect((screen.getByRole("button", { name: "Confirm selected" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
@@ -64,7 +64,7 @@ describe("No Shows", () => {
     expect(screen.getByText("2/3")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Confirm selected" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("confirm_no_shows", { p_lodge: "a", p_day: expect.any(String), p_stays: ["s1"] }));
-    await waitFor(() => expect(screen.getByText(/Ana X reached 3 No Shows this month/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Ana X: 3 No Shows this month/)).toBeTruthy());
   });
 
   it("Revisão 25/11: primeiro o Seen do dia (link), depois os candidatos — quem não foi visto", async () => {

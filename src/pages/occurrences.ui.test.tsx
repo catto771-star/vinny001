@@ -204,7 +204,7 @@ describe("Handover", () => {
     fireEvent.click(screen.getByLabelText("Now"));
     const input = document.querySelector('.composer input[type="datetime-local"]') as HTMLInputElement;
     fireEvent.change(input, { target: { value: "2026-01-10T10:00" } });
-    expect(await screen.findByText("This occurred during a shift that has ended. Select a reason.")).toBeTruthy();
+    expect(await screen.findByText("Occurred in a finished shift. Select a reason.")).toBeTruthy();
     const post = screen.getByRole("button", { name: "Add entry" }) as HTMLButtonElement;
     expect(post.disabled).toBe(true);
     fireEvent.change(screen.getByLabelText("Reason for late entry"), { target: { value: "forgot" } });
@@ -218,7 +218,7 @@ describe("Handover", () => {
     fireEvent.change(box, { target: { value: "Nota antiga" } });
     fireEvent.click(screen.getByLabelText("Now"));
     fireEvent.change(document.querySelector('.composer input[type="datetime-local"]') as HTMLInputElement, { target: { value: "2026-01-10T10:00" } });
-    expect(screen.queryByText("This occurred during a shift that has ended. Select a reason.")).toBeNull();
+    expect(screen.queryByText("Occurred in a finished shift. Select a reason.")).toBeNull();
   });
 });
 

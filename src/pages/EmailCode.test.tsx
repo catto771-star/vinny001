@@ -76,7 +76,7 @@ describe("Código por e-mail", () => {
     signInWithOtp.mockResolvedValueOnce({ data: {}, error: { status: 429, message: "email rate limit exceeded" } });
     renderPage();
     fireEvent.click(screen.getByRole("button", { name: "Send code" }));
-    await waitFor(() => expect(screen.getByText(/Too many codes requested/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Too many codes/)).toBeTruthy());
   });
 
   it("código errado mostra aviso", async () => {

@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let management = true;
+const refreshMock = vi.fn(async () => {});
 const signIn = vi.fn(async (_c: { email: string; password: string }) => ({ error: null as null | { message: string } }));
 const updateUser = vi.fn(async (_a: { password: string }) => ({ error: null as null | { message: string } }));
 const signOutAuth = vi.fn(async (_o?: { scope: string }) => ({ error: null }));
@@ -13,6 +14,7 @@ const PARAMS = [
   { key: "security.session_idle_minutes", value: 15, valid_from: "2026-01-01T00:00:00Z", lodge_id: null },
   { key: "fridge.range_celsius", value: { min: 0, max: 5 }, valid_from: "2026-01-01T00:00:00Z", lodge_id: null },
   { key: "presence.check_times", value: ["12:00", "18:00", "22:00"], valid_from: "2026-01-01T00:00:00Z", lodge_id: null },
+  { key: "presence.check_window_minutes", value: 60, valid_from: "2026-01-01T00:00:00Z", lodge_id: null },
 ];
 function query(result: unknown) {
   const q: Record<string, unknown> = {};
@@ -33,8 +35,8 @@ vi.mock("@/auth/AuthProvider", () => ({
     isManagement: management,
     staff: { id: "me", full_name: "Vinicius Catto", display_name: null, role: management ? "developer" : "station", email: "me@x.test", home_lodge_id: "a" },
     session: { user: { email: "me@x.test" } },
-    lodges: [{ id: "a", code: "AMIENS", name: "Amiens St.", short_name: "Amiens" }],
-    refresh: async () => {},
+    lodges: [{ id: "a", code: "AMIENS", name: "Amiens St.", short_name: "Amiens" }, { id: "c", code: "CONNOLLY", name: "Connolly", short_name: "Connolly" }],
+    refresh: refreshMock,
   }),
 }));
 vi.mock("@/lib/push", () => ({ pushState: async () => "off", enablePush: async () => {}, disablePush: async () => {} }));
@@ -132,5 +134,39 @@ describe("Sistema (Admin)", () => {
     fireEvent.change(idle, { target: { value: "1" } });
     fireEvent.click(within(idle.closest("section")!).getByRole("button", { name: "Save" }));
     expect(await screen.findByText("That value is not allowed for this setting.")).toBeTruthy();
+  });
+});
+
+describe("Mais configurações (revisão 12)", () => {
+  it("nome de exibição: salva pelo servidor e atualiza a sessão", async () => {
+    show();
+    const name = (await screen.findByLabelText("Display name")) as HTMLInputElement;
+    fireEvent.change(name, { target: { value: "Siobhán" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save name" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("set_my_display_name", { p_name: "Siobhán" }));
+    await waitFor(() => expect(refreshMock).toHaveBeenCalled());
+  });
+  it("Admin escolhe a casa em que o app abre neste aparelho", async () => {
+    window.localStorage.clear();
+    show();
+    fireEvent.change(await screen.findByLabelText("Open on"), { target: { value: "a" } });
+    expect(window.localStorage.getItem("lodge.start")).toBe("a");
+    fireEvent.change(screen.getByLabelText("Open on"), { target: { value: "last" } });
+    expect(window.localStorage.getItem("lodge.start")).toBeNull();
+  });
+  it("conta de casa não vê 'Open on' (não alterna entre casas)", async () => {
+    management = false;
+    show();
+    await screen.findByText("Vinicius Catto");
+    expect(screen.queryByLabelText("Open on")).toBeNull();
+  });
+  it("Sistema: janela do Room Check (minutos) salva junto com os horários; link para o histórico", async () => {
+    show("/settings?tab=system");
+    const win = (await screen.findByLabelText("Check window (minutes)")) as HTMLInputElement;
+    expect(win.value).toBe("60");
+    fireEvent.change(win, { target: { value: "45" } });
+    fireEvent.click(within(win.closest("section")!).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("set_system_parameter", { p_key: "presence.check_window_minutes", p_value: 45 }));
+    expect(screen.getByRole("link", { name: "Change history" }).getAttribute("href")).toBe("/audit?module=settings");
   });
 });

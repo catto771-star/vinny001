@@ -73,3 +73,27 @@ describe("ritmo de espaçamento", () => {
     expect(rule(":root[data-theme] .nav-group-toggle")).toMatch(/padding:\s*0\s+\.75rem/);
   });
 });
+
+describe("campos de seleção e de data (revisão 12)", () => {
+  const sel = like("select:not([multiple])");
+  it("a seta é desenhada por nós (appearance none), na cor do tema, longe da borda", () => {
+    expect(sel).toMatch(/appearance:\s*none/);
+    expect(sel).toMatch(/linear-gradient[^;]*var\(--ink-2\)/);
+    const pos = /background-position:\s*calc\(100%\s*-\s*(\d+)px\)/.exec(sel);
+    expect(Number(pos?.[1])).toBeGreaterThanOrEqual(18);
+  });
+  it("o texto nunca corre por baixo da seta (padding à direita >= 2.5rem)", () => {
+    expect(sel).toMatch(/padding-right:\s*(2\.[5-9]|[3-9])\d*rem/);
+  });
+  it("ícone nativo de data/hora tem folga na borda", () => {
+    expect(like("::-webkit-calendar-picker-indicator")).toMatch(/margin-right:\s*\d+px/);
+    expect(like('input[type="date"]')).toMatch(/padding-right:\s*\.?\d/);
+  });
+});
+
+describe("tabela do Audit em telas estreitas (revisão 12)", () => {
+  it("rola dentro do próprio quadro (não empurra a página) e vira cartões no celular", () => {
+    expect(rule(".table-scroll")).toMatch(/overflow-x:\s*auto/);
+    expect(css).toMatch(/@media \(max-width:\s*719px\)\s*\{[^}]*\.audit-table thead[^}]*display:\s*none/);
+  });
+});

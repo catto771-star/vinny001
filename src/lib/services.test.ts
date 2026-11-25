@@ -38,7 +38,7 @@ describe("notificações", () => {
       "Ana X reached 3 No Shows this month (Amiens)",
     );
     expect(notificationText({ kind: "x", lodge_id: null, payload: {} }, t, () => "")).toBe("Notice");
-    expect(notificationText({ kind: "shift_hours_review", lodge_id: "a", payload: { name: "Pedro" } }, t, () => "Amiens")).toBe("Pedro's shift in Amiens differs from the Roster — confirm the hours");
+    expect(notificationText({ kind: "shift_hours_review", lodge_id: "a", payload: { name: "Pedro" } }, t, () => "Amiens")).toBe("Pedro's shift in Amiens differs from the Roster. Confirm hours.");
   });
   it("cobertura da Rota abaixo do mínimo e férias em conflito (Fase 3)", () => {
     expect(notificationText({ kind: "coverage_below_minimum", lodge_id: null, payload: { gaps: 4 } }, t, () => "")).toBe(

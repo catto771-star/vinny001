@@ -47,7 +47,7 @@ describe("Aviso das 18h30", () => {
   it("depois das 18h30 lista quem está sem evidência e avisa checks por lançar", async () => {
     renderCard("2026-11-20T18:45:00Z");
     await waitFor(() => expect(screen.getByText("Ana X")).toBeTruthy());
-    expect(screen.getByText(/Checks still to enter today: 18:00/)).toBeTruthy();
+    expect(screen.getByText(/Checks to enter today: 18:00/)).toBeTruthy();
     expect(rpc).toHaveBeenCalledWith("presence_alert", { p_lodge: "a" });
   });
 });

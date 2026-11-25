@@ -36,6 +36,14 @@ export function FilterBar({ defs, values, onChange, onClear, count }: {
         </label>
       );
     }
+    if (d.type === "text") {
+      return (
+        <label className="filter-field" key={d.key}>
+          <span>{d.label}</span>
+          <input type="text" value={v} onChange={(e) => onChange({ [d.key]: e.target.value })} />
+        </label>
+      );
+    }
     if (d.type === "date") {
       return (
         <label className="filter-field" key={d.key}>

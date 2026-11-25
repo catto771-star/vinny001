@@ -279,3 +279,18 @@ a { color: var(--hc, var(--accent)); }
 
 /* Revisão 10: abas soltas na página não ficam coladas no conteúdo. */
 .page > .tabs { margin-bottom: 1rem }
+
+/* ---- Revisão 12: Audit ---- */
+.audit-bar { display:flex;justify-content:space-between;align-items:center;gap:.75rem;min-height:32px }
+.audit-table td { vertical-align:top }
+.audit-actions { white-space:nowrap;display:flex;gap:.375rem;justify-content:flex-end }
+.audit-detail td { background:var(--surface-2) }
+.diff { list-style:none;margin:0;padding:0;display:grid;gap:.125rem;font-size:.875rem }
+.diff-field { font-weight:600;color:var(--ink-2) }
+.diff del { color:var(--danger);text-decoration-thickness:1px }
+.diff ins { color:var(--ok);text-decoration:none;font-weight:600 }
+.audit-more { align-self:center }
+.inline-field { display:flex;gap:.5rem;align-items:flex-end;flex-wrap:wrap;margin-top:.75rem }
+.inline-field label { flex:1 1 12rem;min-width:0 }
+.inline-field label { font-size:.8125rem;font-weight:600;color:var(--ink-2) }
+.card .filter-field + .segmented { margin-top:.75rem }

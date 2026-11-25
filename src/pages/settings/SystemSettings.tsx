@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { Plus, X } from "lucide-react";
 import { useI18n, type MessageKey } from "@/i18n";
 import { supabase } from "@/lib/supabase";
@@ -115,6 +116,7 @@ function SystemForms({ p, onSaved }: { p: Params; onSaved: () => Promise<void> }
   const { t } = useI18n();
   const str = (v: unknown, d = "") => (v === undefined || v === null ? d : String(v));
   const [checks, setChecks] = useState<string[]>((p["presence.check_times"] as string[]) ?? []);
+  const [checkWindow, setCheckWindow] = useState(str(p["presence.check_window_minutes"], "60"));
   const [rounds, setRounds] = useState<string[]>((p["rounds.hours"] as string[]) ?? []);
   const fr = (p["fridge.range_celsius"] as { min: number; max: number }) ?? { min: 0, max: 5 };
   const [fMin, setFMin] = useState(str(fr.min));
@@ -131,10 +133,14 @@ function SystemForms({ p, onSaved }: { p: Params; onSaved: () => Promise<void> }
 
   return (
     <div className="settings-grid">
-      <p className="hint settings-wide">{t("settings.systemHint")}</p>
+      <p className="hint settings-wide">{t("settings.systemHint")} <Link to="/audit?module=settings">{t("settings.changeHistory")}</Link></p>
 
-      <Section id="s-checks" title="settings.sRoomCheck" hint="settings.sRoomCheckHint" onSave={after(() => setParam("presence.check_times", checks))}>
+      <Section id="s-checks" title="settings.sRoomCheck" hint="settings.sRoomCheckHint" onSave={after(async () => {
+          await setParam("presence.check_times", checks);
+          await setParam("presence.check_window_minutes", num(checkWindow));
+        })}>
         <TimeList times={checks} onChange={setChecks} inputLabel="settings.newCheckTime" addLabel="settings.addCheckTime" />
+        <NumberField label="settings.checkWindow" value={checkWindow} onChange={setCheckWindow} />
       </Section>
 
       <Section id="s-rounds" title="settings.sRounds" hint="settings.sRoundsHint" onSave={after(() => setParam("rounds.hours", rounds))}>

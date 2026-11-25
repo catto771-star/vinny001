@@ -27,6 +27,7 @@ const RULES: Array<[RegExp, MessageKey]> = [
   [/invalid_filled_by/, "errors.invalidFilledBy"],
   [/too_many_authors/, "errors.tooManyAuthors"],
   [/invalid_parameter/, "errors.invalidParameter"],
+  [/invalid_name/, "errors.invalidName"],
   [/unknown_parameter/, "errors.unknownParameter"],
   [/invalid_co_author/, "errors.invalidCoAuthor"],
   [/home_lodge_required/, "errors.homeLodgeRequired"],

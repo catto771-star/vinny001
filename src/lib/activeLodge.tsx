@@ -11,6 +11,15 @@ import { ensureHouse } from "@/lib/theme";
 type Ctx = { activeId: string; setActiveId: (id: string) => void };
 const ActiveLodgeContext = createContext<Ctx | null>(null);
 const STORAGE_KEY = "lodge.active";
+const START_KEY = "lodge.start";
+
+/** Casa em que o app abre neste aparelho (só Admin). null = a última usada. */
+export function readStartHouse(): string | null {
+  try { return window.localStorage.getItem(START_KEY); } catch { return null; }
+}
+export function writeStartHouse(id: string | null): void {
+  try { if (id) window.localStorage.setItem(START_KEY, id); else window.localStorage.removeItem(START_KEY); } catch { /* armazenamento indisponível */ }
+}
 
 export function houseOf(lodge: Pick<Lodge, "code"> | undefined | null): string {
   return lodge?.code ? lodge.code.toLowerCase() : "";
@@ -32,7 +41,7 @@ function readStored(): string | null {
 export function ActiveLodgeProvider({ children }: { children: ReactNode }) {
   const { lodges, post, staff } = useAuth();
   const { isManagement } = useAuth();
-  const [chosen, setChosen] = useState<string | null>(readStored);
+  const [chosen, setChosen] = useState<string | null>(() => readStartHouse() ?? readStored());
   // A casa guardada no navegador só vale para Admin; conta de casa usa sempre a sua.
   const activeId = pickInitialLodge(lodges, [isManagement ? chosen : null, post?.lodge_id, staff?.home_lodge_id]);
   const setActiveId = useCallback((id: string) => {

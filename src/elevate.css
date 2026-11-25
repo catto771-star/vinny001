@@ -173,3 +173,28 @@ a { transition:color 140ms var(--ios-ease), opacity 140ms }
 
 /* Logo do login: no escuro, cartão branco em relevo */
 :root[data-theme="dark"] .auth-logo { background:#fff;border-radius:22px;padding:14px 18px;box-sizing:content-box;width:9rem;box-shadow:inset 0 1px 0 #fff, var(--sh-2) }
+
+/* ---- Revisão 12: seleção e data/hora — a seta é nossa, na cor do tema, com folga na borda ---- */
+:root[data-theme] select:not([multiple]) {
+  appearance:none;-webkit-appearance:none;padding-right:2.75rem!important;text-overflow:ellipsis;cursor:pointer;
+  background-image:linear-gradient(45deg, transparent 50%, var(--ink-2) 50%), linear-gradient(135deg, var(--ink-2) 50%, transparent 50%);
+  background-position:calc(100% - 21px) 54%, calc(100% - 15px) 54%;background-size:6px 6px, 6px 6px;background-repeat:no-repeat }
+:root[data-theme] select:not([multiple]):hover { background-image:linear-gradient(45deg, transparent 50%, var(--hc) 50%), linear-gradient(135deg, var(--hc) 50%, transparent 50%) }
+:root[data-theme] select:not([multiple]):focus { background-image:linear-gradient(45deg, transparent 50%, var(--hc) 50%), linear-gradient(135deg, var(--hc) 50%, transparent 50%) }
+:root[data-theme] select:not([multiple]):disabled { opacity:.55;cursor:not-allowed }
+:root[data-theme] select option { color:var(--ink);background:var(--surface) }
+:root[data-theme] input[type="date"], :root[data-theme] input[type="time"], :root[data-theme] input[type="datetime-local"] { padding-right:.875rem }
+:root[data-theme] input[type="date"]::-webkit-calendar-picker-indicator, :root[data-theme] input[type="time"]::-webkit-calendar-picker-indicator, :root[data-theme] input[type="datetime-local"]::-webkit-calendar-picker-indicator { margin-right:2px;opacity:.65;cursor:pointer }
+:root[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator, :root[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator, :root[data-theme="dark"] input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter:invert(1) }
+
+/* ---- Audit: a tabela rola no próprio quadro; no celular cada evento vira um cartão ---- */
+.table-scroll { overflow-x:auto;max-width:100%;border-radius:22px }
+@media (min-width: 720px) { .audit-table { min-width:760px } }
+@media (max-width: 719px) {
+  .audit-table thead { display:none }
+  .audit-table, .audit-table tbody { display:block }
+  .audit-table tr:not(.audit-detail) { display:grid;gap:.25rem;padding:.75rem 1rem;border-bottom:1px solid var(--line) }
+  .audit-table td { display:block;padding:0!important;border:0!important }
+  .audit-table .audit-actions { margin-top:.5rem }
+  .audit-table .audit-detail td { padding:.75rem!important }
+}

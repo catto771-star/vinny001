@@ -42,6 +42,6 @@ describe("Configurações do Admin", () => {
 
   it("fora do app instalado no iPhone, explica como adicionar à Tela de Início", async () => {
     render(<I18nProvider><MemoryRouter initialEntries={["/settings?tab=notifications"]}><Settings /></MemoryRouter></I18nProvider>);
-    expect(await screen.findByText(/cannot receive notifications|Add to Home Screen/)).toBeTruthy();
+    expect(await screen.findByText(/can't receive notifications|Add to Home Screen/)).toBeTruthy();
   });
 });
