@@ -902,3 +902,28 @@ kbd { display: inline-grid; place-items: center; min-width: 1.5rem; height: 1.5r
 .line-occ { fill: none; stroke: var(--chrome); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
 .chart-legend i { display: inline-block; width: 0.75rem; height: 0.5rem; border-radius: 2px; margin: 0 0.25rem 0 0.625rem; vertical-align: middle; }
 .lg-occ { background: var(--chrome); } .lg-in { background: var(--house-strong, #8db4d3); } .lg-out { background: var(--ink-3); opacity: 0.55; }
+
+/* Tags do Handover (revisão 3) */
+.tag-chips .chip.is-on { background: var(--chrome); color: var(--chrome-ink); border-color: var(--chrome); }
+.tag-chips .chip.tag-incident.is-on, .tag-chips .chip.tag-emergency.is-on { background: var(--danger); border-color: var(--danger); color: #fff; }
+.tag-chips .chip.tag-health.is-on, .tag-chips .chip.tag-damage.is-on { background: var(--warn); border-color: var(--warn); color: #fff; }
+.tag.tag-incident, .tag.tag-emergency { background: var(--danger-soft); color: var(--danger); }
+.tag.tag-health, .tag.tag-damage { background: var(--warn-soft); color: var(--warn); }
+.tag-filter { width: auto; min-height: 2.25rem; }
+
+/* Configurações do Admin (revisão 3) */
+.settings-push { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+.settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: 0.75rem; }
+.settings-group { border: none; padding: 0; margin: 0.75rem 0 0; display: grid; gap: 2px; }
+.settings-group legend { font-size: 0.8125rem; color: var(--ink-3); font-family: var(--font-mono); margin-bottom: 0.375rem; }
+.switch-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; min-height: 44px; padding: 0 0.25rem; border-bottom: 1px solid var(--line); }
+.switch-row input[role="switch"] { appearance: none; width: 2.75rem; height: 1.5rem; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line-strong); position: relative; cursor: pointer; transition: background-color var(--fast); flex: none; }
+.switch-row input[role="switch"]::after { content: ""; position: absolute; top: 2px; left: 2px; width: 1.125rem; height: 1.125rem; border-radius: 999px; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 20%); transition: transform var(--fast) var(--ease-out); }
+.switch-row input[role="switch"]:checked { background: var(--ok); border-color: var(--ok); }
+.switch-row input[role="switch"]:checked::after { transform: translateX(1.25rem); }
+
+/* App dos Admins instalado no iPhone (PWA): respeita o entalhe e a barra de início */
+@media (display-mode: standalone) {
+  .topbar { padding-top: calc(0.5rem + env(safe-area-inset-top)); }
+  .bottom-nav { padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
+}

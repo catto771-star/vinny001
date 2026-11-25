@@ -146,6 +146,21 @@ describe("Handover", () => {
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("close_handover_shift", { p_shift: "sh1", p_handed_to: "ana", p_note: "" }));
   });
 
+  it("Revisão 3: tags no lugar dos atalhos — marcar a tag vai junto da anotação; tag escondida pelo Admin não aparece", async () => {
+    tables.handover_tags = [
+      { id: "g1", code: "incident", label: "Incident / Safety", sort_order: 1, visible: true, notify_default: true },
+      { id: "g2", code: "delivery", label: "Delivery", sort_order: 7, visible: false, notify_default: false },
+    ];
+    wrap(<Handover />);
+    const box = await screen.findByPlaceholderText(/Write in the Handover/);
+    fireEvent.change(box, { target: { value: "Fight in room 4" } });
+    const group = await screen.findByRole("group", { name: "Tags" });
+    expect(within(group).queryByRole("button", { name: "Delivery" })).toBeNull();
+    fireEvent.click(within(group).getByRole("button", { name: "Incident / Safety" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add to Handover" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("add_handover_note", expect.objectContaining({ p_body: "Fight in room 4", p_tags: ["g1"] })));
+  });
+
   it("B38: fato de turno encerrado → Office precisa escolher motivo; sem motivo o botão fica bloqueado", async () => {
     wrap(<Handover />);
     const box = await screen.findByPlaceholderText(/Write in the Handover/);

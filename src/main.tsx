@@ -8,3 +8,8 @@ createRoot(document.getElementById("root")!).render(
     <App />
   </StrictMode>,
 );
+
+// App dos Admins (PWA): o service worker recebe as notificações push.
+if ("serviceWorker" in navigator && import.meta.env.PROD) {
+  void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+}

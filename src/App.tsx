@@ -32,6 +32,8 @@ import { Purchases } from "@/pages/Purchases";
 import { Reports } from "@/pages/Reports";
 import { Rota } from "@/pages/Rota";
 import { Tasks } from "@/pages/Tasks";
+import { Settings } from "@/pages/Settings";
+import { isStandalone } from "@/lib/push";
 import { Vacations } from "@/pages/Vacations";
 
 function Gate() {
@@ -64,6 +66,15 @@ function Gate() {
       break;
   }
 
+  // App do celular (PWA instalado) é só para os Admins; a conta da casa usa o sistema web.
+  if (staff?.role === "station" && isStandalone()) {
+    return (
+      <AuthCard title={t("auth.title")}>
+        <Notice kind="info">{t("auth.adminAppOnly")}</Notice>
+        <button className="primary" onClick={() => void signOut()}>{t("auth.signOut")}</button>
+      </AuthCard>
+    );
+  }
   // Beta: só a conta da casa (Staff) e a gestão (Admin) entram; Porter e Cleaner usam a conta da casa.
   if (staff?.role === "porter" || staff?.role === "cleaner") {
     return (
@@ -102,6 +113,7 @@ function Gate() {
         {isManagement && <Route path="reports" element={<Reports />} />}
         {isManagement && <Route path="users" element={<Users />} />}
         {isManagement && <Route path="audit" element={<Audit />} />}
+        {isManagement && <Route path="settings" element={<Settings />} />}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

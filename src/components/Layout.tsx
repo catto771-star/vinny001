@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
-  BedDouble, ListChecks, ClipboardCheck, Eye, History, House, LayoutGrid, NotebookPen, Plane, ScrollText,
+  BedDouble, Settings2, ListChecks, ClipboardCheck, Eye, History, House, LayoutGrid, NotebookPen, Plane, ScrollText,
   Bell, CalendarDays, ChartColumn, ShieldAlert, ShoppingCart, Timer, TreePalm, Shirt, Thermometer, Truck, UserX, Users, UtensilsCrossed, Wrench,
   type LucideIcon,
 } from "lucide-react";
@@ -67,6 +67,7 @@ export const GROUPS: Group[] = [
       { to: "/reports", label: "nav.reports", icon: ChartColumn, managementOnly: true },
       { to: "/users", label: "nav.users", icon: ScrollText, managementOnly: true },
       { to: "/audit", label: "nav.audit", icon: History, managementOnly: true },
+      { to: "/settings", label: "nav.settings", icon: Settings2, managementOnly: true },
     ],
   },
 ];
@@ -78,6 +79,14 @@ export const BOTTOM_LABELS: Record<string, MessageKey> = {
   "/handover": "nav.shortHandover",
   "/residents": "nav.residents",
 };
+
+// App dos Admins no celular (PWA): 5 abas — Home, Alerts, Presence, Log e More.
+export const BOTTOM_ADMIN: Item[] = [
+  { to: "/", label: "nav.today", icon: House },
+  { to: "/notifications", label: "nav.alerts", icon: Bell },
+  { to: "#presence", label: "nav.presence", icon: Eye },
+  { to: "/handover", label: "nav.log", icon: NotebookPen },
+];
 
 // Atalhos da barra inferior (celular): o que a recepção mais usa.
 const BOTTOM: Item[] = [
@@ -149,7 +158,8 @@ function Shell() {
   const { t } = useI18n();
   const location = useLocation();
   const [scrolled, setScrolled] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  // Menu do celular: tudo ("all") ou só um grupo (aba Presence do app dos Admins).
+  const [menuOpen, setMenuOpen] = useState<false | "all" | "presence">(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -179,9 +189,9 @@ function Shell() {
 
   const groups = GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => !i.managementOnly || isManagement) }));
 
-  const navList = (
+  const renderNav = (only?: MessageKey) => (
     <>
-      {groups.map((group) =>
+      {groups.filter((g) => !only || g.label === only).map((group) =>
         group.items.length === 0 && !group.phase ? null : (
           <div className="nav-group" key={group.label}>
             <div className="nav-group-label eyebrow">{t(group.label)}</div>
@@ -203,7 +213,7 @@ function Shell() {
     <div className="shell">
       <nav className="sidebar" aria-label="Menu">
         <HouseMark name={activeLodge?.name} />
-        {navList}
+        {renderNav()}
       </nav>
 
       <header className={`topbar${scrolled ? " is-scrolled" : ""}`}>
@@ -227,7 +237,12 @@ function Shell() {
       </main>
 
       <nav className="bottom-nav" aria-label="Menu">
-        {BOTTOM.map((item) => (
+        {(isManagement ? BOTTOM_ADMIN : BOTTOM).map((item) => item.to === "#presence" ? (
+          <button key={item.to} type="button" onClick={() => setMenuOpen("presence")}>
+            <span className="bottom-icon"><item.icon size={21} strokeWidth={1.8} aria-hidden="true" /></span>
+            {t(item.label)}
+          </button>
+        ) : (
           <NavLink key={item.to} to={item.to} end={item.to === "/"}>
             <span className="bottom-icon">
               <item.icon size={21} strokeWidth={1.8} aria-hidden="true" />
@@ -236,18 +251,18 @@ function Shell() {
             {t(BOTTOM_LABELS[item.to] ?? item.label)}
           </NavLink>
         ))}
-        <button type="button" onClick={() => setMenuOpen(true)}>
+        <button type="button" onClick={() => setMenuOpen("all")}>
           <LayoutGrid size={21} strokeWidth={1.8} aria-hidden="true" />
-          {t("nav.menu")}
+          {isManagement ? t("nav.more") : t("nav.menu")}
         </button>
       </nav>
 
       <MaintenanceReminder />
 
       {menuOpen && (
-        <Dialog title={t("nav.menu")} onClose={() => setMenuOpen(false)}>
+        <Dialog title={menuOpen === "presence" ? t("nav.presence") : t("nav.menu")} onClose={() => setMenuOpen(false)}>
           <div className="drawer-list">
-            {navList}
+            {renderNav(menuOpen === "presence" ? "nav.groupResidents" : undefined)}
             <div className="inline">
               <button type="button" className="link-button" onClick={() => void signOut()}>
                 {t("auth.signOut")} · {staffName(staff)}

@@ -4,7 +4,7 @@ import { useAuth } from "@/auth/AuthProvider";
 import { useI18n, type MessageKey } from "@/i18n";
 import { supabase } from "@/lib/supabase";
 import { errorKey } from "@/lib/errors";
-import { insertMention, isLateFact, mentionQuery, pickTitle } from "@/lib/occurrences";
+import { insertMention, isLateFact, mentionQuery } from "@/lib/occurrences";
 import { slotInstant } from "@/lib/presence";
 import { formatCivilDate, formatTime, operationalDay, operationalDayBounds } from "@/lib/time";
 import { residentName, staffName } from "@/lib/types";
@@ -80,6 +80,9 @@ export function Handover() {
   const [dialog, setDialog] = useState<"maintenance" | "warning" | null>(null);
   const [editing, setEditing] = useState<{ entry: Entry; mode: "edit" | "void" } | null>(null);
   const [shiftStaff, setShiftStaff] = useState<string | null>(null);
+  const [entryTags, setEntryTags] = useState<{ entry_id: string; tag_id: string }[]>([]);
+  const [tagFilter, setTagFilter] = useState("");
+  const allTags = useHandoverTags(false);
   const canWrite = canWriteLodge(lodgeId);
   const begin = useLatestRequest();
   const today = operationalDay(new Date(Date.now() + serverOffsetMs));
@@ -95,12 +98,17 @@ export function Handover() {
       .or(`and(occurred_at.gte.${start.toISOString()},occurred_at.lt.${end.toISOString()}),operational_day.eq.${day}`)
       .order("occurred_at", { ascending: false });
     const list = (data ?? []) as Entry[];
-    const { data: m } = list.length
-      ? await supabase.from("handover_mentions").select("entry_id, resident_id, staff_id").in("entry_id", list.map((e) => e.id))
-      : { data: [] };
+    const ids = list.map((e) => e.id);
+    const [{ data: m }, { data: et }] = list.length
+      ? await Promise.all([
+          supabase.from("handover_mentions").select("entry_id, resident_id, staff_id").in("entry_id", ids),
+          supabase.from("handover_entry_tags").select("entry_id, tag_id").in("entry_id", ids),
+        ])
+      : [{ data: [] }, { data: [] }];
     if (!isLatest()) return;
     setEntries(list);
     setMentions((m ?? []) as Mention[]);
+    setEntryTags((et ?? []) as { entry_id: string; tag_id: string }[]);
   }, [lodgeId, day, begin]);
 
   useEffect(() => {
@@ -120,9 +128,9 @@ export function Handover() {
   const nameOf = (id: string) => staffName(staffList.find((s) => s.id === id)) || "—";
 
   const visible = useMemo(() => {
-    const list = (entries ?? []).filter((e) => filter === "all" || e.kind === filter);
+    const list = (entries ?? []).filter((e) => (filter === "all" || e.kind === filter) && (!tagFilter || entryTags.some((x) => x.entry_id === e.id && x.tag_id === tagFilter)));
     return filter === "all" ? groupRounds(list) : list;
-  }, [entries, filter]);
+  }, [entries, filter, tagFilter, entryTags]);
 
   const doneRounds = new Set((entries ?? []).filter((e) => e.kind === "round" && e.operational_day === day).map((e) => e.round_slot));
 
@@ -203,6 +211,10 @@ export function Handover() {
             { value: "laundry", label: t("handover.filterLaundry") },
           ]}
         />
+        <select className="tag-filter" value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} aria-label={t("handover.tags")}>
+          <option value="">{t("handover.allTags")}</option>
+          {allTags.map((g) => <option key={g.id} value={g.id}>{g.label}</option>)}
+        </select>
       </div>
 
       {entries === null ? (
@@ -237,6 +249,14 @@ export function Handover() {
                     )}
                   </div>
                   <p className="timeline-text">{item.body}</p>
+                  {entryTags.some((x) => x.entry_id === item.id) && (
+                    <div className="mention-chips">
+                      {entryTags.filter((x) => x.entry_id === item.id).map((x) => {
+                        const g = allTags.find((y) => y.id === x.tag_id);
+                        return g ? <span key={x.tag_id} className={`tag tag-${g.code}`}>{g.label}</span> : null;
+                      })}
+                    </div>
+                  )}
                   {mentions.some((m) => m.entry_id === item.id) && (
                     <div className="mention-chips">
                       {mentions
@@ -303,6 +323,18 @@ export function Handover() {
 }
 
 const FILLER_ROLES = ["porter", "manager", "owner", "developer"];
+
+export type HandoverTag = { id: string; code: string; label: string; sort_order: number; visible: boolean; notify_default: boolean };
+
+/** Tags do Handover (revisão 3). onlyVisible = as que o Admin deixou aparecer. */
+export function useHandoverTags(onlyVisible: boolean): HandoverTag[] {
+  const [tags, setTags] = useState<HandoverTag[]>([]);
+  useEffect(() => {
+    void supabase.from("handover_tags").select("id, code, label, sort_order, visible, notify_default").order("sort_order")
+      .then(({ data }) => setTags(((data ?? []) as HandoverTag[]).filter((g) => !onlyVisible || g.visible)));
+  }, [onlyVisible]);
+  return tags;
+}
 
 type OpenShift = { id: string; staff_id: string; opened_at: string };
 
@@ -406,7 +438,7 @@ function Composer({
   onMaintenance: () => void;
   onWarning: () => void;
 }) {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const { isManagement, isStation, serverOffsetMs } = useAuth();
   const staffList = useStaffList();
   const { posts } = useOnDuty();
@@ -420,7 +452,8 @@ function Composer({
   const [occurredAt, setOccurredAt] = useState<Date | null>(null);
   const [reason, setReason] = useState("");
   const [reasons, setReasons] = useState<string[]>([]);
-  const [phrases, setPhrases] = useState<{ id: string; text: Record<string, string> }[]>([]);
+  const tags = useHandoverTags(true);
+  const [chosenTags, setChosenTags] = useState<string[]>([]);
   const [picked, setPicked] = useState<Suggestion[]>([]);
   const [query, setQuery] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -428,7 +461,6 @@ function Composer({
   const ref = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    void supabase.from("quick_phrases").select("id, text").eq("active", true).order("sort_order").then(({ data }) => setPhrases((data ?? []) as typeof phrases));
     void supabase.rpc("param_value", { p_key: "handover.late_reasons" }).then(({ data }) => setReasons((data ?? []) as string[]));
   }, []);
 
@@ -480,10 +512,12 @@ function Composer({
       p_mentions: mentions,
       p_late_reason: late ? reason || null : null,
       p_filled_by: chosenFiller || null,
+      p_tags: chosenTags,
     });
     setBusy(false);
     if (err) return setError(t(errorKey(err)));
     setBody("");
+    setChosenTags([]);
     setPicked([]);
     setOccurredAt(null);
     setReason("");
@@ -520,13 +554,17 @@ function Composer({
           </ul>
         )}
       </div>
-      {phrases.length > 0 && (
-        <div className="phrase-chips" aria-label={t("handover.quickPhrases")}>
-          {phrases.map((p) => (
-            <button key={p.id} type="button" className="chip" onClick={() => setBody((b) => (b ? `${b} ${pickTitle(p.text, locale)}` : pickTitle(p.text, locale)))}>
-              {pickTitle(p.text, locale)}
-            </button>
-          ))}
+      {tags.length > 0 && (
+        <div className="phrase-chips tag-chips" role="group" aria-label={t("handover.tags")}>
+          {tags.map((g) => {
+            const on = chosenTags.includes(g.id);
+            return (
+              <button key={g.id} type="button" className={`chip tag-${g.code}${on ? " is-on" : ""}`} aria-pressed={on}
+                onClick={() => setChosenTags((x) => (on ? x.filter((y) => y !== g.id) : [...x, g.id]))}>
+                {g.label}
+              </button>
+            );
+          })}
         </div>
       )}
       <div className="composer-bar">

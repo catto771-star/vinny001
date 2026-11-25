@@ -27,6 +27,8 @@ const RULES: Array<[RegExp, MessageKey]> = [
   [/invalid_filled_by/, "errors.invalidFilledBy"],
   [/home_lodge_required/, "errors.homeLodgeRequired"],
   [/dates_locked/, "errors.datesLocked"],
+  [/invalid_tag/, "errors.invalidTag"],
+  [/invalid_subscription/, "errors.invalidSubscription"],
   [/final_warning_active/, "errors.finalWarningActive"],
   [/shift_already_open/, "errors.shiftAlreadyOpen"],
   [/shift_already_closed|shift_not_found/, "errors.shiftClosed"],
