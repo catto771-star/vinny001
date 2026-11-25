@@ -11,67 +11,67 @@
 
 :root,
 .light {
-  --bg: #f7f4ee;
-  --sunken: #efe9df;
-  --surface: #fdfbf7;
-  --raised: #f2ede4;
-  --line: rgb(31 27 22 / 0.08);
-  --line-strong: rgb(31 27 22 / 0.16);
-  --card-ring: rgb(31 27 22 / 0.08);
-  --fg: #1f1b16;
-  --fg2: #5e554a;
-  --fg3: #756c60;
+  --bg: #f3f5fa;
+  --sunken: #e9edf5;
+  --surface: #ffffff;
+  --raised: #eef1f8;
+  --line: rgb(15 23 42 / 0.08);
+  --line-strong: rgb(15 23 42 / 0.16);
+  --card-ring: rgb(15 23 42 / 0.05);
+  --fg: #0e1117;
+  --fg2: #454d5e;
+  --fg3: #636b7d;
   --brand: #f25000;
   --brand-ink: #b83b00;
   --on-brand: #0c0c0d;
   --warning: #9a4708;
-  --primary: #1f1b16;
-  --primary-ink: #fdfbf7;
+  --primary: #0e1117;
+  --primary-ink: #ffffff;
   --positive: #16a34a;
   --negative: #dc2626;
-  --chart-neutral: #dcd6cb;
-  --skeleton: #ebe5da;
-  --skeleton-hi: #f5f1e8;
+  --chart-neutral: #dde2ec;
+  --skeleton: #e6eaf3;
+  --skeleton-hi: #f1f4fa;
   --indicator: #ffffff;
-  --indicator-shadow: 0 1px 2px rgb(31 27 22 / 0.06), 0 0 0 1px rgb(31 27 22 / 0.08);
-  --nav-active-bg: #ffffff;
-  --nav-active-shadow: 0 1px 2px rgb(31 27 22 / 0.05), 0 0 0 1px rgb(31 27 22 / 0.08);
-  --glass: rgb(253 251 247 / 0.86);
-  --glass-ring: rgb(31 27 22 / 0.08);
-  --float-shadow: 0 8px 24px rgb(31 27 22 / 0.08);
+  --indicator-shadow: 0 1px 2px rgb(15 23 42 / 0.08), 0 0 0 1px rgb(15 23 42 / 0.05);
+  --nav-active-bg: color-mix(in srgb, var(--brand) 16%, var(--surface));
+  --nav-active-shadow: none;
+  --glass: rgb(255 255 255 / 0.78);
+  --glass-ring: rgb(15 23 42 / 0.06);
+  --float-shadow: 0 12px 32px -8px rgb(15 23 42 / 0.18);
   --glow: color-mix(in srgb, var(--brand) 8%, transparent);
   color-scheme: light;
 }
 
 .dark {
-  --bg: #141415;
-  --sunken: #0f0f10;
-  --surface: #19191b;
-  --raised: #232325;
-  --line: rgb(237 237 237 / 0.08);
-  --line-strong: rgb(237 237 237 / 0.16);
-  --card-ring: rgb(237 237 237 / 0.08);
-  --fg: #ededed;
-  --fg2: #a1a1a6;
-  --fg3: #85858b;
+  --bg: #0a0a0d;
+  --sunken: #060608;
+  --surface: #131317;
+  --raised: #1c1c22;
+  --line: rgb(255 255 255 / 0.07);
+  --line-strong: rgb(255 255 255 / 0.15);
+  --card-ring: rgb(255 255 255 / 0.06);
+  --fg: #f2f3f5;
+  --fg2: #a8abb5;
+  --fg3: #8a8e99;
   --brand: #ff6a1a;
   --brand-ink: #ff853d;
   --on-brand: #0c0c0d;
   --warning: #eab308;
-  --primary: #ededed;
-  --primary-ink: #141415;
+  --primary: #f2f3f5;
+  --primary-ink: #0a0a0d;
   --positive: #4cc38a;
   --negative: #e5484d;
-  --chart-neutral: #2c2c30;
-  --skeleton: #1f1f22;
-  --skeleton-hi: #29292d;
-  --indicator: #252528;
-  --indicator-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1), 0 0 0 1px rgb(237 237 237 / 0.08);
-  --nav-active-bg: linear-gradient(180deg, #27272a 0%, #1f1f22 100%);
-  --nav-active-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1), 0 0 0 1px rgb(237 237 237 / 0.08);
-  --glass: rgb(15 15 16 / 0.88);
-  --glass-ring: rgb(237 237 237 / 0.1);
-  --float-shadow: 0 16px 32px -12px rgb(0 0 0 / 0.6);
+  --chart-neutral: #26262d;
+  --skeleton: #1a1a20;
+  --skeleton-hi: #24242b;
+  --indicator: #2a2a33;
+  --indicator-shadow: 0 0 0 1px rgb(255 255 255 / 0.08);
+  --nav-active-bg: color-mix(in srgb, var(--brand) 20%, var(--surface));
+  --nav-active-shadow: none;
+  --glass: rgb(19 19 23 / 0.8);
+  --glass-ring: rgb(255 255 255 / 0.1);
+  --float-shadow: 0 18px 40px -12px rgb(0 0 0 / 0.7);
   --glow: color-mix(in srgb, var(--brand) 8%, transparent);
   color-scheme: dark;
 }
@@ -91,6 +91,18 @@ html[data-accent="purple"] { --brand: #9f3aff; --brand-ink: #7b1fd6; --on-brand:
 html.dark[data-accent="purple"] { --brand: #b266ff; --brand-ink: #c68bff; --on-brand: #0c0c0d; }
 html[data-accent="red"] { --brand: #dc0000; --brand-ink: #c40000; --on-brand: #ffffff; }
 html.dark[data-accent="red"] { --brand: #ff3030; --brand-ink: #ff6666; --on-brand: #0c0c0d; }
+html[data-accent="cyan"] { --brand: #00a7c4; --brand-ink: #00657a; --on-brand: #0c0c0d; }
+html.dark[data-accent="cyan"] { --brand: #00e5ff; --brand-ink: #4df0ff; }
+html[data-accent="blue"] { --brand: #2f5bff; --brand-ink: #1f3fd1; --on-brand: #ffffff; }
+html.dark[data-accent="blue"] { --brand: #4d7cff; --brand-ink: #8fa9ff; --on-brand: #0c0c0d; }
+html[data-accent="green"] { --brand: #00b653; --brand-ink: #00763a; --on-brand: #0c0c0d; }
+html.dark[data-accent="green"] { --brand: #00ff85; --brand-ink: #4dffa6; }
+html[data-accent="pink"] { --brand: #ff2d95; --brand-ink: #c4106b; --on-brand: #0c0c0d; }
+html.dark[data-accent="pink"] { --brand: #ff4fa8; --brand-ink: #ff8cc6; }
+html[data-accent="magenta"] { --brand: #e600e6; --brand-ink: #9c009c; --on-brand: #0c0c0d; }
+html.dark[data-accent="magenta"] { --brand: #ff4dff; --brand-ink: #ff94ff; }
+html[data-accent="teal"] { --brand: #00b89e; --brand-ink: #006b5d; --on-brand: #0c0c0d; }
+html.dark[data-accent="teal"] { --brand: #00ffd5; --brand-ink: #5cffe3; }
 
 @theme inline {
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
@@ -401,3 +413,95 @@ main.tab-swap > :not(header) {
   }
 }
 
+/* ==========================================================================
+ * Visual 2.0: Material You tonal surfaces + fintech numbers + iOS motion.
+ * Everything is driven by tokens, so one rule restyles every screen. Radii
+ * written as arbitrary Tailwind values are remapped here instead of edited
+ * file by file.
+ * ========================================================================== */
+:root {
+  --r-card: 24px;
+  --r-ctl: 14px;
+  --r-pill: 999px;
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
+  --spring: linear(0, 0.0018, 0.0069 1.15%, 0.026 2.3%, 0.0637, 0.1135 5.2%, 0.2229 7.9%, 0.5977 14.4%, 0.7003, 0.7915 18.6%, 0.8688, 0.9319 22.9%, 0.9812 25.1%, 1.0175 27.4%, 1.0425 29.7%, 1.0552 32%, 1.0609 34.8%, 1.0507 38.5%, 1.0252 44.1%, 1.0091 49%, 1.0013 55.5%, 0.9987 62.8%, 1);
+  --card-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 12px 28px -18px rgb(15 23 42 / 0.16);
+  --tonal: color-mix(in srgb, var(--brand) 12%, var(--surface));
+}
+.dark { --card-shadow: none; --tonal: color-mix(in srgb, var(--brand) 16%, var(--surface)); }
+
+.rounded-\[14px\] { border-radius: var(--r-card); }
+.rounded-\[10px\] { border-radius: 16px; }
+.rounded-\[8px\] { border-radius: var(--r-ctl); }
+.rounded-\[6px\] { border-radius: 10px; }
+.rounded-\[4px\] { border-radius: 8px; }
+
+/* Numbers: big, tabular, tight — the Revolut/Wise look. */
+.figure { font-family: var(--font-sans); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; font-weight: 600; }
+.display { letter-spacing: -0.03em; font-weight: 600; }
+
+/* Cards: soft elevation instead of hairlines; the hero card is tonal. */
+.card { border-radius: var(--r-card); box-shadow: 0 0 0 1px var(--card-ring), var(--card-shadow); }
+.card-hero { border-radius: var(--r-card); background: var(--tonal); box-shadow: none; }
+
+/* Buttons: pills. Primary wears the accent; secondary is a quiet tonal fill. */
+.btn { border-radius: var(--r-pill); font-weight: 600;
+  transition: background-color 150ms ease, color 150ms ease, opacity 150ms ease, box-shadow 200ms ease, transform 420ms var(--spring); }
+.btn:active, .icon-btn:active { transform: scale(0.95); }
+.btn-primary { background: var(--brand); color: var(--on-brand); box-shadow: none; }
+.btn-primary:hover { opacity: 1; filter: brightness(1.06); }
+.btn-secondary { border-color: transparent; background: var(--raised); }
+.btn-secondary:hover { border-color: transparent; background: color-mix(in srgb, var(--brand) 10%, var(--raised)); }
+.btn-ghost:hover { background: var(--raised); }
+.icon-btn { border-radius: var(--r-pill); transition: background-color 150ms ease, color 150ms ease, transform 420ms var(--spring); }
+.badge { border-radius: var(--r-pill); padding-inline: 10px; }
+.input { border-radius: var(--r-ctl); border-color: transparent; }
+.input:focus { background: var(--surface); border-color: transparent; box-shadow: 0 0 0 2px var(--brand); }
+.skip-link { border-radius: var(--r-pill); }
+
+/* Tabs and filters: pill track, sliding pill thumb (spring). */
+.segmented { border-radius: var(--r-pill); border-color: transparent; background: var(--raised); }
+.tab { border-radius: var(--r-pill); }
+.tab-active { font-weight: 600; }
+.segmented[data-ind]::before, .slide-group[data-ind]::before { border-radius: var(--r-pill); }
+.segmented[data-ind="glide"]::before, .slide-group[data-ind="glide"]::before {
+  transition: transform 460ms var(--spring), width 360ms var(--ease-ios), height 360ms var(--ease-ios);
+}
+
+/* Navigation: tonal active pill in the accent (Material 3 / YouTube). */
+aside.sticky { border-right-color: transparent; }
+header.sticky { border-bottom-color: transparent; }
+.side-nav > a { border-radius: var(--r-pill); height: 40px; font-weight: 500; }
+.side-nav[data-ind]::before { border-radius: var(--r-pill); background: var(--nav-active-bg); box-shadow: none; }
+.side-nav[data-ind] > [aria-current="page"] { color: var(--brand-ink); font-weight: 600; }
+.side-nav[data-ind] > [aria-current="page"] svg { color: var(--brand-ink); }
+.glass-nav { border-radius: 28px; }
+.glass-nav[data-ind]::before { background: var(--nav-active-bg); box-shadow: none; border-radius: 22px; }
+.glass-nav[data-ind] > [aria-current="page"] { color: var(--brand-ink); }
+.glass-nav > * { border-radius: 22px; }
+
+/* iOS-style motion: pages push in, sheets rise on the iOS curve, controls spring. */
+@keyframes push-in { from { opacity: 0; transform: translate3d(28px, 0, 0); } to { opacity: 1; transform: none; } }
+@keyframes rise { from { opacity: 0; transform: translate3d(0, 14px, 0); } to { opacity: 1; transform: none; } }
+@keyframes sheet-spring { from { transform: translate3d(0, 100%, 0); } to { transform: none; } }
+@keyframes pop-spring { from { opacity: 0; transform: scale(0.92) translate3d(0, 12px, 0); } to { opacity: 1; transform: none; } }
+main.enter { animation: push-in 460ms var(--ease-ios) backwards; }
+main.tab-swap > :not(header) { animation: rise 420ms var(--ease-ios) backwards; }
+.stagger > * { animation: rise 520ms var(--ease-ios) backwards; }
+.enter { animation: rise 460ms var(--ease-ios) backwards; }
+.modal-backdrop { animation: fade-in 320ms var(--ease-ios) both; }
+.modal-panel { animation: sheet-spring 560ms var(--ease-ios) both; border-top-left-radius: 28px; border-top-right-radius: 28px; }
+.modal-panel[data-closing] { animation: sheet-out 300ms var(--ease-ios) both; }
+@media (min-width: 640px) {
+  .modal-panel { animation: pop-spring 520ms var(--spring) both; border-radius: 28px; }
+  .modal-panel[data-closing] { animation: pop-out 200ms var(--ease-ios) both; }
+}
+.toast { border-radius: 20px; animation: toast-in 520ms var(--spring) both; }
+.meter-fill { animation: grow 700ms var(--ease-ios) both; }
+input[type='checkbox']:checked { animation: tick 360ms var(--spring); }
+input[type='checkbox'], input[type='radio'] { accent-color: var(--brand); }
+@media (hover: hover) { .glow:hover { box-shadow: 0 0 0 1px var(--line-strong), var(--card-shadow); } }
+
+@media (prefers-reduced-motion: reduce) {
+  main.enter, .btn, .icon-btn { animation: none !important; transition-duration: 0.01ms !important; }
+}

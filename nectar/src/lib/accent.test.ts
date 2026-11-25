@@ -32,12 +32,12 @@ function resolved(key: string, theme: 'light' | 'dark') {
 }
 
 describe('accent colours', () => {
-  it('offers the five colours, orange first and by default', () => {
-    expect(ACCENTS.map((a) => a.key)).toEqual(['orange', 'lime', 'yellow', 'purple', 'red']);
-    expect(ACCENTS.map((a) => a.label)).toEqual(['Laranja neon', 'Verde-limão', 'Amarelo neon', 'Roxo neon', 'Vermelho Ferrari']);
+  it('offers the eleven colours, orange first and by default', () => {
+    expect(ACCENTS.map((a) => a.key)).toEqual(['orange', 'lime', 'yellow', 'purple', 'red', 'cyan', 'blue', 'green', 'pink', 'magenta', 'teal']);
+    expect(ACCENTS.map((a) => a.label)).toEqual(['Laranja neon', 'Verde-limão', 'Amarelo neon', 'Roxo neon', 'Vermelho Ferrari', 'Ciano neon', 'Azul elétrico', 'Verde neon', 'Rosa neon', 'Magenta neon', 'Turquesa neon']);
     expect(resolveAccent(null)).toBe('orange');
     expect(resolveAccent('purple')).toBe('purple');
-    expect(resolveAccent('pink')).toBe('orange');
+    expect(resolveAccent('olive')).toBe('orange');
   });
 
   for (const { key } of ACCENTS) {
