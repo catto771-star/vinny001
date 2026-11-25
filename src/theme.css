@@ -1,11 +1,11 @@
+/* Revisão 9: San Francisco (fonte do iPhone/Mac) nos aparelhos Apple; Inter, a mais parecida, nos demais. */
+@import "@fontsource/inter/latin-400.css";
+@import "@fontsource/inter/latin-500.css";
+@import "@fontsource/inter/latin-600.css";
+@import "@fontsource/inter/latin-700.css";
 /* Visual "app de banco" (revisão 6): modos claro e escuro, cor da casa em tudo. Gerado das demonstrações aprovadas. */
-@import "@fontsource/plus-jakarta-sans/latin-400.css";
-@import "@fontsource/plus-jakarta-sans/latin-500.css";
-@import "@fontsource/plus-jakarta-sans/latin-600.css";
-@import "@fontsource/plus-jakarta-sans/latin-700.css";
-@import "@fontsource/plus-jakarta-sans/latin-800.css";
 
-:root { --font-ui:"Plus Jakarta Sans",system-ui,sans-serif;--font-mono:"Plus Jakarta Sans",system-ui,sans-serif }
+:root { --font-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",Inter,system-ui,"Segoe UI",Roboto,sans-serif;--font-mono:var(--font-ui) }
 body,button,input,select,textarea { font-family:var(--font-ui) }
 .mono,.big-number,time,.clock-time,.clock-date,.dash-kpis dd,.eyebrow,.nav-group-label,.ring-text { font-family:var(--font-ui)!important;font-variant-numeric:tabular-nums;letter-spacing:0!important }
 * { --radius:14px; --radius-lg:22px; --radius-sm:10px; }
