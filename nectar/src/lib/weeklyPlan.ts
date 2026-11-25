@@ -1,4 +1,19 @@
 import { addDays, parseDay, weekday, type Day } from './dates';
+import { formatIn, fromBRL } from './money';
+
+export const FALLBACK_EUR_RATE = 6.2;
+
+/** Converts any Painel transaction amount to Euros (uses exact original_amount when recorded in EUR). */
+export function txAmountInEur(
+  tx: { amount: number; currency?: 'BRL' | 'USD' | 'EUR'; original_amount?: number | null },
+  eurRate?: number | null,
+): number {
+  if (tx.currency === 'EUR' && tx.original_amount !== null && tx.original_amount !== undefined) {
+    return Math.abs(Number(tx.original_amount) || 0);
+  }
+  const rate = eurRate && eurRate > 0 ? eurRate : FALLBACK_EUR_RATE;
+  return fromBRL(Math.abs(Number(tx.amount) || 0), rate);
+}
 
 export interface PlannedExpense {
   id: string;
@@ -164,7 +179,7 @@ export function createDefaultWeeklyPlan(weekStart: Day, overrides: Partial<Weekl
     proteinDailyTarget: 150,
     waterMlDailyTarget: 2500,
     dietDaysTarget: 6,
-    weeklyBudget: 600,
+    weeklyBudget: 150,
     plannedExpenses: [],
     tasksTarget: 10,
     habitsPctTarget: 80,
@@ -396,12 +411,12 @@ export function confrontWeek(plan: WeeklyPlan, actual: WeekActualInput, today: D
     {
       id: 'gastos',
       label: 'Gastos da Semana',
-      plannedLabel: effectiveBudget > 0 ? `Teto ${Math.round(effectiveBudget)}` : 'Sem teto',
+      plannedLabel: effectiveBudget > 0 ? `Teto ${formatIn(effectiveBudget, 'EUR')}` : 'Sem teto',
       actualLabel: `${spendPct}%`,
       subLabel: effectiveBudget > 0
         ? totalSpent <= effectiveBudget
-          ? `Restam ${Math.round(effectiveBudget - totalSpent)} do teto`
-          : `Estourou em ${Math.round(totalSpent - effectiveBudget)}`
+          ? `Restam ${formatIn(effectiveBudget - totalSpent, 'EUR')} do teto`
+          : `Estourou em ${formatIn(totalSpent - effectiveBudget, 'EUR')}`
         : 'Defina um teto semanal',
       score: spendScore,
       barPct: clamp(spendPct, 0, 100),

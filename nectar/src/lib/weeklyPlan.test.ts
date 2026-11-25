@@ -5,7 +5,15 @@ import {
   isPlanningDay,
   monWeekOf,
   targetWeekStartForPlanning,
+  txAmountInEur,
 } from './weeklyPlan';
+
+describe('txAmountInEur', () => {
+  it('keeps exact original_amount for EUR transactions and converts BRL via EUR rate', () => {
+    expect(txAmountInEur({ amount: 310, currency: 'EUR', original_amount: 50 }, 6.2)).toBe(50);
+    expect(txAmountInEur({ amount: 620, currency: 'BRL', original_amount: null }, 6.2)).toBe(100);
+  });
+});
 
 describe('weeklyPlan helpers', () => {
   it('computes Monday-to-Sunday weeks correctly for any weekday', () => {

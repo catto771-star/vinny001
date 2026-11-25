@@ -5,14 +5,14 @@ import {
 } from 'lucide-react';
 import {
   confrontWeek, createDefaultWeeklyPlan, formatWeekRange, isPlanningDay,
-  monWeekOf, PLANNING_DAY_OPTIONS, readPlanningDay, readWeeklyPlan,
+  monWeekOf, PLANNING_DAY_OPTIONS, readPlanningDay, readWeeklyPlan, txAmountInEur,
 } from '../lib/weeklyPlan';
 import { useTable, queuedWrite } from '../lib/useTable';
 import { latestPerKey } from '../lib/serial';
 import { addDays, formatDay, formatTime, monthName, toDay } from '../lib/dates';
 import { weekOf } from '../lib/calendar';
 import { num, plural } from '../lib/format';
-import { conv, displayCurrency, money, symbolOf } from '../lib/money';
+import { conv, displayCurrency, formatIn, money, symbolOf } from '../lib/money';
 import { bucketTasks, type Task } from '../lib/tasks';
 import { isDone, isPerfectDay, routineFor, type Habit, type HabitCompletion } from '../lib/habits';
 import { reminderPanel, type Reminder } from '../lib/reminders';
@@ -260,7 +260,7 @@ export default function Home() {
       dailyKcal[d] = Math.round(t.kcal);
       dailyProtein[d] = Math.round(t.protein_g);
       dailyWaterMl[d] = h.waterLogs.rows.filter((w) => w.date === d).reduce((s, w) => s + (Number(w.ml) || 0), 0);
-      dailySpend[d] = txs.rows.filter((x) => x.type === 'expense' && x.date === d).reduce((s, x) => s + Math.abs(Number(x.amount) || 0), 0);
+      dailySpend[d] = txs.rows.filter((x) => x.type === 'expense' && x.date === d).reduce((s, x) => s + txAmountInEur(x, fx.rates?.EUR), 0);
       const r = routineFor(habits.rows, d);
       const doneN = r.filter((hb) => isDone(hb, completions.rows.find((c) => c.habit_id === hb.id && c.completed_date === d))).length;
       habitsByDay[d] = { done: doneN, due: r.length };
@@ -277,7 +277,7 @@ export default function Home() {
       tasksDone,
       habitsByDay,
     }, today);
-  }, [savedWeekPlan, curMon, h.foodLogs.rows, h.waterLogs.rows, h.workouts.rows, h.cardio.rows, txs.rows, habits.rows, completions.rows, tasks.rows, today]);
+  }, [savedWeekPlan, curMon, h.foodLogs.rows, h.waterLogs.rows, h.workouts.rows, h.cardio.rows, txs.rows, fx.rates?.EUR, habits.rows, completions.rows, tasks.rows, today]);
 
   const pTrain = weekConfront.pillars.find((p) => p.id === 'treinos');
   const pSpend = weekConfront.pillars.find((p) => p.id === 'gastos');
@@ -319,7 +319,7 @@ export default function Home() {
               Dieta <strong className="figure text-fg">{pDiet?.actualLabel ?? '—'}</strong>
             </span>
             <span className="text-xs text-fg2">
-              Gastos <strong className={`figure ${pSpend?.status === 'over' ? 'text-negative' : 'text-fg'}`}>{money(weekConfront.totalSpent)}</strong>
+              Gastos <strong className={`figure ${pSpend?.status === 'over' ? 'text-negative' : 'text-fg'}`}>{formatIn(weekConfront.totalSpent, 'EUR')}</strong>
             </span>
           </div>
         </div>

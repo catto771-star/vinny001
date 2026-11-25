@@ -6,7 +6,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useTable } from '../lib/useTable';
 import { addDays, toDay, type Day } from '../lib/dates';
-import { money } from '../lib/money';
+import { formatIn } from '../lib/money';
 import { sumNutrients } from '../lib/nutrition';
 import { isDone, isScheduledOn, type Habit, type HabitCompletion } from '../lib/habits';
 import type { Task } from '../lib/tasks';
@@ -15,12 +15,14 @@ import {
   confrontWeek, createDefaultWeeklyPlan, formatWeekRange, isPlanningDay,
   MON_WEEKDAYS, monWeekOf, PLANNING_DAY_OPTIONS, readAllWeeklyPlans,
   readPlanningDay, readWeeklyPlan, savePlanningDay, saveWeeklyPlanLocal,
-  targetWeekStartForPlanning, type ConfrontStatus, type WeeklyPlan as WeeklyPlanModel,
+  targetWeekStartForPlanning, txAmountInEur, type ConfrontStatus, type WeeklyPlan as WeeklyPlanModel,
 } from '../lib/weeklyPlan';
 import { useHealth } from './health/useHealth';
+import { useRates } from './finance/useRates';
 import { Field, PageHeader } from '../components/ui';
 import { feedback } from '../lib/feedback';
 
+const eur = (n: number | null | undefined) => formatIn(n, 'EUR');
 const toast = (text: string, kind: 'ok' | 'error' = 'ok') => feedback({ kind, text });
 
 const I = { size: 16, strokeWidth: 1.5, 'aria-hidden': true } as const;
@@ -56,6 +58,7 @@ export default function WeeklyPlan() {
 
   // Pull real data from across Painel
   const h = useHealth();
+  const fx = useRates(null);
   const txs = useTable<Tx>('transactions');
   const tasks = useTable<Task>('tasks');
   const habits = useTable<Habit>('habits');
@@ -126,7 +129,7 @@ export default function WeeklyPlan() {
 
       dailySpend[d] = txs.rows
         .filter((t) => t.type === 'expense' && t.date === d)
-        .reduce((s, t) => s + Math.abs(Number(t.amount) || 0), 0);
+        .reduce((s, t) => s + txAmountInEur(t, fx.rates?.EUR), 0);
 
       const dueHabits = habits.rows.filter((hb) => !hb.is_archived && hb.frequency !== 'weekly' && isScheduledOn(hb, d));
       const doneCount = dueHabits.filter((hb) => {
@@ -152,7 +155,7 @@ export default function WeeklyPlan() {
       tasksDone,
       habitsByDay,
     };
-  }, [weekStart, h.foodLogs.rows, h.waterLogs.rows, h.workouts.rows, h.cardio.rows, txs.rows, tasks.rows, habits.rows, completions.rows]);
+  }, [weekStart, h.foodLogs.rows, h.waterLogs.rows, h.workouts.rows, h.cardio.rows, txs.rows, fx.rates?.EUR, tasks.rows, habits.rows, completions.rows]);
 
   const activePlan = savedPlans[weekStart] ?? draft;
   const confrontation = useMemo(
@@ -405,10 +408,10 @@ export default function WeeklyPlan() {
               const Icon = PILLAR_ICON[p.id];
               const badge = STATUS_BADGE[p.status];
               const actualDisplay = p.id === 'gastos'
-                ? money(confrontation.totalSpent)
+                ? eur(confrontation.totalSpent)
                 : p.actualLabel;
               const plannedDisplay = p.id === 'gastos' && activePlan.weeklyBudget > 0
-                ? `Teto ${money(activePlan.weeklyBudget)}`
+                ? `Teto ${eur(activePlan.weeklyBudget)}`
                 : p.plannedLabel;
               return (
                 <div key={p.id} className="card flex flex-col justify-between gap-3">
@@ -548,7 +551,7 @@ export default function WeeklyPlan() {
                     <div className="flex items-center justify-between">
                       <span className="text-fg3">Gastos</span>
                       <span className={`figure ${d.spendStatus === 'over' ? 'text-negative' : 'text-fg2'}`}>
-                        {d.spend > 0 ? money(d.spend) : '—'}
+                        {d.spend > 0 ? eur(d.spend) : '—'}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
@@ -717,11 +720,11 @@ export default function WeeklyPlan() {
                 <Wallet {...I} className="text-brand-ink" />
                 <h2 className="text-sm font-semibold text-fg">Gastos & Orçamento da Semana</h2>
               </div>
-              <Field label="Teto total de gastos da semana (R$)">
+              <Field label="Teto total de gastos da semana (€)">
                 <input
                   type="number"
                   min={0}
-                  step={50}
+                  step={10}
                   className="input figure"
                   value={draft.weeklyBudget}
                   onChange={(e) => setDraft({ ...draft, weeklyBudget: Math.max(0, Number(e.target.value) || 0) })}
@@ -740,7 +743,7 @@ export default function WeeklyPlan() {
                   <input
                     type="number"
                     className="input figure h-9 w-28 text-xs"
-                    placeholder="Valor"
+                    placeholder="Valor (€)"
                     value={newExpAmount}
                     onChange={(e) => setNewExpAmount(e.target.value)}
                   />
@@ -754,7 +757,7 @@ export default function WeeklyPlan() {
                       <li key={exp.id} className="flex items-center justify-between rounded-[12px] bg-raised/70 px-3 py-2 text-xs">
                         <span className="text-fg">{exp.label}</span>
                         <div className="flex items-center gap-2">
-                          <span className="figure text-fg2">{money(exp.amount)}</span>
+                          <span className="figure text-fg2">{eur(exp.amount)}</span>
                           <button
                             type="button"
                             className="icon-btn h-6 w-6"
@@ -868,7 +871,7 @@ export default function WeeklyPlan() {
                     <span>·</span>
                     <span>{pl.kcalDailyTarget} kcal</span>
                     <span>·</span>
-                    <span>Teto {money(pl.weeklyBudget)}</span>
+                    <span>Teto {eur(pl.weeklyBudget)}</span>
                   </div>
                   {pl.intention && <p className="truncate text-xs text-fg3">{pl.intention}</p>}
                 </button>
