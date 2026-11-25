@@ -460,7 +460,9 @@ main.tab-swap > :not(header) {
 .skip-link { border-radius: var(--r-pill); }
 
 /* Tabs and filters: pill track, sliding pill thumb (spring). */
-.segmented { border-radius: var(--r-pill); border-color: transparent; background: var(--raised); }
+/* A pill radius turns into an ellipse once a track wraps onto several rows and
+   clips the text, so the track uses a fixed radius (a pill at one row, 22px). */
+.segmented { border-radius: 22px; border-color: transparent; background: var(--raised); padding: 4px; gap: 4px; }
 .tab { border-radius: var(--r-pill); }
 .tab-active { font-weight: 600; }
 .segmented[data-ind]::before, .slide-group[data-ind]::before { border-radius: var(--r-pill); }
