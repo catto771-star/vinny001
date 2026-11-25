@@ -147,13 +147,61 @@ export const TOOLS = [
     peso_kg: { type: 'number', description: 'Peso em quilogramas (ex.: 78.4)' },
     observacoes: str('Observação opcional'),
   }, ['peso_kg']),
-  fn('registrar_treino', 'Registra uma sessão de treino de musculação em Saúde.', {
-    titulo: str('Nome do treino (ex.: Superior A, Pernas)'),
-    duracao_min: { type: 'integer', description: 'Duração em minutos, opcional' },
-    notas: str('Observações ou exercícios feitos, opcional'),
+  fn('registrar_treino', 'Registra uma sessão de treino (musculação, calistenia, funcional/HIIT, mobilidade, esporte ou outro) com séries opcionais, cálculo automático de calorias gastas e sincronização com hábitos.', {
+    titulo: str('Nome do treino (ex.: Push A, Pernas, Funcional)'),
+    modalidade: { type: 'string', enum: ['musculacao', 'calistenia', 'funcional', 'mobilidade', 'esporte', 'outro'], description: 'Modalidade da sessão (padrão musculacao)' },
+    duracao_min: { type: 'integer', description: 'Duração em minutos, opcional (estimada pelas séries se omitida)' },
+    kcal: { type: 'number', description: 'Calorias gastas (opcional; calculadas automaticamente se omitido)' },
+    notas: str('Observações da sessão, opcional'),
     data: str('YYYY-MM-DD, opcional (hoje)'),
+    exercicios: {
+      type: 'array',
+      description: 'Exercícios realizados com séries, opcional',
+      items: {
+        type: 'object',
+        properties: {
+          nome: str('Nome do exercício (ex.: Supino reto com barra)'),
+          series: { type: 'integer', description: 'Quantidade de séries (padrão 3)' },
+          reps: { type: 'integer', description: 'Repetições por série (padrão 10)' },
+          carga_kg: { type: 'number', description: 'Carga em kg (padrão 0)' },
+          rpe: { type: 'number', description: 'Esforço RPE 6 a 10, opcional' },
+          superset: str('Grupo de superset A, B, C…, opcional'),
+        },
+        required: ['nome'],
+      },
+    },
   }, ['titulo']),
-  fn('registrar_cardio', 'Registra uma sessão de cardio em Saúde.', {
+  fn('gerar_rotina_treino', 'Cria uma rotina estruturada na Ficha de Treino do usuário (estilo Hevy Trainer) com pasta opcional, dias da semana, supersets, séries, faixa de repetições e descanso.', {
+    nome_rotina: str('Nome da rotina/divisão (ex.: Upper A · Força, Push Hipertrofia)'),
+    pasta: str('Nome da pasta de rotinas (ex.: Upper Lower 4x, PPL), opcional'),
+    dias_semana: {
+      type: 'array',
+      description: 'Dias da semana (0=domingo .. 6=sábado), opcional',
+      items: { type: 'integer' },
+    },
+    observacoes: str('Nota estratégica da rotina, opcional'),
+    exercicios: {
+      type: 'array',
+      description: 'Lista ordenada de exercícios da rotina (1 a 15)',
+      items: {
+        type: 'object',
+        properties: {
+          nome: str('Nome do exercício (ex.: Agachamento livre, Supino inclinado com halteres)'),
+          series: { type: 'integer', description: 'Número de séries (1 a 10, padrão 3)' },
+          reps: str('Repetições ou faixa (ex.: "8-12", "6-8", "12")'),
+          carga_kg: { type: 'number', description: 'Carga inicial sugerida em kg, opcional' },
+          descanso_s: { type: 'integer', description: 'Descanso em segundos (ex.: 90, 120, 150)' },
+          superset: str('Letra do Superset (A, B, C…), opcional'),
+          nota: str('Observação técnica, opcional'),
+        },
+        required: ['nome'],
+      },
+    },
+  }, ['nome_rotina', 'exercicios']),
+  fn('analisar_evolucao_treino', 'Analisa histórico de treinos e cardio do período: recordes pessoais (1RM Hevy 1–30 reps, maior carga), distribuição muscular ponderada (1,0× primário + 0,5× secundário), calorias ativas gastas e sinergia cruzada com dieta, hidratação e hábitos.', {
+    dias: { type: 'integer', description: 'Janela de análise em dias (7 a 180, padrão 28)' },
+  }),
+  fn('registrar_cardio', 'Registra uma sessão de cardio em Saúde com cálculo de gasto calórico e sincronização de hábitos.', {
     tipo: str('Modalidade (ex.: corrida, caminhada, bike, elíptico)'),
     duracao_min: { type: 'integer', description: 'Duração em minutos' },
     distancia_km: { type: 'number', description: 'Distância em km, opcional' },
@@ -161,7 +209,7 @@ export const TOOLS = [
     notas: str('Observações, opcional'),
     data: str('YYYY-MM-DD, opcional (hoje)'),
   }, ['tipo', 'duracao_min']),
-  fn('resumo_saude_hoje', 'Consulta peso mais recente, calorias/macros consumidos, água, jejum ativo e treinos/cardio de uma data (padrão hoje).', {
+  fn('resumo_saude_hoje', 'Consulta peso mais recente, calorias/macros consumidos, gasto calórico de treinos/cardio, meta de água ajustada, jejum ativo e treinos/cardio de uma data (padrão hoje).', {
     data: str('YYYY-MM-DD, opcional (hoje)'),
   }),
   fn('consultar_oraculo_nutrientes', 'Consulta o Oráculo de Nutrientes: ranqueia alimentos mais ricos em um macro ou micronutriente (por densidade combinada, por 100 kcal ou por 100 g).', {
@@ -476,10 +524,70 @@ export function checkArgs(name: string, raw: unknown): { ok: true; args: ToolArg
       const titulo = text('titulo', 140);
       const data = text('data');
       const dur = a.duracao_min == null ? null : Math.round(Number(a.duracao_min));
+      const kcal = a.kcal == null ? null : Math.round(Number(a.kcal));
+      const modRaw = text('modalidade', 30).toLowerCase();
+      const validMods = ['musculacao', 'calistenia', 'funcional', 'mobilidade', 'esporte', 'outro'];
+      const modalidade = validMods.includes(modRaw) ? modRaw : 'musculacao';
       if (!titulo) return fail('titulo do treino é obrigatório');
       if (data && !DATE.test(data)) return fail('data deve ser YYYY-MM-DD');
       if (dur !== null && !(dur > 0 && dur <= 600)) return fail('duracao_min deve estar entre 1 e 600');
-      return { ok: true, args: { titulo, duracao_min: dur, notas: text('notas', 400) || null, data: data || null } };
+      if (kcal !== null && !(kcal >= 0 && kcal <= 10000)) return fail('kcal inválido');
+
+      const exercicios: { nome: string; series: number; reps: number; carga_kg: number; rpe: number | null; superset: string | null }[] = [];
+      if (Array.isArray(a.exercicios)) {
+        for (const rawEx of a.exercicios.slice(0, 20)) {
+          const ex = (rawEx && typeof rawEx === 'object' ? rawEx : {}) as Record<string, unknown>;
+          const nome = typeof ex.nome === 'string' ? ex.nome.trim().slice(0, 120) : '';
+          if (!nome) continue;
+          const series = ex.series == null ? 3 : Math.max(1, Math.min(15, Math.round(Number(ex.series) || 3)));
+          const reps = ex.reps == null ? 10 : Math.max(1, Math.min(100, Math.round(Number(ex.reps) || 10)));
+          const carga = ex.carga_kg == null ? 0 : Math.max(0, Math.round(Number(ex.carga_kg) * 100) / 100 || 0);
+          const rpeNum = ex.rpe == null ? NaN : Number(ex.rpe);
+          const rpe = Number.isFinite(rpeNum) && rpeNum >= 1 && rpeNum <= 10 ? rpeNum : null;
+          const ss = typeof ex.superset === 'string' && ex.superset.trim() ? ex.superset.trim().slice(0, 2).toUpperCase() : null;
+          exercicios.push({ nome, series, reps, carga_kg: carga, rpe, superset: ss });
+        }
+      }
+      const out: ToolArgs = { titulo, modalidade, duracao_min: dur, kcal, notas: text('notas', 400) || null, data: data || null };
+      if (exercicios.length) out.exercicios = exercicios;
+      return { ok: true, args: out };
+    }
+    case 'gerar_rotina_treino': {
+      const nome_rotina = text('nome_rotina', 120);
+      if (!nome_rotina) return fail('nome_rotina é obrigatório');
+      if (!Array.isArray(a.exercicios) || !a.exercicios.length) return fail('exercicios deve ter ao menos 1 item');
+      const exercicios: { nome: string; series: number; reps: string; carga_kg: number | null; descanso_s: number; superset: string | null; nota: string | null }[] = [];
+      for (const rawEx of a.exercicios.slice(0, 15)) {
+        const ex = (rawEx && typeof rawEx === 'object' ? rawEx : {}) as Record<string, unknown>;
+        const nome = typeof ex.nome === 'string' ? ex.nome.trim().slice(0, 120) : '';
+        if (!nome) return fail('cada exercício precisa de nome');
+        const series = ex.series == null ? 3 : Math.max(1, Math.min(10, Math.round(Number(ex.series) || 3)));
+        const reps = typeof ex.reps === 'string' && ex.reps.trim() ? ex.reps.trim().slice(0, 16) : '8-12';
+        const cargaNum = ex.carga_kg == null ? NaN : Number(ex.carga_kg);
+        const carga_kg = Number.isFinite(cargaNum) && cargaNum > 0 ? Math.round(cargaNum * 100) / 100 : null;
+        const descanso_s = ex.descanso_s == null ? 90 : Math.max(15, Math.min(600, Math.round(Number(ex.descanso_s) || 90)));
+        const superset = typeof ex.superset === 'string' && ex.superset.trim() ? ex.superset.trim().slice(0, 2).toUpperCase() : null;
+        const nota = typeof ex.nota === 'string' && ex.nota.trim() ? ex.nota.trim().slice(0, 160) : null;
+        exercicios.push({ nome, series, reps, carga_kg, descanso_s, superset, nota });
+      }
+      const dias_semana = Array.isArray(a.dias_semana)
+        ? [...new Set(a.dias_semana.map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))]
+        : [];
+      return {
+        ok: true,
+        args: {
+          nome_rotina,
+          pasta: text('pasta', 80) || null,
+          dias_semana,
+          observacoes: text('observacoes', 240) || null,
+          exercicios,
+        },
+      };
+    }
+    case 'analisar_evolucao_treino': {
+      const dias = a.dias == null ? 28 : Math.round(Number(a.dias));
+      if (!(Number.isFinite(dias) && dias >= 7 && dias <= 180)) return fail('dias deve estar entre 7 e 180');
+      return { ok: true, args: { dias } };
     }
     case 'registrar_cardio': {
       const tipo = text('tipo', 80);
@@ -634,7 +742,7 @@ export const WRITES = new Set([
   'criar_compromisso', 'reagendar_compromisso', 'marcar_habito', 'registrar_transacao',
   'registrar_transferencia', 'definir_orcamento', 'criar_nota', 'registrar_progresso_meta',
   'criar_marco_projeto', 'criar_plano_projeto', 'concluir_marco_projeto',
-  'registrar_refeicao', 'registrar_peso', 'registrar_treino', 'registrar_cardio',
+  'registrar_refeicao', 'registrar_peso', 'registrar_treino', 'gerar_rotina_treino', 'registrar_cardio',
   'registrar_agua', 'iniciar_jejum', 'encerrar_jejum',
   'salvar_memoria', 'esquecer_memoria',
 ]);
@@ -683,13 +791,14 @@ export interface Snapshot {
 
 export function systemPrompt(now: LocalNow, tz: string, s: Snapshot): string {
   const lines = [
-    'Você é o assistente autônomo do Painel, o sistema pessoal do usuário (tarefas, hábitos, agenda, lembretes, saúde/nutrição estilo Cronometer, jejum intermitente, finanças multimoeda, projetos, metas e notas).',
+    'Você é o assistente autônomo do Painel, o sistema pessoal do usuário (tarefas, hábitos, agenda, lembretes, saúde/nutrição estilo Cronometer, treinos estilo Hevy, jejum intermitente, finanças multimoeda, projetos, metas e notas).',
     `Hoje é ${WEEKDAYS[now.weekday]}, ${now.date.split('-').reverse().join('/')}, ${now.time} (${tz}).${s.name ? ` O usuário se chama ${s.name}.` : ''}${s.displayCurrency ? ` Moeda principal de exibição: ${s.displayCurrency}.` : ''}`,
     'Responda em português do Brasil, direto, claro e prático. Use listas curtas só quando ajudarem.',
     'Autonomia e precisão:',
     '- Use as ferramentas para consultar e agir; nunca invente dados nem ids. Encadeie quantas ferramentas forem necessárias para resolver o pedido por completo numa única resposta.',
     '- Para criar várias etapas e subetapas de um projeto, use criar_plano_projeto em uma única chamada.',
-    '- Em Saúde e Nutrição: para sugerir refeições que fechem macros e micronutrientes faltantes do dia, chame sugerir_alimentos_dia (e consultar_oraculo_nutrientes se quiser focar num nutriente específico), monte 2 a 3 opções com gramatura/medidas caseiras exatas e ofereça registrar a escolhida com registrar_refeicao. Para hidratação use registrar_agua e para jejum intermitente use iniciar_jejum / encerrar_jejum.',
+    '- Em Treinos (estilo Hevy) e Sinergia entre Módulos: use analisar_evolucao_treino para diagnosticar recordes pessoais (1RM), simetria muscular (1,0× primário + 0,5× secundário), calorias gastas e sinergia com dieta/água/hábitos. Use gerar_rotina_treino para criar divisões completas com pastas e supersets na Ficha do usuário, e registrar_treino (passando exercicios quando informados) ou registrar_cardio para registrar sessões calculando calorias gastas e sincronizando hábitos automaticamente.',
+    '- Em Saúde e Nutrição: para sugerir refeições que fechem macros e micronutrientes faltantes do dia (considerando também o gasto calórico dos treinos), chame sugerir_alimentos_dia (e consultar_oraculo_nutrientes se quiser focar num nutriente específico), monte 2 a 3 opções com gramatura/medidas caseiras exatas e ofereça registrar a escolhida com registrar_refeicao. Para hidratação use registrar_agua e para jejum intermitente use iniciar_jejum / encerrar_jejum.',
     '- Para concluir/reagendar tarefa ou marcar hábito, passe o título/nome. Nunca diga que algo não existe sem consultar antes (listar_tarefas com periodo "todas").',
     '- Converta datas relativas (hoje, amanhã, sexta) para YYYY-MM-DD a partir de hoje. Em finanças, respeite a moeda citada (EUR, USD ou BRL) e escolha a conta adequada conforme o que você sabe do usuário.',
     '- Se o usuário enviar uma foto de recibo/nota fiscal ou prato de comida, extraia os dados com cuidado e registre usando a ferramenta certa (ou confirme se algum valor estiver ilegível).',

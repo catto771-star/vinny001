@@ -14,7 +14,7 @@ export interface PlanTarget extends DayTarget { plan_id: string; day_type: DayTy
 export interface PlanMeal { id: string; plan_id: string; name: string; time_of_day: string | null; order_index: number }
 export interface PlanItem { id: string; meal_id: string; food_id: string; quantity_g: number; food?: { name: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number; fiber_g: number | null } }
 export interface Measurement { id: string; measured_at: string; metric: string; value: number; assessment_id: string | null }
-export interface WorkoutPlan { id: string; name: string; is_active: boolean; started_at: string; ended_at: string | null }
+export interface WorkoutPlan { id: string; name: string; is_active: boolean; started_at: string; ended_at: string | null; habit_id?: string | null; modality?: string | null }
 export interface WeekdayTarget extends DayTarget { plan_id: string; weekday: number }
 export interface BodyAssessment { id: string; date: string; notes: string | null; created_at: string }
 export interface BodyPhoto { id: string; assessment_id: string; pose: 'front' | 'side' | 'back'; storage_path: string }
@@ -79,6 +79,19 @@ export interface MacroTemplate extends DayTarget {
   name: string;
   weekdays: number[];
 }
+export interface HealthHabit {
+  id: string;
+  name: string;
+  habit_type: string;
+  target_value: number | null;
+  is_archived: boolean;
+}
+export interface HealthHabitCompletion {
+  id: string;
+  habit_id: string;
+  completed_date: Day;
+  value: number;
+}
 
 /** Everything the health screens read, loaded once and shared by the tabs. */
 export function useHealth() {
@@ -86,7 +99,7 @@ export function useHealth() {
   const setTypes = useTable<SetType & { user_id: string | null; sort_order: number }>('set_types', '*', { column: 'sort_order' });
   const settings = useTable<SettingsRow>('exercise_settings');
   const workouts = useTable<Workout & { notes: string | null; plan_session_id: string | null }>('workouts', '*', { column: 'date', ascending: false });
-  const sets = useTable<WorkoutSet>('workout_sets', '*', { column: 'position' });
+  const sets = useTable<WorkoutSet & { notes?: string | null }>('workout_sets', '*', { column: 'position' });
   const cardio = useTable<CardioSession & { notes: string | null }>('cardio_sessions', '*', { column: 'date', ascending: false });
   const measurements = useTable<Measurement>('body_measurements', '*', { column: 'measured_at' });
   const foodLogs = useTable<FoodLog>('food_logs', '*', { column: 'created_at' });
@@ -112,6 +125,8 @@ export function useHealth() {
   const repeatItems = useTable<RepeatFoodItem>('repeat_food_items', '*', { column: 'created_at' });
   const fasts = useTable<FastingSession>('fasting_sessions', '*', { column: 'started_at', ascending: false });
   const macroTemplates = useTable<MacroTemplate>('macro_templates', '*', { column: 'created_at' });
+  const habits = useTable<HealthHabit>('habits', 'id,name,habit_type,target_value,is_archived');
+  const habitCompletions = useTable<HealthHabitCompletion>('habit_completions', 'id,habit_id,completed_date,value');
 
   const derived = useMemo(() => {
     const exerciseById = new Map(exercises.rows.map((e) => [e.id, e]));
@@ -151,7 +166,7 @@ export function useHealth() {
   return {
     exercises, setTypes, settings, workouts, sets, cardio, measurements, foodLogs, plans, targets, overrides, meals, items,
     workoutPlans, planSessions, planExercises, weekdayTargets, assessments, bodyPhotos, userSettings,
-    favorites, waterLogs, customRecipes, customMeals, repeatItems, fasts, macroTemplates,
+    favorites, waterLogs, customRecipes, customMeals, repeatItems, fasts, macroTemplates, habits, habitCompletions,
     ...derived,
   };
 }

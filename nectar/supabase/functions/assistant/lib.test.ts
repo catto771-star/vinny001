@@ -223,6 +223,44 @@ describe('threads, screen context, and extended tool args', () => {
     expect(checkArgs('encerrar_jejum', { notas: 'Me senti bem' }))
       .toEqual({ ok: true, args: { fim_data: null, fim_hora: null, notas: 'Me senti bem' } });
   });
+
+  it('validates Hevy workout logger, routine builder, and progression analytics arguments', () => {
+    expect(checkArgs('registrar_treino', {
+      titulo: 'Push A',
+      modalidade: 'funcional',
+      duracao_min: 45,
+      exercicios: [{ nome: 'Supino reto com barra', series: 4, reps: 8, carga_kg: 80, rpe: 8.5, superset: 'a' }],
+    })).toEqual({
+      ok: true,
+      args: {
+        titulo: 'Push A',
+        modalidade: 'funcional',
+        duracao_min: 45,
+        kcal: null,
+        notas: null,
+        data: null,
+        exercicios: [{ nome: 'Supino reto com barra', series: 4, reps: 8, carga_kg: 80, rpe: 8.5, superset: 'A' }],
+      },
+    });
+    expect(checkArgs('gerar_rotina_treino', {
+      nome_rotina: 'Upper A',
+      pasta: 'Upper Lower 4x',
+      dias_semana: [1, 4, 9],
+      exercicios: [{ nome: 'Agachamento livre', series: 4, reps: '6-8', descanso_s: 150, superset: 'b' }],
+    })).toEqual({
+      ok: true,
+      args: {
+        nome_rotina: 'Upper A',
+        pasta: 'Upper Lower 4x',
+        dias_semana: [1, 4],
+        observacoes: null,
+        exercicios: [{ nome: 'Agachamento livre', series: 4, reps: '6-8', carga_kg: null, descanso_s: 150, superset: 'B', nota: null }],
+      },
+    });
+    expect(checkArgs('gerar_rotina_treino', { nome_rotina: 'Vazia', exercicios: [] })).toMatchObject({ ok: false });
+    expect(checkArgs('analisar_evolucao_treino', {})).toEqual({ ok: true, args: { dias: 28 } });
+    expect(checkArgs('analisar_evolucao_treino', { dias: 3 })).toMatchObject({ ok: false });
+  });
 });
 
 

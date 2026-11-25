@@ -1,20 +1,31 @@
 import { weekday, type Day } from '../../lib/dates';
-import { cardioKcal, strengthKcal } from '../../lib/training';
+import { cardioKcal, type SetType } from '../../lib/training';
+import { workoutKcal } from '../../lib/hevy';
 import { dayTypeFor, resolveTarget, type ResolvedTarget } from '../../lib/nutrition';
 import { DEFAULT_WEIGHT_KG, type Health } from './useHealth';
 
-/** Calories burned by the day's training and the diet target that follows from it. */
-export function energyForDay(h: Health, day: Day): { burned: number; estimated: boolean; dayType: 'training' | 'rest'; target: ResolvedTarget | null } {
+const EMPTY_TYPES = new Map<string, SetType>();
+
+/** Calories burned by the day's training (any modality + cardio) and the diet target that follows from it. */
+export function energyForDay(h: Health, day: Day): { burned: number; trainingMinutes: number; estimated: boolean; dayType: 'training' | 'rest'; target: ResolvedTarget | null } {
   const weight = h.latestWeight ?? DEFAULT_WEIGHT_KG;
   let burned = 0;
+  let trainingMinutes = 0;
   let estimated = h.latestWeight === null;
+  const allSets = h.sets?.rows ?? [];
+  const types = h.typeById ?? EMPTY_TYPES;
+
   for (const w of h.workouts.rows.filter((x) => x.date === day)) {
-    burned += strengthKcal(w.duration_min, weight);
-    estimated = true;
+    const wSets = allSets.filter((s) => s.workout_id === w.id);
+    const res = workoutKcal(w, wSets, types, weight);
+    burned += res.kcal;
+    trainingMinutes += res.durationMin;
+    estimated ||= res.estimated;
   }
   for (const c of h.cardio.rows.filter((x) => x.date === day)) {
     const k = cardioKcal(c, weight);
     burned += k.kcal;
+    trainingMinutes += Math.round(c.duration_s / 60);
     estimated ||= k.estimated;
   }
   const override = h.overrides.rows.find((o) => o.date === day) ?? null;
@@ -23,5 +34,5 @@ export function energyForDay(h: Health, day: Day): { burned: number; estimated: 
   const targets = Object.fromEntries(planTargets.map((t) => [t.day_type, t]));
   const weekdayTarget = h.plan ? h.weekdayTargets.rows.find((t) => t.plan_id === h.plan!.id && t.weekday === weekday(day)) ?? null : null;
   const target = resolveTarget({ dayType, targets, weekdayTarget, mode: h.plan?.training_target_mode ?? 'fixed', burnedKcal: burned, override });
-  return { burned, estimated, dayType, target };
+  return { burned, trainingMinutes, estimated, dayType, target };
 }

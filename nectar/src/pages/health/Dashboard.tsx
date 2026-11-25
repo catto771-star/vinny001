@@ -5,9 +5,10 @@ import { write } from '../../lib/useTable';
 import { addDays, formatDay, toDay, type Day } from '../../lib/dates';
 import { change, num } from '../../lib/format';
 import {
-  MUSCLE_LABEL, activeExerciseIds, exerciseProgression, weekStart, weeklyStats, weeklyVolumeByMuscle, workoutSummary,
+  MUSCLE_LABEL, activeExerciseIds, cardioKcal, exerciseProgression, weekStart, weeklyStats, weeklyVolumeByMuscle, workoutSummary,
   type WeekStats,
 } from '../../lib/training';
+import { weightedMuscleDistribution, workoutKcal } from '../../lib/hevy';
 import { averageIntake, estimatedMaintenance, weeklyRate, weightTrend } from '../../lib/energy';
 import {
   COMPARISON_METRICS,
@@ -20,24 +21,27 @@ import {
 import { HIGHLIGHTED_KEYS, MICRONUTRIENTS, rdaFor } from '../../lib/micronutrients';
 import { AreaChart, ColumnChart, DonutChart, DualAxisChart, NutrientRing, RankedBars } from '../../components/Charts';
 import { Empty, Field, Modal, Stat } from '../../components/ui';
-import type { Health } from './useHealth';
+import { DEFAULT_WEIGHT_KG, type Health } from './useHealth';
 
 const short = (day: string) => `${day.slice(8)}/${day.slice(5, 7)}`;
 
 const METRICS = {
-  Volume: { unit: 'kg', pick: (w: WeekStats) => w.tonnage, chart: 'column', subtitle: 'Tonelagem: carga × repetições das séries que contam volume' },
-  Frequência: { unit: 'treinos', pick: (w: WeekStats) => w.sessions, chart: 'column', subtitle: 'Treinos registrados por semana' },
-  Densidade: { unit: 'kg/min', pick: (w: WeekStats) => w.density, chart: 'area', subtitle: 'Tonelagem por minuto, nos treinos com duração registrada' },
-  Intensidade: { unit: '%', pick: (w: WeekStats) => w.intensityPct, chart: 'area', subtitle: 'Carga média das working sets como % do 1RM estimado' },
+  Volume: { unit: 'kg', pick: (w: WeekStats & { kcalBurned?: number }) => w.tonnage, chart: 'column', subtitle: 'Tonelagem: carga × repetições das séries que contam volume' },
+  Frequência: { unit: 'treinos', pick: (w: WeekStats & { kcalBurned?: number }) => w.sessions, chart: 'column', subtitle: 'Treinos registrados por semana' },
+  'Gasto ativo': { unit: 'kcal', pick: (w: WeekStats & { kcalBurned?: number }) => w.kcalBurned ?? 0, chart: 'column', subtitle: 'Calorias gastas somando sessões de treino e cardio da semana' },
+  Densidade: { unit: 'kg/min', pick: (w: WeekStats & { kcalBurned?: number }) => w.density, chart: 'area', subtitle: 'Tonelagem por minuto, nos treinos com duração registrada' },
+  Intensidade: { unit: '%', pick: (w: WeekStats & { kcalBurned?: number }) => w.intensityPct, chart: 'area', subtitle: 'Carga média das working sets como % do 1RM estimado' },
 } as const;
 type Metric = keyof typeof METRICS;
 type LoadMode = 'maxLoad' | 'best1RM' | 'tonnage';
 
 export default function Dashboard({ h }: { h: Health }) {
   const today = toDay(new Date());
+  const weightKg = h.latestWeight ?? DEFAULT_WEIGHT_KG;
   const [weeks, setWeeks] = useState(8);
   const [metric, setMetric] = useState<Metric>('Volume');
   const [monday, setMonday] = useState(weekStart(today));
+  const [weightedMuscleMode, setWeightedMuscleMode] = useState(true);
   const [weighing, setWeighing] = useState(false);
   const [loadMode, setLoadMode] = useState<LoadMode>('maxLoad');
 
@@ -63,15 +67,47 @@ export default function Dashboard({ h }: { h: Health }) {
   );
 
   const loading = h.workouts.loading || h.sets.loading;
-  const stats = weeklyStats(today, Math.max(weeks, 2), h.sets.rows, h.workouts.rows, h.typeById);
+  const baseStats = weeklyStats(today, Math.max(weeks, 2), h.sets.rows, h.workouts.rows, h.typeById);
+  const stats = useMemo(() => {
+    return baseStats.map((ws) => {
+      const end = addDays(ws.week, 7);
+      let kcalBurned = 0;
+      for (const w of h.workouts.rows) {
+        if (w.date >= ws.week && w.date < end && w.date <= today) {
+          const wSets = h.sets.rows.filter((s) => s.workout_id === w.id);
+          kcalBurned += workoutKcal(w, wSets, h.typeById, weightKg).kcal;
+        }
+      }
+      for (const c of h.cardio.rows) {
+        if (c.date >= ws.week && c.date < end && c.date <= today) {
+          kcalBurned += cardioKcal(c, weightKg).kcal;
+        }
+      }
+      return { ...ws, kcalBurned };
+    });
+  }, [baseStats, h.workouts.rows, h.sets.rows, h.cardio.rows, h.typeById, weightKg, today]);
+
   const [prev, cur] = stats.slice(-2);
   const shown = stats.slice(-weeks);
   const m = METRICS[metric];
   const points = shown.map((w) => ({
     label: short(w.week), value: m.pick(w),
-    detail: metric === 'Volume' ? `${w.sets} séries, ${w.reps} repetições` : metric === 'Intensidade' && w.avgEffort ? `esforço médio ${num(w.avgEffort)}` : undefined,
+    detail:
+      metric === 'Volume' ? `${w.sets} séries · ~${num(w.kcalBurned)} kcal`
+        : metric === 'Gasto ativo' ? `${w.sessions} sessões`
+          : metric === 'Intensidade' && w.avgEffort ? `esforço médio ${num(w.avgEffort)}`
+            : undefined,
   }));
-  const muscles = weeklyVolumeByMuscle(monday, h.sets.rows, h.workouts.rows, h.exerciseById, h.typeById);
+  const primaryMuscles = weeklyVolumeByMuscle(monday, h.sets.rows, h.workouts.rows, h.exerciseById, h.typeById);
+  const weightedMuscles = useMemo(() => {
+    const end = addDays(monday, 7);
+    const inWeek = new Set(h.workouts.rows.filter((w) => w.date >= monday && w.date < end).map((w) => w.id));
+    return weightedMuscleDistribution(
+      h.sets.rows.filter((s) => inWeek.has(s.workout_id)),
+      h.exerciseById,
+      h.typeById,
+    );
+  }, [monday, h.workouts.rows, h.sets.rows, h.exerciseById, h.typeById]);
 
   const trend = weightTrend(h.weighIns);
   const rate = weeklyRate(h.weighIns, today);
@@ -357,7 +393,7 @@ export default function Dashboard({ h }: { h: Health }) {
             : <AreaChart title={metric} subtitle={m.subtitle} unit={m.unit} points={points} height={290} aside={selector} />}
         </div>
         <section className="card h-fit min-w-0 xl:mt-12">
-          <div className="mb-4 flex items-center gap-1">
+          <div className="mb-3 flex items-center gap-1">
             <div className="mr-auto">
               <div className="font-medium">Séries por grupo muscular</div>
               <div className="text-[13px] text-fg3">semana de {formatDay(monday)}</div>
@@ -365,22 +401,53 @@ export default function Dashboard({ h }: { h: Health }) {
             <button className="icon-btn" onClick={() => setMonday(addDays(monday, -7))} aria-label="Semana anterior"><ChevronLeft size={16} strokeWidth={1.5} /></button>
             <button className="icon-btn" onClick={() => setMonday(addDays(monday, 7))} aria-label="Próxima semana"><ChevronRight size={16} strokeWidth={1.5} /></button>
           </div>
-          {!muscles.length ? <Empty>Nenhuma série nesta semana.</Empty> : (
+          <div className="segmented mb-4">
+            <button type="button" className={weightedMuscleMode ? 'tab-active' : 'tab'} onClick={() => setWeightedMuscleMode(true)}>
+              Ponderado (1 + ½)
+            </button>
+            <button type="button" className={!weightedMuscleMode ? 'tab-active' : 'tab'} onClick={() => setWeightedMuscleMode(false)}>
+              Só principal
+            </button>
+          </div>
+          {!(weightedMuscleMode ? weightedMuscles.length : primaryMuscles.length) ? <Empty>Nenhuma série nesta semana.</Empty> : (
             <div className="space-y-4">
               <DonutChart
                 bare
                 size={150}
                 centerLabel="Séries"
                 unit=""
-                format={(n) => String(Math.round(n))}
-                rows={muscles.map((x) => ({ label: MUSCLE_LABEL[x.muscle_group] ?? x.muscle_group, value: x.sets }))}
+                format={(n) => num(n, weightedMuscleMode ? 1 : 0)}
+                rows={
+                  weightedMuscleMode
+                    ? weightedMuscles.map((x) => ({ label: x.label, value: x.weightedSets }))
+                    : primaryMuscles.map((x) => ({ label: MUSCLE_LABEL[x.muscle_group] ?? x.muscle_group, value: x.sets }))
+                }
               />
               <div className="border-t border-line pt-4">
-                <RankedBars unit="séries" rows={muscles.map((x) => ({ label: MUSCLE_LABEL[x.muscle_group] ?? x.muscle_group, value: x.sets, detail: `${x.reps} repetições · ${num(x.tonnage)} kg` }))} />
+                <RankedBars
+                  unit="séries"
+                  rows={
+                    weightedMuscleMode
+                      ? weightedMuscles.map((x) => ({
+                          label: x.label,
+                          value: x.weightedSets,
+                          detail: `${x.primarySets} prim. + ${x.secondarySets}×0,5 sec.`,
+                        }))
+                      : primaryMuscles.map((x) => ({
+                          label: MUSCLE_LABEL[x.muscle_group] ?? x.muscle_group,
+                          value: x.sets,
+                          detail: `${x.reps} repetições · ${num(x.tonnage)} kg`,
+                        }))
+                  }
+                />
               </div>
             </div>
           )}
-          <p className="mt-4 text-xs text-fg3">Cada série conta para o grupo principal do exercício</p>
+          <p className="mt-4 text-xs text-fg3">
+            {weightedMuscleMode
+              ? 'Modo Hevy: 1,0 série no músculo principal e 0,5 em cada músculo secundário'
+              : 'Cada série conta apenas para o grupo principal do exercício'}
+          </p>
         </section>
       </div>
 

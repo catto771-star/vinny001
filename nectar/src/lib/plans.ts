@@ -37,7 +37,15 @@ export function sessionsForDay(sessions: PlanSession[], workouts: Pick<Workout, 
   return [rotating[(i + 1) % rotating.length]];
 }
 
-export interface DraftSet { exercise_id: string; set_type_id: string; load_kg: number; reps: number; rest_s: number | null; effort: number | null }
+export interface DraftSet {
+  exercise_id: string;
+  set_type_id: string;
+  load_kg: number;
+  reps: number;
+  rest_s: number | null;
+  effort: number | null;
+  notes?: string | null;
+}
 
 /**
  * The sets to start a session with. Each plan exercise becomes its number of
@@ -62,7 +70,15 @@ export function draftFromSession(
         load = sug.load_kg;
         reps = sug.action === 'increase_reps' ? sug.reps[Math.min(i, sug.reps.length - 1)] : sug.reps;
       }
-      out.push({ exercise_id: pe.exercise_id, set_type_id: ctx.workingTypeId, load_kg: load, reps, rest_s: pe.rest_s, effort: null });
+      out.push({
+        exercise_id: pe.exercise_id,
+        set_type_id: ctx.workingTypeId,
+        load_kg: load,
+        reps,
+        rest_s: pe.rest_s,
+        effort: null,
+        ...(pe.notes ? { notes: pe.notes } : {}),
+      });
     }
   }
   return out;

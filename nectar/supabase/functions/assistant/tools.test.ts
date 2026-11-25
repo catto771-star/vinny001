@@ -37,7 +37,12 @@ function fakeDb(rows: Record<string, unknown[]>) {
 function isScoped(q: Query): boolean {
   if (q.table === 'project_tasks') return q.calls.some(([m, a]) => (m === 'in' && a[0] === 'project_id') || m === 'insert');
   if (q.table === 'diet_day_targets') return q.calls.some(([m, a]) => m === 'in' && a[0] === 'plan_id');
-  if (q.table === 'foods') return q.calls.some(([m, a]) => m === 'or' && String(a[0]).includes(`user_id.eq.${UID}`));
+  if (q.table === 'foods' || q.table === 'exercises' || q.table === 'set_types') {
+    return q.calls.some(([m, a]) =>
+      (m === 'or' && String(a[0]).includes(`user_id.eq.${UID}`)) ||
+      ((m === 'insert' || m === 'upsert') && (a[0] as { user_id?: string }).user_id === UID),
+    );
+  }
   return q.calls.some(([m, a]) =>
     (m === 'eq' && a[0] === 'user_id' && a[1] === UID) ||
     ((m === 'insert' || m === 'upsert') && (a[0] as { user_id?: string }).user_id === UID));
@@ -66,7 +71,9 @@ const SAMPLE: Record<string, Record<string, unknown>> = {
   concluir_marco_projeto: { projeto: 'Casa', titulo: 'Pintura' },
   registrar_refeicao: { alimento: 'Frango com arroz', refeicao: 'almoco', kcal: 540, proteina_g: 45, carbo_g: 55, gordura_g: 12 },
   registrar_peso: { peso_kg: 79.2 },
-  registrar_treino: { titulo: 'Superior A', duracao_min: 55, notas: 'Supino 4x8' },
+  registrar_treino: { titulo: 'Superior A', duracao_min: 55, notas: 'Supino 4x8', exercicios: [{ nome: 'Supino reto com barra', series: 3, reps: 8, carga_kg: 80 }] },
+  gerar_rotina_treino: { nome_rotina: 'Upper A', pasta: 'Upper Lower', exercicios: [{ nome: 'Supino reto com barra', series: 4, reps: '6-8', descanso_s: 120, superset: 'A' }] },
+  analisar_evolucao_treino: { dias: 28 },
   registrar_cardio: { tipo: 'corrida', duracao_min: 30, distancia_km: 5, kcal: 320 },
   resumo_saude_hoje: {},
   consultar_oraculo_nutrientes: { nutriente: 'potassio', modo: 'oraculo', limite: 5 },
@@ -109,6 +116,11 @@ describe('tools stay inside the user', () => {
         diet_plans: [{ id: 'dp1', name: 'Cutting', is_active: true }],
         diet_day_targets: [{ plan_id: 'dp1', day_type: 'training', kcal: 2100, protein_g: 165, carbs_g: 210, fat_g: 60 }],
         fasting_sessions: [{ id: 'fs1', protocol: '16:8', target_hours: 16, started_at: '2026-11-18T23:00:00.000Z', notes: null }],
+        workout_plans: [{ id: 'wp1', name: 'Minha ficha', is_active: true }],
+        workout_plan_sessions: [{ id: 'wps1', plan_id: 'wp1', order_index: 0 }],
+        workouts: [{ id: 'w1', date: '2026-11-18', title: 'Push A', duration_min: 50, notes: null }],
+        exercises: [{ id: 'ex1', name: 'Supino reto com barra', muscle_group: 'peito', secondary_muscles: ['triceps'] }],
+        set_types: [{ id: 'st1', name: 'Working set', drives_progression: true }],
       });
       const checked = checkArgs(name, SAMPLE[name]);
       expect(checked.ok).toBe(true);
@@ -168,6 +180,58 @@ describe('tools stay inside the user', () => {
       const e = await runTool(db, UID, 'encerrar_jejum', endChecked.args, NOW, 'America/Sao_Paulo');
       expect(e.meta_atingida).toBe(true);
       expect(e.undo).toMatchObject({ table: 'fasting_sessions', op: 'update', id: 'fs-open' });
+    }
+  });
+
+  it('logs workouts with calorie burn & habit sync, builds routines with supersets, and analyzes Hevy 1RM & muscle split', async () => {
+    const { db, queries } = fakeDb({
+      workouts: [{ id: 'w-new', date: '2026-11-18', title: 'Push A', duration_min: 60, notes: null }],
+      workout_sets: [
+        { workout_id: 'w-new', exercise_id: 'ex-bench', load_kg: 81, reps: 8, effort: 8.5, notes: '[ss:A]' },
+      ],
+      exercises: [{ id: 'ex-bench', name: 'Supino reto com barra', muscle_group: 'peito', secondary_muscles: ['triceps', 'ombros'] }],
+      set_types: [{ id: 'st-work', name: 'Working set', drives_progression: true }],
+      body_measurements: [{ value: 80, measured_at: '2026-11-18T08:00:00Z' }],
+      habits: [{ id: 'h-gym', name: 'Ir para a academia', target_value: 1 }],
+      workout_plans: [{ id: 'wp-1', name: 'Minha ficha', is_active: true }],
+      workout_plan_sessions: [{ id: 'wps-new', plan_id: 'wp-1', order_index: 0 }],
+      food_logs: [{ date: '2026-11-18', kcal: 2100, protein_g: 175 }],
+    });
+
+    const logChecked = checkArgs('registrar_treino', {
+      titulo: 'Push A',
+      duracao_min: 60,
+      exercicios: [{ nome: 'Supino reto com barra', series: 2, reps: 8, carga_kg: 80, superset: 'A' }],
+    });
+    expect(logChecked.ok).toBe(true);
+    if (logChecked.ok) {
+      const wRes = await runTool(db, UID, 'registrar_treino', logChecked.args, NOW, 'America/Sao_Paulo');
+      expect(Number(wRes.kcal_estimadas)).toBeGreaterThanOrEqual(400);
+      expect(String(wRes.feito)).toContain('Ir para a academia');
+      expect(queries.some((q) => q.table === 'habit_completions' && q.calls.some(([m]) => m === 'upsert'))).toBe(true);
+    }
+
+    const routineChecked = checkArgs('gerar_rotina_treino', {
+      nome_rotina: 'Upper Força',
+      pasta: 'Upper Lower',
+      exercicios: [{ nome: 'Supino reto com barra', series: 4, reps: '6-8', descanso_s: 150, superset: 'A' }],
+    });
+    expect(routineChecked.ok).toBe(true);
+    if (routineChecked.ok) {
+      const rRes = await runTool(db, UID, 'gerar_rotina_treino', routineChecked.args, NOW, 'America/Sao_Paulo');
+      expect(rRes.link).toBe('/saude?aba=Treino');
+      expect(rRes.undo).toMatchObject({ table: 'workout_plan_sessions', op: 'delete', id: 'wps-new' });
+    }
+
+    const anaChecked = checkArgs('analisar_evolucao_treino', { dias: 28 });
+    expect(anaChecked.ok).toBe(true);
+    if (anaChecked.ok) {
+      const aRes = await runTool(db, UID, 'analisar_evolucao_treino', anaChecked.args, NOW, 'America/Sao_Paulo');
+      expect(aRes.kcal_ativas_totais).toBe(400);
+      expect((aRes.melhores_exercicios as { melhor_1rm_kg: number }[])[0].melhor_1rm_kg).toBe(100); // 81 / 0.81 = 100
+      const dist = aRes.distribuicao_muscular_ponderada as { musculo: string; series_ponderadas: number }[];
+      expect(dist.find((d) => d.musculo === 'peito')?.series_ponderadas).toBe(1);
+      expect(dist.find((d) => d.musculo === 'triceps')?.series_ponderadas).toBe(0.5);
     }
   });
 });

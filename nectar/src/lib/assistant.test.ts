@@ -63,6 +63,7 @@ describe('slash commands', () => {
   it('expands slash commands with or without extra arguments', () => {
     expect(expandSlashCommand('/dia')).toContain('Organize meu dia de hoje');
     expect(expandSlashCommand('/oraculo')).toContain('sugerir_alimentos_dia');
+    expect(expandSlashCommand('/rotina Upper Lower 4x')).toContain('gerar_rotina_treino');
     expect(expandSlashCommand('/jejum 18:6 agora')).toBe('Gerencie meu jejum intermitente: 18:6 agora');
     expect(expandSlashCommand('/gasto € 14,50 no Tesco')).toBe('Registre o gasto: € 14,50 no Tesco');
     expect(expandSlashCommand('/etapas QQI Level 5')).toBe('Crie um plano prático de etapas e subetapas para o projeto QQI Level 5');
@@ -75,6 +76,7 @@ describe('action links & contextual playbooks', () => {
     expect(actionLinkOf({ tool: 'criar_plano_projeto', link: '/projetos?p=p1' })).toBe('/projetos?p=p1');
     expect(actionLinkOf({ tool: 'registrar_transferencia' })).toBe('/financas');
     expect(actionLinkOf({ tool: 'registrar_treino' })).toBe('/saude');
+    expect(actionLinkOf({ tool: 'gerar_rotina_treino' })).toBe('/saude?aba=Treino');
     expect(actionLinkOf({ tool: 'registrar_agua' })).toBe('/saude');
     expect(actionLinkOf({ tool: 'iniciar_jejum' })).toBe('/saude?aba=Jejum');
     expect(actionLinkOf({ tool: 'salvar_memoria' })).toBeNull();
@@ -84,6 +86,7 @@ describe('action links & contextual playbooks', () => {
     expect(playbooksForRoute('/projetos')[0].id).toBe('proj-plan');
     expect(playbooksForRoute('/financas')[0].id).toBe('fin-sum');
     expect(playbooksForRoute('/saude').map((p) => p.id)).toContain('hlth-oracle');
+    expect(playbooksForRoute('/saude').map((p) => p.id)).toContain('hlth-coach');
     expect(playbooksForRoute('/saude').map((p) => p.id)).toContain('hlth-fast');
     expect(screenContextFromLocation('/saude', '?aba=Oráculo').hint).toContain('Aba ativa em Saúde: Oráculo');
     expect(playbooksForRoute('/inicio').length).toBe(4);

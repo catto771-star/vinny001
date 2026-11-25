@@ -1,7 +1,7 @@
 // Keeps the app shell so Painel opens from the home screen, and shows push
 // notifications. Pages are fetched from the network first; data requests
 // (Supabase, other sites) are never cached.
-const SHELL = 'painel-shell-v6';
+const SHELL = 'painel-shell-v7';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(SHELL).then((c) => c.add('./')).then(() => self.skipWaiting()));

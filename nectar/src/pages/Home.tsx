@@ -88,10 +88,15 @@ export default function Home() {
       void completions.reload();
       void reminders.reload();
       void txs.reload();
+      void h.workouts.reload();
+      void h.sets.reload();
+      void h.cardio.reload();
+      void h.foodLogs.reload();
+      void h.waterLogs.reload();
     };
     window.addEventListener('painel-data-changed', refresh);
     return () => window.removeEventListener('painel-data-changed', refresh);
-  }, [tasks.reload, habits.reload, completions.reload, reminders.reload, txs.reload]);
+  }, [tasks.reload, habits.reload, completions.reload, reminders.reload, txs.reload, h.workouts.reload, h.sets.reload, h.cardio.reload, h.foodLogs.reload, h.waterLogs.reload]);
 
   async function toggleTask(task: Task) {
     const completed = !task.completed;
@@ -149,7 +154,7 @@ export default function Home() {
   const summary = workout ? workoutSummary(workout, h.sets.rows, h.workouts.rows, h.typeById) : null;
   const curWeekTraining = weeklyStats(today, 2, h.sets.rows, h.workouts.rows, h.typeById).at(-1);
   const eaten = sumNutrients(h.foodLogs.rows.filter((l) => l.date === today));
-  const { target } = energyForDay(h, today);
+  const { burned, target } = energyForDay(h, today);
 
   const worth = netWorth(banks.rows, txs.rows, transfers.rows, payments.rows, today);
   const worthSeries = useMemo(
@@ -279,7 +284,11 @@ export default function Home() {
             {h.latestWeight ? `${num(h.latestWeight)} kg` : summary ? `${num(summary.tonnage)} kg` : `${num(eaten.kcal)} kcal`}
           </div>
           <div className="mt-3 text-xs text-fg3">
-            {curWeekTraining ? `${curWeekTraining.sessions} ${plural(curWeekTraining.sessions, 'treino', 'treinos')} na semana` : 'sem treinos na semana'}
+            {burned > 0
+              ? `~${num(burned)} kcal gastas hoje · ${curWeekTraining?.sessions ?? 1} na sem.`
+              : curWeekTraining
+                ? `${curWeekTraining.sessions} ${plural(curWeekTraining.sessions, 'treino', 'treinos')} na semana`
+                : 'sem treinos na semana'}
           </div>
         </Link>
       </div>

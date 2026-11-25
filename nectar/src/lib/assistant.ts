@@ -67,7 +67,7 @@ const SCREEN_META: Record<string, { label: string; hint: string }> = {
   tarefas: { label: 'Tarefas', hint: 'Lista de tarefas pendentes, atrasadas e concluídas.' },
   habitos: { label: 'Hábitos', hint: 'Rotina diária, streaks e constância.' },
   lembretes: { label: 'Lembretes', hint: 'Lembretes programados com data e hora.' },
-  saude: { label: 'Saúde', hint: 'Diário alimentar com micronutrientes, Oráculo IA de alimentos, jejum intermitente, hidratação, metabolismo (TMB/TEF), treinos, cardio e peso.' },
+  saude: { label: 'Saúde', hint: 'Diário alimentar com micronutrientes, Oráculo IA, jejum intermitente, hidratação, treinos estilo Hevy (pastas, supersets, PRs, mapa muscular, gasto calórico) e peso.' },
   financas: { label: 'Finanças', hint: 'Contas (Revolut/Wise), lançamentos multimoeda, transferências, orçamentos e previsão 30d.' },
   projetos: { label: 'Projetos', hint: 'Projetos ativos, marcos (etapas), subetapas e prazos.' },
   metas: { label: 'Metas', hint: 'Metas financeiras, de projetos, hábitos e pessoais.' },
@@ -169,8 +169,8 @@ export const ASSISTANT_SLASH_COMMANDS: readonly SlashCommand[] = [
   {
     cmd: '/dia',
     label: 'Planejar o dia',
-    description: 'Cruza tarefas, hábitos e agenda e monta prioridades de hoje',
-    template: 'Organize meu dia de hoje: liste o que está atrasado, os compromissos, os hábitos pendentes e sugira a melhor ordem de foco.',
+    description: 'Cruza tarefas, hábitos, treino e agenda e monta prioridades de hoje',
+    template: 'Organize meu dia de hoje: liste o que está atrasado, os compromissos, o treino previsto, os hábitos pendentes e sugira a melhor ordem de foco.',
     immediate: true,
   },
   {
@@ -179,6 +179,18 @@ export const ASSISTANT_SLASH_COMMANDS: readonly SlashCommand[] = [
     description: 'Analisa macros/micronutrientes faltantes hoje e sugere refeições exatas',
     template: 'Use o Oráculo Nutricional (sugerir_alimentos_dia) para analisar minhas calorias, macros e micronutrientes faltantes hoje e sugira 3 opções práticas de refeição.',
     immediate: true,
+  },
+  {
+    cmd: '/treino',
+    label: 'Registrar ou analisar treino',
+    description: 'Salva sessão com séries/gasto calórico ou analisa PRs e volume muscular',
+    template: 'Registre meu treino de hoje: ',
+  },
+  {
+    cmd: '/rotina',
+    label: 'Montar rotina de treino com IA',
+    description: 'Cria uma rotina personalizada com supersets e descanso na sua Ficha',
+    template: 'Use gerar_rotina_treino para criar uma rotina personalizada na minha Ficha: ',
   },
   {
     cmd: '/jejum',
@@ -205,12 +217,6 @@ export const ASSISTANT_SLASH_COMMANDS: readonly SlashCommand[] = [
     template: 'Transfira ',
   },
   {
-    cmd: '/treino',
-    label: 'Registrar treino ou cardio',
-    description: 'Salva sessão de musculação ou cardio em Saúde',
-    template: 'Registre meu treino de hoje: ',
-  },
-  {
     cmd: '/financas',
     label: 'Analisar finanças',
     description: 'Resumo do mês, categorias e contas ativas',
@@ -221,7 +227,7 @@ export const ASSISTANT_SLASH_COMMANDS: readonly SlashCommand[] = [
     cmd: '/revisao',
     label: 'Fechar o dia',
     description: 'Revisa pendentes de hoje e prepara amanhã',
-    template: 'Faça um fechamento rápido do meu dia: o que ainda falta de tarefas e hábitos hoje e o que devo priorizar amanhã?',
+    template: 'Faça um fechamento rápido do meu dia: o que ainda falta de tarefas, treino, dieta e hábitos hoje e o que devo priorizar amanhã?',
     immediate: true,
   },
   {
@@ -287,6 +293,8 @@ export function actionLinkOf(action: Pick<ChatActionItem, 'tool' | 'link'>): str
     case 'registrar_treino':
     case 'registrar_cardio':
       return '/saude';
+    case 'gerar_rotina_treino':
+      return '/saude?aba=Treino';
     case 'iniciar_jejum':
     case 'encerrar_jejum':
       return '/saude?aba=Jejum';
@@ -314,17 +322,17 @@ export function playbooksForRoute(pathname: string): Playbook[] {
   }
   if (seg === 'saude') {
     return [
-      { id: 'hlth-today', label: 'Resumo de saúde hoje', prompt: 'Consulte meu resumo de saúde hoje (peso, calorias, água, jejum ativo, treinos e cardio) e me diga o que falta registrar.' },
+      { id: 'hlth-today', label: 'Sinergia de saúde hoje', prompt: 'Consulte meu resumo de saúde hoje (peso, gasto calórico de treinos, calorias/proteína, hidratação ajustada e jejum) e sugira o próximo passo.' },
+      { id: 'hlth-coach', label: 'Treinador IA: analisar PRs', prompt: 'Use analisar_evolucao_treino para avaliar meus treinos recentes, recordes pessoais, equilíbrio muscular e gasto calórico.' },
       { id: 'hlth-oracle', label: 'Oráculo: sugerir refeição', prompt: 'Use sugerir_alimentos_dia para analisar meus macros e micronutrientes faltantes hoje e sugira 3 refeições práticas.' },
       { id: 'hlth-fast', label: 'Iniciar jejum 16:8', prompt: 'Inicie um jejum intermitente 16:8 agora e me informe o horário exato previsto de término.' },
-      { id: 'hlth-water', label: 'Registrar +500 mL água', prompt: 'Registre 500 mL de água hoje no meu diário de Saúde.' },
     ];
   }
   return [
-    { id: 'day', label: 'Planejar meu dia', prompt: 'Organize meu dia de hoje: tarefas pendentes e atrasadas, compromissos e hábitos que ainda faltam.' },
+    { id: 'day', label: 'Planejar meu dia', prompt: 'Organize meu dia de hoje: tarefas pendentes e atrasadas, compromissos, treino e hábitos que ainda faltam.' },
     { id: 'proj', label: 'Montar etapas de projeto', prompt: 'Liste meus projetos em andamento e me ajude a criar etapas e subetapas práticas para o próximo prazo.' },
     { id: 'fin', label: 'Analisar finanças', prompt: 'Faça um resumo financeiro deste mês e das minhas contas bancárias ativas.' },
-    { id: 'hlth', label: 'Checar saúde hoje', prompt: 'Consulte meu resumo de saúde de hoje (peso, alimentação, hidratação e jejum) e sugira o próximo passo.' },
+    { id: 'hlth', label: 'Sinergia Treino × Dieta', prompt: 'Cruze meu resumo de saúde de hoje (treino, gasto calórico, dieta, hidratação e jejum) com meus hábitos pendentes.' },
   ];
 }
 

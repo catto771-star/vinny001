@@ -568,25 +568,277 @@ export async function runTool(db: Db, uid: string, name: string, a: ToolArgs, no
     }
 
     case 'registrar_treino': {
+      const day = String(a.data ?? now.date);
+      const modalidade = String(a.modalidade ?? 'musculacao');
+      const modMet: Record<string, number> = { musculacao: 5.0, calistenia: 5.5, funcional: 7.4, mobilidade: 3.0, esporte: 6.8, outro: 4.8 };
+      const exercicios = Array.isArray(a.exercicios)
+        ? (a.exercicios as { nome: string; series: number; reps: number; carga_kg: number; rpe: number | null; superset: string | null }[])
+        : [];
+
+      const totalSetsCount = exercicios.reduce((sum, ex) => sum + ex.series, 0);
+      const inferredDur = a.duracao_min != null ? Number(a.duracao_min) : (totalSetsCount > 0 ? Math.max(15, Math.round((totalSetsCount * 135) / 60)) : 45);
+      const { data: weights } = await own.select('body_measurements', 'value').eq('metric', 'weight_kg').order('measured_at', { ascending: false }).limit(1);
+      const weightKg = Number(weights?.[0]?.value ?? 75);
+      const tonnage = exercicios.reduce((sum, ex) => sum + ex.series * ex.reps * ex.carga_kg, 0);
+      const estKcal = a.kcal != null
+        ? Number(a.kcal)
+        : Math.round((modMet[modalidade] ?? 5.0) * weightKg * (inferredDur / 60) + Math.min(90, tonnage * 0.004));
+
+      const noteTags: string[] = [];
+      if (modalidade !== 'musculacao') noteTags.push(`[mod:${modalidade}]`);
+      if (a.kcal != null) noteTags.push(`[kcal:${Math.round(Number(a.kcal))}]`);
+      if (a.notas) noteTags.push(String(a.notas));
+
       const { data, error } = await own.insert('workouts', {
-        date: a.data ?? now.date,
+        date: day,
         title: a.titulo,
-        duration_min: a.duracao_min,
-        notes: a.notas,
+        duration_min: a.duracao_min ?? (totalSetsCount > 0 ? inferredDur : null),
+        notes: noteTags.join(' ').trim() || null,
       }).select('id');
       if (error) return fail(error);
       const id = data?.[0]?.id as string | undefined;
+
+      // Insert detailed sets if exercicios were provided
+      if (id && exercicios.length > 0) {
+        const [{ data: catalogEx }, { data: setTypes }] = await Promise.all([
+          db.from('exercises').select('id,name').or(`user_id.is.null,user_id.eq.${uid}`).limit(300),
+          db.from('set_types').select('id,name,drives_progression').or(`user_id.is.null,user_id.eq.${uid}`).limit(20),
+        ]);
+        const workTypeId = ((setTypes ?? []) as { id: string; drives_progression?: boolean }[]).find((t) => t.drives_progression)?.id ?? (setTypes?.[0] as { id?: string } | undefined)?.id;
+        let pos = 0;
+        if (workTypeId) {
+          for (const ex of exercicios) {
+            const matched = matchByName((catalogEx ?? []) as { id: string; name: string }[], ex.nome);
+            let exId = matched[0]?.id;
+            if (!exId) {
+              const { data: created } = await own.insert('exercises', { name: ex.nome, muscle_group: 'corpo_inteiro' }).select('id');
+              exId = created?.[0]?.id as string | undefined;
+            }
+            if (!exId) continue;
+            for (let sIdx = 0; sIdx < ex.series; sIdx++) {
+              await own.insert('workout_sets', {
+                workout_id: id,
+                exercise_id: exId,
+                set_type_id: workTypeId,
+                position: pos++,
+                load_kg: ex.carga_kg,
+                reps: ex.reps,
+                rest_s: 90,
+                effort: ex.rpe,
+                notes: ex.superset ? `[ss:${ex.superset}]` : null,
+              });
+            }
+          }
+        }
+      }
+
+      // Cross-module: auto-mark matching training habit on `day`
+      const { data: habits } = await own.select('habits', 'id,name,target_value').eq('is_archived', false);
+      const habitKw = ['treino', 'treinar', 'academia', 'musculacao', 'exercicio', 'calistenia', 'funcional'];
+      const matchedHabit = (habits ?? []).find((hb: { name: string }) => {
+        const norm = hb.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        return habitKw.some((k) => norm.includes(k));
+      });
+      if (matchedHabit) {
+        await own.upsert(
+          'habit_completions',
+          { habit_id: matchedHabit.id, completed_date: day, value: matchedHabit.target_value ?? 1 },
+          { onConflict: 'habit_id,completed_date' },
+        );
+      }
+
       return {
-        feito: `Treino registrado: ${a.titulo}${a.duracao_min ? ` (${a.duracao_min} min)` : ''}`,
-        link: '/saude',
+        feito: `Treino registrado: ${a.titulo} (~${estKcal} kcal${totalSetsCount ? ` · ${totalSetsCount} séries` : ''}${matchedHabit ? ` · hábito "${matchedHabit.name}" sincronizado` : ''})`,
+        kcal_estimadas: estKcal,
+        link: '/saude?aba=Treino',
         ...(id ? { undo: { table: 'workouts', op: 'delete', id } } : {}),
       };
     }
 
+    case 'gerar_rotina_treino': {
+      const { data: activePlans } = await own.select('workout_plans', 'id,name').eq('is_active', true).limit(1);
+      let planId = activePlans?.[0]?.id as string | undefined;
+      if (!planId) {
+        const { data: createdPlan, error: pErr } = await own.insert('workout_plans', { name: 'Minha ficha', is_active: true }).select('id');
+        if (pErr) return fail(pErr);
+        planId = createdPlan?.[0]?.id as string | undefined;
+      }
+      if (!planId) return { erro: 'não foi possível localizar ou criar a ficha ativa' };
+
+      const { data: existingSessions } = await own.select('workout_plan_sessions', 'id,order_index').eq('plan_id', planId);
+      const nextOrder = (existingSessions ?? []).reduce((m: number, s: { order_index?: number }) => Math.max(m, Number(s.order_index ?? 0)), -1) + 1;
+
+      const noteParts: string[] = [];
+      if (a.pasta) noteParts.push(`[pasta:${String(a.pasta).trim()}]`);
+      if (a.observacoes) noteParts.push(String(a.observacoes).trim());
+
+      const { data: sessRows, error: sErr } = await own.insert('workout_plan_sessions', {
+        plan_id: planId,
+        label: a.nome_rotina,
+        weekdays: a.dias_semana ?? [],
+        order_index: nextOrder,
+        notes: noteParts.join(' ').trim() || null,
+      }).select('id');
+      if (sErr) return fail(sErr);
+      const sessionId = sessRows?.[0]?.id as string | undefined;
+      if (!sessionId) return { erro: 'falha ao criar rotina na ficha' };
+
+      const { data: catalogEx } = await db.from('exercises').select('id,name,muscle_group').or(`user_id.is.null,user_id.eq.${uid}`).limit(300);
+      const specs = a.exercicios as { nome: string; series: number; reps: string; carga_kg: number | null; descanso_s: number; superset: string | null; nota: string | null }[];
+      let addedCount = 0;
+      let estTotalSec = 0;
+
+      for (let idx = 0; idx < specs.length; idx++) {
+        const sp = specs[idx];
+        const matched = matchByName((catalogEx ?? []) as { id: string; name: string; muscle_group?: string }[], sp.nome);
+        let exId = matched[0]?.id;
+        let exName = matched[0]?.name ?? sp.nome;
+        if (!exId) {
+          const { data: created } = await own.insert('exercises', { name: sp.nome, muscle_group: 'corpo_inteiro' }).select('id');
+          exId = created?.[0]?.id as string | undefined;
+        }
+        const exNotes = [sp.superset ? `[ss:${sp.superset}]` : '', sp.nota ?? ''].filter(Boolean).join(' ').trim() || null;
+        await own.insert('workout_plan_exercises', {
+          session_id: sessionId,
+          exercise_id: exId ?? null,
+          name: exName,
+          sets: sp.series,
+          reps: sp.reps,
+          load_kg: sp.carga_kg,
+          rest_s: sp.descanso_s,
+          notes: exNotes,
+          order_index: idx,
+        });
+        addedCount += 1;
+        estTotalSec += sp.series * (45 + sp.descanso_s);
+      }
+
+      const estMin = Math.max(10, Math.round(estTotalSec / 60));
+      return {
+        feito: `Rotina "${a.nome_rotina}" criada${a.pasta ? ` na pasta "${a.pasta}"` : ''}: ${addedCount} exercícios (~${estMin} min estimados)`,
+        duracao_estimada_min: estMin,
+        link: '/saude?aba=Treino',
+        undo: { table: 'workout_plan_sessions', op: 'delete', id: sessionId },
+      };
+    }
+
+    case 'analisar_evolucao_treino': {
+      const dias = Number(a.dias ?? 28);
+      const since = addDays(now.date, -(dias - 1));
+      const [
+        { data: workouts, error },
+        { data: sets },
+        { data: cardio },
+        { data: weights },
+        { data: foodLogs },
+        { data: waterLogs },
+        { data: catalogEx },
+      ] = await Promise.all([
+        own.select('workouts', 'id,date,title,duration_min,notes').gte('date', since).lte('date', now.date).order('date', { ascending: false }),
+        own.select('workout_sets', 'workout_id,exercise_id,load_kg,reps,effort,notes').limit(2000),
+        own.select('cardio_sessions', 'date,cardio_type,duration_s,distance_km,kcal').gte('date', since).lte('date', now.date),
+        own.select('body_measurements', 'value,measured_at').eq('metric', 'weight_kg').order('measured_at', { ascending: false }).limit(10),
+        own.select('food_logs', 'date,kcal,protein_g').gte('date', since).lte('date', now.date),
+        own.select('water_logs', 'date,ml').gte('date', since).lte('date', now.date),
+        db.from('exercises').select('id,name,muscle_group,secondary_muscles').or(`user_id.is.null,user_id.eq.${uid}`).limit(300),
+      ]);
+      if (error) return fail(error);
+
+      const weightKg = Number(weights?.[0]?.value ?? 75);
+      const wList = workouts ?? [];
+      const wIds = new Set(wList.map((w: { id: string }) => w.id));
+      const periodSets = (sets ?? []).filter((s: { workout_id: string }) => wIds.has(s.workout_id));
+      const exById = new Map(((catalogEx ?? []) as { id: string; name: string; muscle_group: string; secondary_muscles?: string[] }[]).map((e) => [e.id, e]));
+
+      // Hevy 1..30 1RM coefficient table
+      const coeff: Record<number, number> = {
+        1: 1, 2: 0.97, 3: 0.94, 4: 0.92, 5: 0.89, 6: 0.86, 7: 0.83, 8: 0.81, 9: 0.78, 10: 0.75,
+        11: 0.73, 12: 0.71, 13: 0.7, 14: 0.68, 15: 0.67, 20: 0.6, 25: 0.55, 30: 0.5,
+      };
+      const oneRm = (kg: number, r: number) => {
+        if (kg <= 0 || r < 1) return 0;
+        const c = coeff[r] ?? (r > 30 ? 0.5 : Math.max(0.5, 1 - r * 0.017));
+        return Math.round((kg / c) * 10) / 10;
+      };
+
+      let totalTonnage = 0;
+      const muscleWeighted = new Map<string, number>();
+      const bestByEx = new Map<string, { nome: string; melhor_1rm_kg: number; maior_carga_kg: number; series: number }>();
+
+      for (const s of periodSets) {
+        const kg = Number(s.load_kg ?? 0);
+        const reps = Number(s.reps ?? 0);
+        if (reps <= 0) continue;
+        totalTonnage += kg * reps;
+        const ex = exById.get(s.exercise_id);
+        if (ex) {
+          muscleWeighted.set(ex.muscle_group, (muscleWeighted.get(ex.muscle_group) ?? 0) + 1);
+          for (const sm of ex.secondary_muscles ?? []) {
+            muscleWeighted.set(sm, (muscleWeighted.get(sm) ?? 0) + 0.5);
+          }
+          const e1 = oneRm(kg, reps);
+          const prev = bestByEx.get(ex.id) ?? { nome: ex.name, melhor_1rm_kg: 0, maior_carga_kg: 0, series: 0 };
+          prev.series += 1;
+          if (e1 > prev.melhor_1rm_kg) prev.melhor_1rm_kg = e1;
+          if (kg > prev.maior_carga_kg) prev.maior_carga_kg = kg;
+          bestByEx.set(ex.id, prev);
+        }
+      }
+
+      const workoutBurnTotal = wList.reduce((acc: number, w: { duration_min?: number | null }) => {
+        const mins = Number(w.duration_min ?? 50);
+        return acc + Math.round(5.0 * weightKg * (mins / 60));
+      }, 0);
+      const cardioBurnTotal = (cardio ?? []).reduce((acc: number, c: { kcal?: number | null; duration_s?: number }) => {
+        return acc + (c.kcal != null ? Number(c.kcal) : Math.round(7.0 * weightKg * (Number(c.duration_s ?? 0) / 3600)));
+      }, 0);
+
+      const trainedDates = new Set<string>([
+        ...wList.map((w: { date: string }) => w.date),
+        ...(cardio ?? []).map((c: { date: string }) => c.date),
+      ]);
+      const proteinByDay = new Map<string, number>();
+      for (const fl of foodLogs ?? []) {
+        proteinByDay.set(fl.date, (proteinByDay.get(fl.date) ?? 0) + Number(fl.protein_g ?? 0));
+      }
+      const waterByDay = new Map<string, number>();
+      for (const wl of waterLogs ?? []) {
+        waterByDay.set(wl.date, (waterByDay.get(wl.date) ?? 0) + Number(wl.ml ?? 0));
+      }
+      const trainedProtVals = [...trainedDates].map((d) => proteinByDay.get(d)).filter((v): v is number => v != null && v > 0);
+      const avgProtOnTrainingDays = trainedProtVals.length ? Math.round(trainedProtVals.reduce((a, b) => a + b, 0) / trainedProtVals.length) : null;
+
+      const pushSets = (muscleWeighted.get('peito') ?? 0) + (muscleWeighted.get('ombros') ?? 0) + (muscleWeighted.get('triceps') ?? 0);
+      const pullSets = (muscleWeighted.get('costas') ?? 0) + (muscleWeighted.get('biceps') ?? 0) + (muscleWeighted.get('antebraco') ?? 0);
+
+      return {
+        periodo_dias: dias,
+        sessoes_treino: wList.length,
+        sessoes_cardio: (cardio ?? []).length,
+        volume_total_kg: Math.round(totalTonnage),
+        kcal_ativas_totais: workoutBurnTotal + cardioBurnTotal,
+        distribuicao_muscular_ponderada: [...muscleWeighted.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .map(([musculo, series_ponderadas]) => ({ musculo, series_ponderadas })),
+        simetria_empurrar_puxar: pullSets > 0 ? Math.round((pushSets / pullSets) * 100) / 100 : null,
+        melhores_exercicios: [...bestByEx.values()].sort((a, b) => b.melhor_1rm_kg - a.melhor_1rm_kg).slice(0, 8),
+        sinergia_nutricao: {
+          peso_atual_kg: weightKg,
+          proteina_media_dias_treino_g: avgProtOnTrainingDays,
+          dias_ativos_no_periodo: trainedDates.size,
+        },
+      };
+    }
+
     case 'registrar_cardio': {
+      const day = String(a.data ?? now.date);
       const durMin = Number(a.duracao_min);
+      const { data: weights } = await own.select('body_measurements', 'value').eq('metric', 'weight_kg').order('measured_at', { ascending: false }).limit(1);
+      const weightKg = Number(weights?.[0]?.value ?? 75);
+      const estKcal = a.kcal != null ? Number(a.kcal) : Math.round(7.0 * weightKg * (durMin / 60));
+
       const { data, error } = await own.insert('cardio_sessions', {
-        date: a.data ?? now.date,
+        date: day,
         cardio_type: a.tipo,
         duration_s: durMin * 60,
         distance_km: a.distancia_km,
@@ -595,9 +847,26 @@ export async function runTool(db: Db, uid: string, name: string, a: ToolArgs, no
       }).select('id');
       if (error) return fail(error);
       const id = data?.[0]?.id as string | undefined;
+
+      // Auto-sync matching cardio/exercise habit
+      const { data: habits } = await own.select('habits', 'id,name,target_value').eq('is_archived', false);
+      const cardioKw = ['cardio', 'corrida', 'correr', 'caminhada', 'exercicio', 'treino', 'treinar'];
+      const matchedHabit = (habits ?? []).find((hb: { name: string }) => {
+        const norm = hb.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        return cardioKw.some((k) => norm.includes(k));
+      });
+      if (matchedHabit) {
+        await own.upsert(
+          'habit_completions',
+          { habit_id: matchedHabit.id, completed_date: day, value: matchedHabit.target_value ?? 1 },
+          { onConflict: 'habit_id,completed_date' },
+        );
+      }
+
       return {
-        feito: `Cardio registrado: ${a.tipo}, ${durMin} min${a.distancia_km ? ` · ${String(a.distancia_km).replace('.', ',')} km` : ''}`,
-        link: '/saude',
+        feito: `Cardio registrado: ${a.tipo}, ${durMin} min (~${estKcal} kcal)${a.distancia_km ? ` · ${String(a.distancia_km).replace('.', ',')} km` : ''}`,
+        kcal_estimadas: estKcal,
+        link: '/saude?aba=Treino',
         ...(id ? { undo: { table: 'cardio_sessions', op: 'delete', id } } : {}),
       };
     }
@@ -606,16 +875,33 @@ export async function runTool(db: Db, uid: string, name: string, a: ToolArgs, no
       const day = String(a.data ?? now.date);
       const [{ data: logs, error }, { data: workouts }, { data: cardio }, { data: weights }, { data: water }, { data: fasts }] = await Promise.all([
         own.select('food_logs', 'meal,food_name,kcal,protein_g,carbs_g,fat_g').eq('date', day),
-        own.select('workouts', 'title,duration_min').eq('date', day),
+        own.select('workouts', 'title,duration_min,notes').eq('date', day),
         own.select('cardio_sessions', 'cardio_type,duration_s,distance_km,kcal').eq('date', day),
         own.select('body_measurements', 'value,measured_at').eq('metric', 'weight_kg').order('measured_at', { ascending: false }).limit(1),
         own.select('water_logs', 'ml').eq('date', day),
         own.select('fasting_sessions', 'protocol,target_hours,started_at').is('ended_at', null).order('started_at', { ascending: false }).limit(1),
       ]);
       if (error) return fail(error);
+      const weightKg = Number(weights?.[0]?.value ?? 75);
       const rows = logs ?? [];
       const sum = (k: 'kcal' | 'protein_g' | 'carbs_g' | 'fat_g') => Math.round(rows.reduce((s, r) => s + Number(r[k] ?? 0), 0) * 10) / 10;
       const waterMl = (water ?? []).reduce((s, w) => s + Number(w.ml ?? 0), 0);
+
+      let activeBurnKcal = 0;
+      let activeMinutes = 0;
+      for (const w of workouts ?? []) {
+        const mins = Number(w.duration_min ?? 45);
+        activeMinutes += mins;
+        const kcalTag = String(w.notes ?? '').match(/\[kcal:(\d+)\]/i);
+        activeBurnKcal += kcalTag ? Number(kcalTag[1]) : Math.round(5.0 * weightKg * (mins / 60));
+      }
+      for (const c of cardio ?? []) {
+        const mins = Math.round(Number(c.duration_s ?? 0) / 60);
+        activeMinutes += mins;
+        activeBurnKcal += c.kcal != null ? Number(c.kcal) : Math.round(7.0 * weightKg * (mins / 60));
+      }
+      const sweatBonusMl = activeMinutes > 0 ? Math.min(1500, Math.round(((activeMinutes / 60) * 500) / 50) * 50) : 0;
+
       const activeFast = fasts?.[0] ?? null;
       const fastInfo = activeFast
         ? {
@@ -629,12 +915,14 @@ export async function runTool(db: Db, uid: string, name: string, a: ToolArgs, no
         data: day,
         peso_atual_kg: weights?.[0]?.value ?? null,
         agua_ml: waterMl,
+        meta_agua_ajustada_ml: 2500 + sweatBonusMl,
+        kcal_gastas_atividades: activeBurnKcal,
         jejum_ativo: fastInfo,
         alimentacao: {
           registros: rows.length,
           kcal: Math.round(sum('kcal')),
           proteina_g: sum('protein_g'),
-          carbo_g: sum('carbo_g'),
+          carbo_g: sum('carbs_g'),
           gordura_g: sum('fat_g'),
         },
         treinos: (workouts ?? []).map((w) => ({ titulo: w.title ?? 'Treino', duracao_min: w.duration_min })),

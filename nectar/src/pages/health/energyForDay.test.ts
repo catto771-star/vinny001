@@ -41,4 +41,13 @@ describe('energyForDay', () => {
     const h = fakeHealth({ overrides: [{ date: day, day_type: 'training', kcal: null, protein_g: null, carbs_g: null, fat_g: null }] });
     expect(energyForDay(h, day)).toMatchObject({ dayType: 'training', target: { kcal: 2600 } });
   });
+  it('computes calories for functional/HIIT or manual kcal workouts and feeds dynamic diet target', () => {
+    const h = fakeHealth({
+      mode: 'dynamic',
+      weight: 80,
+      workouts: [{ id: 'w-hiit', date: day, duration_min: 45, notes: '[mod:funcional]' }],
+    });
+    // Funcional base MET 7.4 * 80 kg * 0.75 h = 444 kcal
+    expect(energyForDay(h, day)).toMatchObject({ burned: 444, trainingMinutes: 45, dayType: 'training', target: { kcal: 2644 } });
+  });
 });
