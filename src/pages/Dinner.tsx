@@ -79,8 +79,8 @@ export function Dinner() {
   }
 
   const served = rows?.filter((r) => r.served === true).length ?? 0;
-  const notServed = rows?.filter((r) => r.served === false).length ?? 0;
-  const unmarked = (rows?.length ?? 0) - served - notServed;
+  // Revisão 4: só se marca quem pegou; sem marca = não pegou.
+  const notServed = (rows?.length ?? 0) - served;
   const canClose = isManagement && finished && (!summary?.closed_at ? staff?.role !== "owner" : staff?.role === "owner" || staff?.role === "developer");
 
   return (
@@ -102,7 +102,6 @@ export function Dinner() {
       <div className="stat-row">
         <div><span className="big-number">{served}</span><span className="muted"> {t("dinner.served")}</span></div>
         <div><span className="big-number">{notServed}</span><span className="muted"> {t("dinner.notServed")}</span></div>
-        <div><span className="big-number">{unmarked}</span><span className="muted"> {t("dinner.unmarked")}</span></div>
         {canClose && (
           <button className="primary" onClick={() => setClosing(true)}>{summary?.closed_at ? t("dinner.edit") : t("dinner.close")}</button>
         )}
@@ -111,8 +110,8 @@ export function Dinner() {
       {!early && !finished && isManagement && <p className="hint">{t("dinner.closeAfter22")}</p>}
       {canWrite && rows && rows.length > 0 && (
         <div className="card">
-          <strong>{t("dinner.whoTook")}</strong>
           <ResidentPicker
+            label={t("dinner.whoTook")}
             value={pick}
             emptyLabel={t("dinner.chooseResident")}
             options={rows.map((r) => ({ id: r.stay_id, label: `${roomLabel(t, r.room_kind, r.room_code)} · ${r.bed_number} — ${residentName(r)}` }))}
@@ -149,14 +148,10 @@ export function Dinner() {
                 </span>
                 <span className="task-meta"><span className="room-cell">{roomLabel(t, r.room_kind, r.room_code)}</span> · {r.bed_number}</span>
               </div>
-              <div className="result-buttons" role="group" aria-label={residentName(r)}>
-                <button type="button" className={`small result-seen${r.served === true ? " selected" : ""}`} aria-pressed={r.served === true} disabled={!canWrite} onClick={() => mark(r, true)}>
-                  {t("dinner.yes")}
-                </button>
-                <button type="button" className={`small result-not_seen${r.served === false ? " selected" : ""}`} aria-pressed={r.served === false} disabled={!canWrite} onClick={() => mark(r, false)}>
-                  {t("dinner.no")}
-                </button>
-              </div>
+              <button type="button" className={`took-btn${r.served === true ? " is-on" : ""}`} aria-pressed={r.served === true}
+                aria-label={`${t("dinner.took")} — ${residentName(r)}`} disabled={!canWrite} onClick={() => mark(r, r.served !== true)}>
+                {r.served === true ? `✓ ${t("dinner.took")}` : t("dinner.took")}
+              </button>
             </li>
           ))}
         </ul>

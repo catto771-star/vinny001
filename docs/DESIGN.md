@@ -51,8 +51,8 @@ Espaçamento na grade de 4 px (raiz 16 px; `0.25rem` = 4 px).
 
 ## Tipografia e escala
 
-- **Geist** (400, 500, 600; cobre todos os acentos do português e do polonês) em toda a interface.
-- **Geist Mono** (400, 500) para horários, datas no relógio, códigos de quarto/cama, número da folha,
+- **IBM Plex Sans** (400, 500, 600) em toda a interface — trocada em 25/11 por ser mais aberta e natural que a Geist.
+- **IBM Plex Mono** (400, 500) para horários, datas no relógio, códigos de quarto/cama, número da folha,
   contagens e a régua.
 - **Escala fluida:** o tamanho-raiz cresce com a tela (`clamp(16px, 0.55vw + 8.5px, 19px)`): 16 px em
   notebook, ~19 px em monitor Full HD. Todas as medidas de layout estão em `rem`, então menu lateral,

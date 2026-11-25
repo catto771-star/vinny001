@@ -88,14 +88,23 @@ describe("Fridge", () => {
 describe("Dinner", () => {
   const row = { stay_id: "s1", resident_id: "r1", first_name: "Ana", last_name: "X", room_kind: "room", room_code: "4", room_sort: 4, bed_number: 1, served: null, marked_by: null, final_warning: false };
 
-  it("'Yes' envia a marca do residente (vale como Seen Night)", async () => {
+  it("'Took the meal' envia a marca do residente (vale como Seen Night); não há botão 'No' (revisão 4)", async () => {
     rpcResult.dinner_sheet = [row];
     rpcResult.dinner_summary = [{ service_id: null, leftovers: null, packaged: null, close_note: null, closed_at: null, closed_by: null, served_count: 0, not_served_count: 0, residents_count: 1 }];
     wrap(<Dinner />);
     fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: "2026-11-01" } });
-    const group = await screen.findByRole("group", { name: "Ana X" });
-    fireEvent.click(within(group).getByRole("button", { name: "Yes" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Took the meal — Ana X" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("mark_dinner", { p_lodge: "a", p_day: "2026-11-01", p_stay: "s1", p_served: true }));
+    expect(screen.queryByRole("button", { name: "No" })).toBeNull();
+  });
+
+  it("revisão 4: tocar de novo desfaz (marca como não pegou)", async () => {
+    rpcResult.dinner_sheet = [{ ...row, served: true }];
+    rpcResult.dinner_summary = [{ service_id: null, leftovers: null, packaged: null, close_note: null, closed_at: null, closed_by: null, served_count: 1, not_served_count: 0, residents_count: 1 }];
+    wrap(<Dinner />);
+    fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: "2026-11-01" } });
+    fireEvent.click(await screen.findByRole("button", { name: "Took the meal — Ana X" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("mark_dinner", { p_lodge: "a", p_day: "2026-11-01", p_stay: "s1", p_served: false }));
   });
 
   it("Beta: antes das 18h pede confirmação e só então registra", async () => {
@@ -103,8 +112,7 @@ describe("Dinner", () => {
     rpcResult.dinner_summary = [{ service_id: null, leftovers: null, packaged: null, close_note: null, closed_at: null, closed_by: null, served_count: 0, not_served_count: 0, residents_count: 1 }];
     wrap(<Dinner />);
     fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: "2099-01-01" } });
-    const group = await screen.findByRole("group", { name: "Ana X" });
-    fireEvent.click(within(group).getByRole("button", { name: "Yes" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Took the meal — Ana X" }));
     expect(await screen.findByText(/Record the meal for Ana X now/)).toBeTruthy();
     expect(rpc).not.toHaveBeenCalledWith("mark_dinner", expect.anything());
     fireEvent.click(screen.getByRole("button", { name: "Record now" }));
@@ -116,9 +124,9 @@ describe("Dinner", () => {
     rpcResult.dinner_summary = [{ service_id: null, leftovers: null, packaged: null, close_note: null, closed_at: null, closed_by: null, served_count: 0, not_served_count: 0, residents_count: 1 }];
     wrap(<Dinner />);
     fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: "2026-11-01" } });
-    await screen.findByRole("group", { name: "Ana X" });
-    fireEvent.change(screen.getByPlaceholderText(/Type @/), { target: { value: "@ana" } });
-    fireEvent.click(within(screen.getByRole("listbox")).getByRole("option", { name: /Ana X/ }));
+    await screen.findByRole("button", { name: "Took the meal — Ana X" });
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "@ana" } });
+    fireEvent.mouseDown(within(screen.getByRole("listbox")).getByRole("option", { name: /Ana X/ }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("mark_dinner", { p_lodge: "a", p_day: "2026-11-01", p_stay: "s1", p_served: true }));
   });
 
@@ -127,7 +135,7 @@ describe("Dinner", () => {
     rpcResult.dinner_summary = [{ service_id: "x", leftovers: null, packaged: null, close_note: null, closed_at: null, closed_by: null, served_count: 0, not_served_count: 0, residents_count: 1 }];
     wrap(<Dinner />);
     fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: "2026-11-01" } });
-    await screen.findByRole("group", { name: "Ana X" });
+    await screen.findByRole("button", { name: "Took the meal — Ana X" });
     expect(screen.queryByRole("button", { name: "Close leftovers" })).toBeNull();
     cleanup();
     management = true;

@@ -1,14 +1,15 @@
 /* DS Lodge — sistema visual (ver docs/DESIGN.md).
-   Console de turno da recepção: grafite neutro, um acento azul-tinta, Geist.
+   Console de turno da recepção: grafite neutro, um acento azul-tinta, IBM Plex (revisão 4).
    Riqueza só nos dados: régua do dia operacional e quadro de camas. */
 
-@import "@fontsource/geist-sans/latin-400.css";
-@import "@fontsource/geist-sans/latin-500.css";
-@import "@fontsource/geist-sans/latin-600.css";
-@import "@fontsource/geist-mono/latin-400.css";
-@import "@fontsource/geist-mono/latin-ext-400.css";
-@import "@fontsource/geist-mono/latin-500.css";
-@import "@fontsource/geist-mono/latin-ext-500.css";
+@import "@fontsource/ibm-plex-sans/latin-400.css";
+@import "@fontsource/ibm-plex-sans/latin-ext-400.css";
+@import "@fontsource/ibm-plex-sans/latin-500.css";
+@import "@fontsource/ibm-plex-sans/latin-ext-500.css";
+@import "@fontsource/ibm-plex-sans/latin-600.css";
+@import "@fontsource/ibm-plex-sans/latin-ext-600.css";
+@import "@fontsource/ibm-plex-mono/latin-400.css";
+@import "@fontsource/ibm-plex-mono/latin-500.css";
 
 :root {
   /* Rampa grafite (clara) */
@@ -40,8 +41,8 @@
   --base: 180ms;
   --slow: 320ms;
 
-  --font-ui: "Geist Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --font-display: var(--font-ui);
 
   color-scheme: light;
@@ -806,7 +807,7 @@ html, body { background: var(--paper); transition: background-color var(--base);
 .sidebar { scrollbar-color: rgb(255 255 255 / 20%) transparent; }
 
 /* Detalhes "técnicos": números em mono, cartões com fio da casa no topo do título */
-.big-number, .stat-row .big-number, .report-metric dd { font-family: var(--font-mono); letter-spacing: -0.01em; }
+.big-number, .stat-row .big-number, .report-metric dd { font-family: var(--font-mono); letter-spacing: 0; }
 .page-header .eyebrow { font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink-2); }
 .bottom-nav { background: var(--chrome); border-top-color: var(--chrome-line); }
 .bottom-nav a, .bottom-nav button { color: var(--chrome-muted); }
@@ -927,3 +928,35 @@ kbd { display: inline-grid; place-items: center; min-width: 1.5rem; height: 1.5r
   .topbar { padding-top: calc(0.5rem + env(safe-area-inset-top)); }
   .bottom-nav { padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
 }
+
+/* Escolha do residente — um campo só (revisão 4) */
+.resident-picker { display: grid; gap: 0.375rem; }
+.resident-picker-label { font-size: 0.875rem; color: var(--ink-2); }
+.resident-picker-box { position: relative; }
+.resident-picker-clear { position: absolute; right: 0.375rem; top: 50%; transform: translateY(-50%); border: none; background: transparent; font-size: 1.25rem; color: var(--ink-3); min-height: 2rem; padding: 0 0.5rem; }
+.resident-picker-list { position: absolute; z-index: 40; left: 0; right: 0; top: calc(100% + 4px); max-height: 16rem; overflow-y: auto; list-style: none; margin: 0; padding: 4px;
+  background: var(--surface); border-radius: var(--radius); box-shadow: 0 10px 28px rgb(0 0 0 / 14%), 0 0 0 1px var(--line-strong); }
+.resident-picker-list li { padding: 0.5rem 0.625rem; border-radius: var(--radius-sm); cursor: pointer; }
+.resident-picker-list li.is-active { background: var(--surface-2); }
+.resident-picker-empty { cursor: default; }
+.dialog-body { overflow: visible; }
+.took-btn { min-height: 2.5rem; padding: 0 1rem; border-radius: var(--radius); border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-2); font-weight: 500; white-space: nowrap; }
+.took-btn.is-on { background: var(--ok); border-color: var(--ok); color: #fff; }
+
+/* Home — gráficos separados, sem sobreposição (revisão 4) */
+.dash-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: 0.75rem; }
+.linechart { display: grid; grid-template-columns: auto 1fr; gap: 0.5rem; height: 8rem; }
+.linechart svg { width: 100%; height: 100%; overflow: visible; }
+.linechart-y { display: flex; flex-direction: column; justify-content: space-between; font-size: 0.75rem; color: var(--ink-3); text-align: right; }
+.barchart { display: flex; align-items: flex-end; gap: 4px; height: 8rem; border-bottom: 1px solid var(--line); }
+.barchart-col { flex: 1; height: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 2px; }
+.barchart-col span { display: block; width: 40%; min-height: 0; border-radius: 2px 2px 0 0; }
+.barchart-col .bar-in { background: var(--house-strong, #8db4d3); }
+.barchart-col .bar-out { background: var(--ink-3); opacity: 0.55; }
+.chart-x { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--ink-3); }
+.shift-fn { font-size: 0.75rem; padding: 0.125rem 0.5rem; border-radius: 999px; background: var(--chrome); color: var(--chrome-ink); }
+.shift-bar.is-float { margin-top: -0.5rem; }
+.shift-bar.is-float.is-open { box-shadow: inset 4px 0 0 var(--accent); }
+.linechart { grid-template-rows: 8rem; }
+.linechart svg { display: block; height: 8rem; }
+.topbar .brand, .topbar .brand-house { color: var(--chrome-ink); }

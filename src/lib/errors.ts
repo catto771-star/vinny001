@@ -28,6 +28,7 @@ const RULES: Array<[RegExp, MessageKey]> = [
   [/home_lodge_required/, "errors.homeLodgeRequired"],
   [/dates_locked/, "errors.datesLocked"],
   [/invalid_tag/, "errors.invalidTag"],
+  [/invalid_function/, "errors.invalidFunction"],
   [/invalid_subscription/, "errors.invalidSubscription"],
   [/final_warning_active/, "errors.finalWarningActive"],
   [/shift_already_open/, "errors.shiftAlreadyOpen"],

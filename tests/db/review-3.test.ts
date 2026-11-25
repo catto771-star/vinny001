@@ -89,3 +89,41 @@ describe("Quem recebe cada notificação (preferência de cada Admin)", () => {
     expect(await db.error("select public.save_push_subscription('https://x', 'a', 'b', null)")).toMatch(/not_authorised/);
   });
 });
+
+describe("Turno de Float (revisão 4)", () => {
+  it("abre com quem assume o Float e fecha passando para quem assume; convive com o turno de Office da casa", async () => {
+    const pedro = await db.createStaff("porter", "Pedro", { login: false });
+    const ana = await db.createStaff("porter", "Ana", { login: false });
+    const rui = await db.createStaff("porter", "Rui", { login: false });
+    const connolly = await db.lodgeId("CONNOLLY");
+    await db.as(station);
+    const office = (await db.one<{ id: string }>("select public.open_handover_shift($1, $2) as id", [amiens, pedro.staffId])).id;
+    const float = (await db.one<{ id: string }>("select public.open_handover_shift($1, $2, 'float') as id", [amiens, ana.staffId])).id;
+    expect(await db.error("select public.open_handover_shift($1, $2, 'float')", [connolly, rui.staffId])).toMatch(/shift_already_open/);
+    const next = (await db.one<{ id: string }>("select public.close_handover_shift($1, $2, 'Float handed over') as id", [float, rui.staffId])).id;
+    await db.asSuperuser();
+    const rows = (await db.query("select id, function, staff_id, closed_at is not null as closed, handed_to from public.handover_shifts where id = any($1)", [[office, float, next]])).rows;
+    expect(rows.find((r) => r.id === float)).toMatchObject({ function: "float", closed: true, handed_to: rui.staffId });
+    expect(rows.find((r) => r.id === next)).toMatchObject({ function: "float", staff_id: rui.staffId, closed: false });
+    expect(rows.find((r) => r.id === office)).toMatchObject({ function: "office", closed: false });
+    const bodies = (await db.query("select body from public.handover_entries where kind = 'shift' order by created_at, body")).rows.map((r) => r.body).join(" | ");
+    expect(bodies).toMatch(/Float shift opened — Ana/);
+    expect(bodies).toMatch(/Float shift closed — Ana handed over to Rui/);
+    // anotação da casa continua no turno de Office
+    await db.as(station);
+    const note = (await db.one<{ id: string }>("select public.add_handover_note($1, 'Quiet', null, '[]'::jsonb, null, null) as id", [amiens])).id;
+    await db.asSuperuser();
+    expect((await db.one("select shift_id from public.handover_entries where id = $1", [note])).shift_id).toBe(office);
+  });
+
+  it("o turno de Float é cruzado com o Float do Roster nas horas", async () => {
+    const ana = await db.createStaff("porter", "Ana", { login: false });
+    await db.as(admin);
+    const rota = (await db.one<{ id: string }>("select public.save_rota_shift(null, $1, null, 'float', now() - interval '1 hour', now() + interval '8 hours') as id", [ana.staffId])).id;
+    await db.query("select public.publish_rota(now() - interval '2 hours', now() + interval '9 hours')");
+    await db.as(station);
+    const s = (await db.one<{ id: string }>("select public.open_handover_shift($1, $2, 'float') as id", [amiens, ana.staffId])).id;
+    await db.asSuperuser();
+    expect((await db.one("select rota_shift_id from public.handover_shifts where id = $1", [s])).rota_shift_id).toBe(rota);
+  });
+});

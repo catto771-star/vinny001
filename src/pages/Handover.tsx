@@ -115,6 +115,7 @@ export function Handover() {
     void load();
   }, [load]);
 
+  const onFloatChange = useCallback(() => void load(), [load]);
   const onShiftChange = useCallback((id: string | null) => {
     setShiftStaff(id);
     void load();
@@ -180,6 +181,7 @@ export function Handover() {
       )}
 
       {canWrite && day === today && <ShiftBar lodgeId={lodgeId} onChange={onShiftChange} />}
+      {canWrite && day === today && <ShiftBar fn="float" lodgeId={lodgeId} onChange={onFloatChange} />}
 
       {canWrite && day === today && (
         <Composer
@@ -339,7 +341,7 @@ export function useHandoverTags(onlyVisible: boolean): HandoverTag[] {
 type OpenShift = { id: string; staff_id: string; opened_at: string };
 
 /** Turno do Livro Ata (revisão 25/11): abertura com quem assume, encerramento passando o serviço. */
-function ShiftBar({ lodgeId, onChange }: { lodgeId: string; onChange: (staffId: string | null) => void }) {
+function ShiftBar({ lodgeId, onChange, fn = "office" }: { lodgeId: string; onChange: (staffId: string | null) => void; fn?: "office" | "float" }) {
   const { t, locale } = useI18n();
   const toast = useToast();
   const staffList = useStaffList();
@@ -350,19 +352,21 @@ function ShiftBar({ lodgeId, onChange }: { lodgeId: string; onChange: (staffId: 
   const [handTo, setHandTo] = useState("");
   const [note, setNote] = useState("");
   const fillers = staffList.filter((s) => FILLER_ROLES.includes(s.role));
-  const rostered = onDutyFor(posts, lodgeId)?.staff_id ?? "";
+  const rostered = (fn === "float" ? posts.find((p) => p.function === "float") : onDutyFor(posts, lodgeId))?.staff_id ?? "";
   const nameOf = (id: string) => staffName(staffList.find((s) => s.id === id)) || "—";
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("handover_shifts").select("id, staff_id, opened_at").eq("lodge_id", lodgeId).is("closed_at", null).limit(1);
+    // Office: um por casa. Float: um só, para as duas casas.
+    const q = supabase.from("handover_shifts").select("id, staff_id, opened_at").eq("function", fn).is("closed_at", null);
+    const { data } = await (fn === "float" ? q : q.eq("lodge_id", lodgeId)).limit(1);
     const open = ((data ?? []) as OpenShift[])[0] ?? null;
     setShift(open);
     onChange(open?.staff_id ?? null);
-  }, [lodgeId, onChange]);
+  }, [lodgeId, onChange, fn]);
   useEffect(() => void load(), [load]);
 
   async function open() {
-    const { error } = await supabase.rpc("open_handover_shift", { p_lodge: lodgeId, p_staff: who || rostered });
+    const { error } = await supabase.rpc("open_handover_shift", { p_lodge: lodgeId, p_staff: who || rostered, p_function: fn });
     if (error) return toast.error(t(errorKey(error)));
     toast.success(t("handover.shiftOpened"));
     void load();
@@ -380,29 +384,30 @@ function ShiftBar({ lodgeId, onChange }: { lodgeId: string; onChange: (staffId: 
 
   if (shift === undefined) return null;
   return (
-    <div className={`shift-bar${shift ? " is-open" : ""}`}>
+    <div className={`shift-bar${shift ? " is-open" : ""}${fn === "float" ? " is-float" : ""}`} aria-label={fn === "float" ? t("handover.floatShift") : t("handover.officeShift")}>
+      <span className="shift-fn mono">{fn === "float" ? "Float" : "Office"}</span>
       {shift ? (
         <>
           <span className="shift-dot" aria-hidden="true" />
-          <span><strong>{t("handover.shiftOf", { name: nameOf(shift.staff_id) })}</strong> <span className="mono muted">{t("today.since", { time: formatTime(shift.opened_at, locale) })}</span></span>
-          <button className="primary" onClick={() => setClosing(true)}>{t("handover.closeShift")}</button>
+          <span><strong>{t(fn === "float" ? "handover.floatShiftOf" : "handover.shiftOf", { name: nameOf(shift.staff_id) })}</strong> <span className="mono muted">{t("today.since", { time: formatTime(shift.opened_at, locale) })}</span></span>
+          <button className={fn === "float" ? "" : "primary"} onClick={() => setClosing(true)}>{fn === "float" ? t("handover.closeFloat") : t("handover.closeShift")}</button>
         </>
       ) : (
         <>
-          <span><strong>{t("handover.noShift")}</strong> <span className="muted">{t("handover.noShiftHint")}</span></span>
+          <span><strong>{fn === "float" ? t("handover.noFloatShift") : t("handover.noShift")}</strong> <span className="muted">{fn === "float" ? t("handover.noFloatShiftHint") : t("handover.noShiftHint")}</span></span>
           <label className="inline">
             {t("handover.takingOver")}
             <select value={who || rostered} onChange={(e) => setWho(e.target.value)}>
-              <option value="">{t("handover.filledByChoose")}</option>
+              <option value="">{t("handover.chooseWhoTakesOver")}</option>
               {fillers.map((s) => <option key={s.id} value={s.id}>{staffName(s)}{s.id === rostered ? ` · ${t("handover.onRoster")}` : ""}</option>)}
             </select>
           </label>
-          <button className="primary" disabled={!(who || rostered)} onClick={() => void open()}>{t("handover.openShift")}</button>
+          <button className={fn === "float" ? "" : "primary"} disabled={!(who || rostered)} onClick={() => void open()}>{fn === "float" ? t("handover.openFloat") : t("handover.openShift")}</button>
         </>
       )}
       {closing && shift && (
         <Dialog
-          title={t("handover.closeShift")}
+          title={fn === "float" ? t("handover.closeFloat") : t("handover.closeShift")}
           onClose={() => setClosing(false)}
           footer={<><DialogCancel>{t("app.cancel")}</DialogCancel><button className="primary" onClick={() => void close()}>{handTo ? t("handover.handOver") : t("handover.closeOnly")}</button></>}
         >

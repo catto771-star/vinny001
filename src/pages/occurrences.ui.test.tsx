@@ -133,7 +133,7 @@ describe("Handover", () => {
     tables.rota_shifts = [{ id: "r1", staff_id: "pedro", function: "office", lodge_id: "a", started_at: "2026-11-20T07:00:00Z", ends_at: "2099-01-01T00:00:00Z", staff: { full_name: "Pedro Almeida", display_name: null } }];
     wrap(<Handover />);
     fireEvent.click(await screen.findByRole("button", { name: "Open shift" }));
-    await waitFor(() => expect(rpc).toHaveBeenCalledWith("open_handover_shift", { p_lodge: "a", p_staff: "pedro" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("open_handover_shift", { p_lodge: "a", p_staff: "pedro", p_function: "office" }));
     cleanup();
     tables.handover_shifts = [{ id: "sh1", staff_id: "pedro", opened_at: "2026-11-25T07:02:00Z" }];
     wrap(<Handover />);
@@ -144,6 +144,19 @@ describe("Handover", () => {
     fireEvent.change(within(dialog).getByLabelText("Hand over to"), { target: { value: "ana" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Hand over" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("close_handover_shift", { p_shift: "sh1", p_handed_to: "ana", p_note: "" }));
+  });
+
+  it("Revisão 4: Float — início com quem assume o Float (do Roster) e fim passando para quem assume", async () => {
+    station = true;
+    post = null;
+    tables.staff = [
+      { id: "ana", full_name: "Ana Lima", display_name: null, role: "porter" },
+      { id: "rui", full_name: "Rui Costa", display_name: null, role: "porter" },
+    ];
+    tables.rota_shifts = [{ id: "r2", staff_id: "ana", function: "float", lodge_id: null, started_at: "2026-11-20T12:00:00Z", ends_at: "2099-01-01T00:00:00Z", staff: { full_name: "Ana Lima", display_name: null } }];
+    wrap(<Handover />);
+    fireEvent.click(await screen.findByRole("button", { name: "Start Float shift" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("open_handover_shift", { p_lodge: "a", p_staff: "ana", p_function: "float" }));
   });
 
   it("Revisão 3: tags no lugar dos atalhos — marcar a tag vai junto da anotação; tag escondida pelo Admin não aparece", async () => {

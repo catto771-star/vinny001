@@ -55,9 +55,6 @@ export function HomeDashboard() {
   const series = data.series;
   const occ = series.map((p) => p.occupied);
   const maxBar = Math.max(1, ...series.map((p) => Math.max(p.admissions, p.outs)));
-  const W = 560;
-  const H = 120;
-  const step = W / Math.max(1, series.length);
 
   return (
     <section className="dash" aria-label={t("home.dashboard")}>
@@ -98,26 +95,46 @@ export function HomeDashboard() {
         </article>
       </div>
 
-      <article className="dash-card dash-wide">
-        <header className="dash-chart-head">
-          <span className="eyebrow mono">{t("home.last14")}</span>
-          <span className="chart-legend small-text"><i className="lg-occ" />{t("home.occupied")} <i className="lg-in" />{t("home.admissions")} <i className="lg-out" />{t("home.outs")}</span>
-        </header>
-        <svg className="chart" viewBox={`0 0 ${W} ${H + 24}`} role="img" aria-label={t("home.last14")}>
-          {[0, 0.5, 1].map((g) => <line key={g} x1="0" x2={W} y1={H * g} y2={H * g} className="chart-grid" />)}
-          {series.map((p, i) => (
-            <g key={p.day}>
-              <rect x={i * step + step * 0.2} width={step * 0.28} y={H - (p.admissions / maxBar) * (H * 0.45)} height={(p.admissions / maxBar) * (H * 0.45)} className="bar-in" />
-              <rect x={i * step + step * 0.52} width={step * 0.28} y={H - (p.outs / maxBar) * (H * 0.45)} height={(p.outs / maxBar) * (H * 0.45)} className="bar-out" />
-              {(i % 3 === 0 || i === series.length - 1) && (
-                <text x={i * step + step / 2} y={H + 16} textAnchor="middle" className="chart-label">{formatCivilDate(p.day, locale).slice(0, 5)}</text>
-              )}
-            </g>
-          ))}
-          <path d={linePath(occ, W - step, H * 0.8)} transform={`translate(${step / 2}, ${H * 0.05})`} className="line-occ" />
-        </svg>
-        <p className="small-text muted">{t("home.chartNote", { min: Math.min(...occ), max: Math.max(...occ), ns: series.reduce((s, p) => s + p.no_shows, 0) })}</p>
-      </article>
+      <div className="dash-charts">
+        <article className="dash-card">
+          <header className="dash-chart-head">
+            <span className="eyebrow mono">{t("home.occupancy14")}</span>
+            <span className="mono small-text muted">{t("home.range", { min: Math.min(...occ), max: Math.max(...occ) })}</span>
+          </header>
+          <div className="linechart">
+            <div className="linechart-y mono" aria-hidden="true"><span>{Math.max(...occ)}</span><span>{Math.min(...occ)}</span></div>
+            <svg viewBox="0 0 100 40" preserveAspectRatio="none" role="img" aria-label={t("home.occupancy14")}>
+              <line x1="0" x2="100" y1="2" y2="2" className="chart-grid" vectorEffect="non-scaling-stroke" />
+              <line x1="0" x2="100" y1="38" y2="38" className="chart-grid" vectorEffect="non-scaling-stroke" />
+              <path d={linePath(occ, 100, 36)} transform="translate(0, 2)" className="line-occ" vectorEffect="non-scaling-stroke" />
+            </svg>
+          </div>
+          <div className="chart-x mono" aria-hidden="true">
+            <span>{formatCivilDate(series[0].day, locale).slice(0, 5)}</span>
+            <span>{formatCivilDate(series[series.length - 1].day, locale).slice(0, 5)}</span>
+          </div>
+        </article>
+
+        <article className="dash-card">
+          <header className="dash-chart-head">
+            <span className="eyebrow mono">{t("home.movement14")}</span>
+            <span className="chart-legend small-text"><i className="lg-in" />{t("home.admissions")} <i className="lg-out" />{t("home.outs")}</span>
+          </header>
+          <div className="barchart" role="img" aria-label={t("home.movement14")}>
+            {series.map((p) => (
+              <div key={p.day} className="barchart-col" title={`${formatCivilDate(p.day, locale)} · ${p.admissions} / ${p.outs}`}>
+                <span className="bar-in" style={{ height: `${(p.admissions / maxBar) * 100}%` }} />
+                <span className="bar-out" style={{ height: `${(p.outs / maxBar) * 100}%` }} />
+              </div>
+            ))}
+          </div>
+          <div className="chart-x mono" aria-hidden="true">
+            <span>{formatCivilDate(series[0].day, locale).slice(0, 5)}</span>
+            <span>{formatCivilDate(series[series.length - 1].day, locale).slice(0, 5)}</span>
+          </div>
+          <p className="small-text muted">{t("home.noShows14", { n: series.reduce((sum, p) => sum + p.no_shows, 0) })}</p>
+        </article>
+      </div>
     </section>
   );
 }
