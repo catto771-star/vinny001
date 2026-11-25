@@ -93,3 +93,8 @@ o item ativo do menu usa o acento. Nunca emoji na interface.
 - **Cor da casa em tudo**: Amiens âmbar→cobre, Connolly azul→azul-marinho — cartão de destaque da Home, faixa sob a
   barra superior, nome da casa, item ativo do menu, seletor de casa, gráficos e botões. O resto é neutro.
 - Cartões bem arredondados sem borda, botões e seletores em pílula, ícones do menu em círculos.
+
+## Revisão 7 — texto sempre dentro da caixa e transições iOS/Mac
+
+- Botões, campos e chips usam raio fixo de 22px (não mais 999px). Até 44px de altura continuam com forma de pílula; com várias linhas (ex.: turnos do Roster) viram cartões arredondados e o canto não corta o texto. Botões quebram palavras longas (`overflow-wrap:anywhere`) e não passam de 100% da largura. Abas não encolhem (a faixa rola). Guardado por `src/lib/textContainment.test.ts`; a varredura de todas as telas (celular/computador, claro/escuro) não achou texto fora da caixa.
+- Transições (`src/lib/transition.ts` + `.content[data-transition]`): abrir detalhe = entra pela direita; voltar = entra pela esquerda; trocar de seção = esmaecer rápido com leve escala (Mac). Curva do iOS `cubic-bezier(.32,.72,0,1)`, 220–380ms. Janelas abrem com escala no computador e sobem como folha no celular. Respeita "reduzir movimento".

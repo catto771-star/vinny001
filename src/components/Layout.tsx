@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigationType } from "react-router-dom";
+import { transitionKind, type TransitionKind } from "@/lib/transition";
 import {
   BedDouble, Settings2, ListChecks, ClipboardCheck, Eye, History, House, LayoutGrid, NotebookPen, Plane, ScrollText,
   Bell, CalendarDays, ChartColumn, ShieldAlert, ShoppingCart, Timer, TreePalm, Shirt, Thermometer, Truck, UserX, Users, UtensilsCrossed, Wrench,
@@ -158,6 +159,14 @@ function Shell() {
   const { lodge: activeLodge } = useActiveLodge();
   const { t } = useI18n();
   const location = useLocation();
+  const navType = useNavigationType();
+  // Transição da tela (revisão 7): calculada uma vez por mudança de rota.
+  const prevPath = useRef<string | null>(null);
+  const kindFor = useRef<{ path: string; kind: TransitionKind }>({ path: "", kind: "none" });
+  if (kindFor.current.path !== location.pathname) {
+    kindFor.current = { path: location.pathname, kind: transitionKind(prevPath.current, location.pathname, navType) };
+  }
+  useEffect(() => { prevPath.current = location.pathname; }, [location.pathname]);
   const [scrolled, setScrolled] = useState(false);
   // Menu do celular: tudo ("all") ou só um grupo (aba Presence do app dos Admins).
   const [menuOpen, setMenuOpen] = useState<false | "all" | "presence">(false);
@@ -234,7 +243,7 @@ function Shell() {
         </div>
       </header>
 
-      <main className="content" key={location.pathname}>
+      <main className="content" key={location.pathname} data-transition={kindFor.current.kind}>
         <Outlet />
       </main>
 

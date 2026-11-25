@@ -11,7 +11,14 @@ body,button,input,select,textarea { font-family:var(--font-ui) }
 * { --radius:14px; --radius-lg:22px; --radius-sm:10px; }
 .card,.dash-card,.shift-bar,.composer,.duty-card,.bento-tile,.timeline,.table { border-radius:22px!important }
 .timeline-item { border-radius:16px!important;margin-bottom:6px }
-button,.button-link,.chip,.house-option,.post-chip,input,select,textarea,.tag { border-radius:999px!important }
+/* Revisão 7: raio fixo (22px). Controles de uma linha (até 44px de altura) continuam pílula; blocos de várias
+   linhas viram cartões arredondados e o canto nunca corta o texto. */
+button,.button-link,.chip,.house-option,.post-chip,input,select,.tag { border-radius:22px!important }
+button,.button-link { max-width:100%;overflow-wrap:anywhere }
+.tab { flex:none }
+.metric-link { border-radius:0!important }
+.link-button { border-radius:6px!important }
+button > span,.button-link > span { min-width:0;overflow-wrap:anywhere }
 textarea { border-radius:16px!important }
 h1 { font-size:2.25rem;font-weight:700;letter-spacing:-0.02em }
 .big-number { font-weight:700!important;font-size:2.4rem!important;letter-spacing:-0.03em!important }
@@ -115,3 +122,35 @@ a { color: var(--hc, var(--accent)); }
 :root[data-theme="light"] .sidebar .nav-badge { background: #fde4e2; color: #b42318; }
 :root[data-theme="light"] .shift-fn { background: var(--hc); color: #fff; }
 :root[data-theme] .topbar .house-option.is-active { background: var(--hc) !important; color: #fff !important; }
+
+/* Revisão 7: transições de tela no estilo iOS/Mac — curva do iOS, rápidas, sem atrasar o toque. */
+:root { --ios-ease:cubic-bezier(.32,.72,0,1) }
+.content[data-transition] { animation:none }
+.content[data-transition="push"] { animation:screen-push 340ms var(--ios-ease) both }
+.content[data-transition="pop"] { animation:screen-pop 340ms var(--ios-ease) both }
+.content[data-transition="fade"] { animation:screen-fade 220ms var(--ios-ease) both }
+@keyframes screen-push { from { opacity:.35;transform:translate3d(56px,0,0) } to { opacity:1;transform:none } }
+@keyframes screen-pop { from { opacity:.35;transform:translate3d(-40px,0,0) } to { opacity:1;transform:none } }
+@keyframes screen-fade { from { opacity:0;transform:scale(.985) } to { opacity:1;transform:none } }
+@media (max-width:719px) {
+  .content[data-transition="push"] { animation-name:screen-push-m }
+  .content[data-transition="pop"] { animation-name:screen-pop-m }
+  .content[data-transition="fade"] { animation:screen-fade-m 240ms var(--ios-ease) both }
+  @keyframes screen-push-m { from { opacity:.6;transform:translate3d(32%,0,0) } to { opacity:1;transform:none } }
+  @keyframes screen-pop-m { from { opacity:.6;transform:translate3d(-24%,0,0) } to { opacity:1;transform:none } }
+  @keyframes screen-fade-m { from { opacity:0;transform:translate3d(0,10px,0) } to { opacity:1;transform:none } }
+}
+/* Janelas: no Mac abrem com leve escala; no celular sobem como folha do iOS. */
+.dialog { animation:dialog-pop 260ms var(--ios-ease) }
+.dialog.is-closing { animation:dialog-close 180ms var(--ios-ease) forwards }
+@keyframes dialog-pop { from { opacity:0;transform:scale(.94) } to { opacity:1;transform:none } }
+@keyframes dialog-close { to { opacity:0;transform:scale(.97) } }
+@media (max-width:719px) {
+  .dialog { animation:ios-sheet-in 380ms var(--ios-ease) }
+  .dialog.is-closing { animation:ios-sheet-out 200ms var(--ios-ease) forwards }
+  @keyframes ios-sheet-in { from { transform:translate3d(0,100%,0) } to { transform:none } }
+  @keyframes ios-sheet-out { to { transform:translate3d(0,100%,0) } }
+}
+@media (prefers-reduced-motion:reduce) {
+  .content[data-transition],.dialog,.dialog.is-closing { animation:none!important }
+}
