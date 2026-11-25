@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
-  Bell, CalendarDays, CheckSquare, Compass, Dumbbell, FolderKanban, Gauge, LogOut, Menu, Moon, Notebook, Plus, RefreshCw, Repeat,
+  Bell, CalendarDays, CalendarRange, CheckSquare, Compass, Dumbbell, FolderKanban, Gauge, LogOut, Menu, Moon, Notebook, Plus, RefreshCw, Repeat,
   Bot, Search, Settings, Sun, Target, Wallet, WifiOff, Workflow, type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -20,6 +20,7 @@ type NavGroup = 'Dia a dia' | 'Vida e finanças' | 'Sistema';
 
 export const SECTIONS: readonly { path: string; label: string; icon: LucideIcon; group: NavGroup; mobile?: boolean }[] = [
   { path: 'inicio', label: 'Início', icon: Gauge, group: 'Dia a dia', mobile: true },
+  { path: 'semana', label: 'Semana', icon: CalendarRange, group: 'Dia a dia' },
   { path: 'assistente', label: 'Assistente', icon: Bot, group: 'Dia a dia' },
   { path: 'agenda', label: 'Agenda', icon: CalendarDays, group: 'Dia a dia' },
   { path: 'tarefas', label: 'Tarefas', icon: CheckSquare, group: 'Dia a dia', mobile: true },

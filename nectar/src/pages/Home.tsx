@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowUpRight, Bell, Check, CheckSquare, FolderKanban, Target,
+  ArrowUpRight, Bell, CalendarRange, Check, CheckSquare, FolderKanban, Target,
 } from 'lucide-react';
+import {
+  confrontWeek, createDefaultWeeklyPlan, formatWeekRange, isPlanningDay,
+  monWeekOf, PLANNING_DAY_OPTIONS, readPlanningDay, readWeeklyPlan,
+} from '../lib/weeklyPlan';
 import { useTable, queuedWrite } from '../lib/useTable';
 import { latestPerKey } from '../lib/serial';
 import { addDays, formatDay, formatTime, monthName, toDay } from '../lib/dates';
@@ -234,6 +238,51 @@ export default function Home() {
 
   const weekDaysStrip = weekOf(today);
 
+  // Weekly plan (Previsto × Real) summary for current Mon–Sun week
+  const curMon = monWeekOf(today)[0];
+  const planningDayNum = readPlanningDay();
+  const isTodayPlanDay = isPlanningDay(today, planningDayNum);
+  const planningDayName = PLANNING_DAY_OPTIONS.find((o) => o.value === planningDayNum)?.label ?? 'Domingo';
+  const savedWeekPlan = readWeeklyPlan(curMon);
+  const weekConfront = useMemo(() => {
+    const plan = savedWeekPlan ?? createDefaultWeeklyPlan(curMon);
+    const days = monWeekOf(curMon);
+    const daySet = new Set(days);
+    const dailyKcal: Record<string, number> = {};
+    const dailyProtein: Record<string, number> = {};
+    const dailyWaterMl: Record<string, number> = {};
+    const dailySpend: Record<string, number> = {};
+    const habitsByDay: Record<string, { done: number; due: number }> = {};
+
+    for (const d of days) {
+      const logs = h.foodLogs.rows.filter((l) => l.date === d);
+      const t = sumNutrients(logs);
+      dailyKcal[d] = Math.round(t.kcal);
+      dailyProtein[d] = Math.round(t.protein_g);
+      dailyWaterMl[d] = h.waterLogs.rows.filter((w) => w.date === d).reduce((s, w) => s + (Number(w.ml) || 0), 0);
+      dailySpend[d] = txs.rows.filter((x) => x.type === 'expense' && x.date === d).reduce((s, x) => s + Math.abs(Number(x.amount) || 0), 0);
+      const r = routineFor(habits.rows, d);
+      const doneN = r.filter((hb) => isDone(hb, completions.rows.find((c) => c.habit_id === hb.id && c.completed_date === d))).length;
+      habitsByDay[d] = { done: doneN, due: r.length };
+    }
+    const tasksDone = tasks.rows.filter((t) => t.completed_at && daySet.has(t.completed_at.slice(0, 10))).length;
+
+    return confrontWeek(plan, {
+      workouts: h.workouts.rows.filter((w) => daySet.has(w.date)),
+      cardio: h.cardio.rows.filter((c) => daySet.has(c.date)),
+      dailyKcal,
+      dailyProtein,
+      dailyWaterMl,
+      dailySpend,
+      tasksDone,
+      habitsByDay,
+    }, today);
+  }, [savedWeekPlan, curMon, h.foodLogs.rows, h.waterLogs.rows, h.workouts.rows, h.cardio.rows, txs.rows, habits.rows, completions.rows, tasks.rows, today]);
+
+  const pTrain = weekConfront.pillars.find((p) => p.id === 'treinos');
+  const pSpend = weekConfront.pillars.find((p) => p.id === 'gastos');
+  const pDiet = weekConfront.pillars.find((p) => p.id === 'dieta');
+
   return (
     <>
       <header className="mb-6">
@@ -245,6 +294,42 @@ export default function Home() {
           ? <p className="mt-2 text-sm text-fg2">{headline}</p>
           : <div className="mt-2" aria-busy="true" aria-label="Carregando"><Skeleton className="h-5 w-64" /></div>}
       </header>
+
+      {/* Weekly Plan Confrontation Strip */}
+      <section className="card-hero mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-ink">
+              <CalendarRange {...I} />
+              Semana · Previsto × Real
+            </span>
+            <span className="badge bg-surface/80 text-[11px] text-fg2">{formatWeekRange(curMon)}</span>
+            {isTodayPlanDay && (
+              <span className="badge bg-brand text-[11px] font-semibold text-on-brand">
+                Hoje ({planningDayName}) é dia de programar
+              </span>
+            )}
+          </div>
+          <div className="mt-2 flex flex-wrap items-baseline gap-x-5 gap-y-1">
+            <span className="figure text-3xl text-fg">{weekConfront.overallScore}%</span>
+            <span className="text-xs text-fg2">
+              Treinos <strong className="figure text-fg">{pTrain?.actualLabel ?? '—'}</strong>
+            </span>
+            <span className="text-xs text-fg2">
+              Dieta <strong className="figure text-fg">{pDiet?.actualLabel ?? '—'}</strong>
+            </span>
+            <span className="text-xs text-fg2">
+              Gastos <strong className={`figure ${pSpend?.status === 'over' ? 'text-negative' : 'text-fg'}`}>{money(weekConfront.totalSpent)}</strong>
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link to="/semana" className={savedWeekPlan ? 'btn-secondary h-9 px-4 text-xs' : 'btn-primary h-9 px-4 text-xs'}>
+            {savedWeekPlan ? 'Ver confronto' : 'Programar semana'}
+            <ArrowUpRight {...I} />
+          </Link>
+        </div>
+      </section>
 
       {/* Row 1: 4 Quiet Graphite Stat Cards (numbers, label, context only) */}
       <div className="stagger mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

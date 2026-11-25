@@ -414,10 +414,9 @@ main.tab-swap > :not(header) {
 }
 
 /* ==========================================================================
- * Visual 2.0: Material You tonal surfaces + fintech numbers + iOS motion.
- * Everything is driven by tokens, so one rule restyles every screen. Radii
- * written as arbitrary Tailwind values are remapped here instead of edited
- * file by file.
+ * Visual 3.0: Tactile Tech + High-Relief (Alto Relevo) + Material You + iOS.
+ * Physical depth via top specular highlights, bottom 3D bevel lips, recessed
+ * tracks/inputs, and spring press-down states — driven purely by tokens.
  * ========================================================================== */
 :root {
   --r-card: 24px;
@@ -425,10 +424,88 @@ main.tab-swap > :not(header) {
   --r-pill: 999px;
   --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
   --spring: linear(0, 0.0018, 0.0069 1.15%, 0.026 2.3%, 0.0637, 0.1135 5.2%, 0.2229 7.9%, 0.5977 14.4%, 0.7003, 0.7915 18.6%, 0.8688, 0.9319 22.9%, 0.9812 25.1%, 1.0175 27.4%, 1.0425 29.7%, 1.0552 32%, 1.0609 34.8%, 1.0507 38.5%, 1.0252 44.1%, 1.0091 49%, 1.0013 55.5%, 0.9987 62.8%, 1);
-  --card-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 12px 28px -18px rgb(15 23 42 / 0.16);
   --tonal: color-mix(in srgb, var(--brand) 12%, var(--surface));
+  /* Light mode tactile shadows & bevels */
+  --card-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.92),
+    inset 0 -1px 0 rgb(15 23 42 / 0.05),
+    0 2px 4px rgb(15 23 42 / 0.05),
+    0 12px 28px -14px rgb(15 23 42 / 0.16);
+  --btn-primary-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.42),
+    inset 0 -2.5px 0 rgb(0 0 0 / 0.22),
+    0 2px 4px rgb(15 23 42 / 0.14),
+    0 8px 18px -6px color-mix(in srgb, var(--brand) 52%, transparent);
+  --btn-primary-active:
+    inset 0 2px 3px rgb(0 0 0 / 0.22),
+    inset 0 -1px 0 rgb(255 255 255 / 0.2),
+    0 1px 2px rgb(15 23 42 / 0.12);
+  --btn-sec-bg: linear-gradient(180deg, #ffffff 0%, #eef2f9 100%);
+  --btn-sec-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.95),
+    inset 0 -2px 0 rgb(15 23 42 / 0.09),
+    0 1px 2px rgb(15 23 42 / 0.08),
+    0 4px 10px -4px rgb(15 23 42 / 0.12),
+    0 0 0 1px rgb(15 23 42 / 0.08);
+  --btn-sec-active:
+    inset 0 2px 4px rgb(15 23 42 / 0.12),
+    0 0 0 1px rgb(15 23 42 / 0.1);
+  --track-inset:
+    inset 0 2px 4px rgb(15 23 42 / 0.09),
+    inset 0 0 0 1px rgb(15 23 42 / 0.06),
+    0 1px 0 rgb(255 255 255 / 0.8);
+  --thumb-raised:
+    inset 0 1px 0 rgb(255 255 255 / 0.95),
+    inset 0 -1.5px 0 rgb(15 23 42 / 0.08),
+    0 2px 6px rgb(15 23 42 / 0.12),
+    0 0 0 1px rgb(15 23 42 / 0.05);
+  --well-inset:
+    inset 0 2px 4px rgb(15 23 42 / 0.07),
+    inset 0 0 0 1px rgb(15 23 42 / 0.08),
+    0 1px 0 rgb(255 255 255 / 0.75);
 }
-.dark { --card-shadow: none; --tonal: color-mix(in srgb, var(--brand) 16%, var(--surface)); }
+
+.dark {
+  --tonal: color-mix(in srgb, var(--brand) 16%, var(--surface));
+  /* Dark mode tactile hardware shadows & specular rims */
+  --card-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.09),
+    inset 0 -1px 0 rgb(0 0 0 / 0.55),
+    0 4px 12px rgb(0 0 0 / 0.45),
+    0 16px 32px -16px rgb(0 0 0 / 0.72);
+  --btn-primary-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.44),
+    inset 0 -2.5px 0 rgb(0 0 0 / 0.34),
+    0 2px 6px rgb(0 0 0 / 0.5),
+    0 8px 22px -6px color-mix(in srgb, var(--brand) 55%, transparent);
+  --btn-primary-active:
+    inset 0 2px 4px rgb(0 0 0 / 0.36),
+    inset 0 -1px 0 rgb(255 255 255 / 0.18),
+    0 1px 2px rgb(0 0 0 / 0.45);
+  --btn-sec-bg: linear-gradient(180deg, #272731 0%, #1b1b22 100%);
+  --btn-sec-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.14),
+    inset 0 -2px 0 rgb(0 0 0 / 0.55),
+    0 2px 4px rgb(0 0 0 / 0.45),
+    0 6px 14px -6px rgb(0 0 0 / 0.65),
+    0 0 0 1px rgb(255 255 255 / 0.08);
+  --btn-sec-active:
+    inset 0 2px 5px rgb(0 0 0 / 0.6),
+    0 0 0 1px rgb(255 255 255 / 0.06);
+  --track-inset:
+    inset 0 2px 5px rgb(0 0 0 / 0.65),
+    inset 0 0 0 1px rgb(255 255 255 / 0.05),
+    0 1px 0 rgb(255 255 255 / 0.05);
+  --thumb-raised:
+    inset 0 1px 0 rgb(255 255 255 / 0.16),
+    inset 0 -1.5px 0 rgb(0 0 0 / 0.48),
+    0 2px 8px rgb(0 0 0 / 0.55),
+    0 0 0 1px rgb(255 255 255 / 0.08);
+  --well-inset:
+    inset 0 2px 5px rgb(0 0 0 / 0.55),
+    inset 0 0 0 1px rgb(255 255 255 / 0.06),
+    0 1px 0 rgb(255 255 255 / 0.04);
+}
 
 .rounded-\[14px\] { border-radius: var(--r-card); }
 .rounded-\[10px\] { border-radius: 16px; }
@@ -440,47 +517,162 @@ main.tab-swap > :not(header) {
 .figure { font-family: var(--font-sans); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; font-weight: 600; }
 .display { letter-spacing: -0.03em; font-weight: 600; }
 
-/* Cards: soft elevation instead of hairlines; the hero card is tonal. */
-.card { border-radius: var(--r-card); box-shadow: 0 0 0 1px var(--card-ring), var(--card-shadow); }
-.card-hero { border-radius: var(--r-card); background: var(--tonal); box-shadow: none; }
+/* Cards: dimensional tech surfaces with crisp top specular rim. */
+.card {
+  border-radius: var(--r-card);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 100%, #ffffff 3%) 0%, var(--surface) 100%);
+  box-shadow: 0 0 0 1px var(--card-ring), var(--card-shadow);
+}
+.card-hero {
+  border-radius: var(--r-card);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--brand) 18%, var(--surface)) 0%, color-mix(in srgb, var(--brand) 6%, var(--surface)) 100%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--brand) 38%, rgb(255 255 255 / 0.14)),
+    0 0 0 1px color-mix(in srgb, var(--brand) 24%, var(--card-ring)),
+    var(--card-shadow);
+}
 
-/* Buttons: pills. Primary wears the accent; secondary is a quiet tonal fill. */
-.btn { border-radius: var(--r-pill); font-weight: 600;
-  transition: background-color 150ms ease, color 150ms ease, opacity 150ms ease, box-shadow 200ms ease, transform 420ms var(--spring); }
-.btn:active, .icon-btn:active { transform: scale(0.95); }
-.btn-primary { background: var(--brand); color: var(--on-brand); box-shadow: none; }
+/* Buttons: tactile 3D high-relief pills with physical press-down feel. */
+.btn {
+  border-radius: var(--r-pill);
+  font-weight: 600;
+  transition: background-color 150ms ease, color 150ms ease, opacity 150ms ease, filter 150ms ease, box-shadow 140ms ease, transform 240ms var(--spring);
+}
+.btn-primary {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--brand) 88%, #ffffff 12%) 0%, var(--brand) 52%, color-mix(in srgb, var(--brand) 88%, #000000 12%) 100%);
+  color: var(--on-brand);
+  box-shadow: var(--btn-primary-shadow);
+}
 .btn-primary:hover { opacity: 1; filter: brightness(1.06); }
-.btn-secondary { border-color: transparent; background: var(--raised); }
-.btn-secondary:hover { border-color: transparent; background: color-mix(in srgb, var(--brand) 10%, var(--raised)); }
+.btn-primary:active {
+  transform: translateY(1.5px) scale(0.985);
+  box-shadow: var(--btn-primary-active);
+}
+.btn-secondary {
+  border-color: transparent;
+  background: var(--btn-sec-bg);
+  box-shadow: var(--btn-sec-shadow);
+}
+.btn-secondary:hover {
+  border-color: transparent;
+  filter: brightness(1.04);
+}
+.btn-secondary:active {
+  transform: translateY(1.5px) scale(0.985);
+  box-shadow: var(--btn-sec-active);
+}
 .btn-ghost:hover { background: var(--raised); }
-.icon-btn { border-radius: var(--r-pill); transition: background-color 150ms ease, color 150ms ease, transform 420ms var(--spring); }
-.badge { border-radius: var(--r-pill); padding-inline: 10px; }
-.input { border-radius: var(--r-ctl); border-color: transparent; }
-.input:focus { background: var(--surface); border-color: transparent; box-shadow: 0 0 0 2px var(--brand); }
+.btn-ghost:active { transform: translateY(1px) scale(0.98); }
+
+.icon-btn {
+  border-radius: var(--r-pill);
+  background: transparent;
+  transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease, transform 280ms var(--spring);
+}
+.icon-btn:hover {
+  background: var(--btn-sec-bg);
+  box-shadow: var(--btn-sec-shadow);
+}
+.icon-btn:active {
+  transform: translateY(1px) scale(0.94);
+  box-shadow: var(--btn-sec-active);
+}
+
+.badge {
+  border-radius: var(--r-pill);
+  padding-inline: 10px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08);
+}
+
+/* Inputs: recessed tech well with glowing focus ring. */
+.input {
+  border-radius: var(--r-ctl);
+  border-color: transparent;
+  box-shadow: var(--well-inset);
+  transition: background-color 150ms ease, box-shadow 180ms ease;
+}
+.input:focus {
+  background: var(--surface);
+  border-color: transparent;
+  box-shadow:
+    inset 0 1px 2px rgb(0 0 0 / 0.14),
+    0 0 0 2px var(--brand),
+    0 0 0 5px color-mix(in srgb, var(--brand) 18%, transparent);
+}
 .skip-link { border-radius: var(--r-pill); }
 
-/* Tabs and filters: pill track, sliding pill thumb (spring). */
+/* Tabs and filters: recessed track + raised 3D thumb pill. */
 /* A pill radius turns into an ellipse once a track wraps onto several rows and
    clips the text, so the track uses a fixed radius (a pill at one row, 22px). */
-.segmented { border-radius: 22px; border-color: transparent; background: var(--raised); padding: 4px; gap: 4px; }
+.segmented {
+  border-radius: 22px;
+  border-color: transparent;
+  background: var(--sunken);
+  box-shadow: var(--track-inset);
+  padding: 4px;
+  gap: 4px;
+}
 .tab { border-radius: var(--r-pill); }
-.tab-active { font-weight: 600; }
-.segmented[data-ind]::before, .slide-group[data-ind]::before { border-radius: var(--r-pill); }
+.tab-active {
+  font-weight: 600;
+  background: var(--btn-sec-bg);
+  box-shadow: var(--thumb-raised);
+}
+.segmented[data-ind]::before, .slide-group[data-ind]::before {
+  border-radius: var(--r-pill);
+  background: var(--btn-sec-bg);
+  box-shadow: var(--thumb-raised);
+}
 .segmented[data-ind="glide"]::before, .slide-group[data-ind="glide"]::before {
   transition: transform 460ms var(--spring), width 360ms var(--ease-ios), height 360ms var(--ease-ios);
 }
 
-/* Navigation: tonal active pill in the accent (Material 3 / YouTube). */
+/* Navigation: tonal raised active pill in the accent. */
 aside.sticky { border-right-color: transparent; }
 header.sticky { border-bottom-color: transparent; }
 .side-nav > a { border-radius: var(--r-pill); height: 40px; font-weight: 500; }
-.side-nav[data-ind]::before { border-radius: var(--r-pill); background: var(--nav-active-bg); box-shadow: none; }
+.side-nav[data-ind]::before {
+  border-radius: var(--r-pill);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--brand) 22%, var(--surface)) 0%, color-mix(in srgb, var(--brand) 12%, var(--surface)) 100%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--brand) 36%, rgb(255 255 255 / 0.14)),
+    inset 0 -1.5px 0 rgb(0 0 0 / 0.18),
+    0 2px 8px -2px color-mix(in srgb, var(--brand) 25%, transparent);
+}
 .side-nav[data-ind] > [aria-current="page"] { color: var(--brand-ink); font-weight: 600; }
 .side-nav[data-ind] > [aria-current="page"] svg { color: var(--brand-ink); }
-.glass-nav { border-radius: 28px; }
-.glass-nav[data-ind]::before { background: var(--nav-active-bg); box-shadow: none; border-radius: 22px; }
+.glass-nav {
+  border-radius: 28px;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.14),
+    0 0 0 1px var(--glass-ring),
+    var(--float-shadow);
+}
+.glass-nav[data-ind]::before {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--brand) 24%, var(--surface)) 0%, color-mix(in srgb, var(--brand) 14%, var(--surface)) 100%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--brand) 38%, rgb(255 255 255 / 0.14)),
+    inset 0 -1px 0 rgb(0 0 0 / 0.2);
+  border-radius: 22px;
+}
 .glass-nav[data-ind] > [aria-current="page"] { color: var(--brand-ink); }
 .glass-nav > * { border-radius: 22px; }
+
+/* Tactile chip button for weekday pickers & status toggles */
+@utility tactile-chip {
+  @apply inline-flex items-center justify-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-[transform,box-shadow,filter] duration-150 select-none;
+  background: var(--btn-sec-bg);
+  box-shadow: var(--btn-sec-shadow);
+}
+.tactile-chip:active {
+  transform: translateY(1px) scale(0.97);
+  box-shadow: var(--btn-sec-active);
+}
+.tactile-chip[data-active="true"] {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--brand) 88%, #ffffff 12%) 0%, var(--brand) 52%, color-mix(in srgb, var(--brand) 88%, #000000 12%) 100%);
+  color: var(--on-brand);
+  box-shadow: var(--btn-primary-shadow);
+}
 
 /* iOS-style motion: pages push in, sheets rise on the iOS curve, controls spring. */
 @keyframes push-in { from { opacity: 0; transform: translate3d(28px, 0, 0); } to { opacity: 1; transform: none; } }
@@ -492,18 +684,31 @@ main.tab-swap > :not(header) { animation: rise 420ms var(--ease-ios) backwards; 
 .stagger > * { animation: rise 520ms var(--ease-ios) backwards; }
 .enter { animation: rise 460ms var(--ease-ios) backwards; }
 .modal-backdrop { animation: fade-in 320ms var(--ease-ios) both; }
-.modal-panel { animation: sheet-spring 560ms var(--ease-ios) both; border-top-left-radius: 28px; border-top-right-radius: 28px; }
+.modal-panel {
+  animation: sheet-spring 560ms var(--ease-ios) both;
+  border-top-left-radius: 28px;
+  border-top-right-radius: 28px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14), var(--float-shadow);
+}
 .modal-panel[data-closing] { animation: sheet-out 300ms var(--ease-ios) both; }
 @media (min-width: 640px) {
   .modal-panel { animation: pop-spring 520ms var(--spring) both; border-radius: 28px; }
   .modal-panel[data-closing] { animation: pop-out 200ms var(--ease-ios) both; }
 }
-.toast { border-radius: 20px; animation: toast-in 520ms var(--spring) both; }
+.toast {
+  border-radius: 20px;
+  animation: toast-in 520ms var(--spring) both;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14), var(--float-shadow);
+}
 .meter-fill { animation: grow 700ms var(--ease-ios) both; }
 input[type='checkbox']:checked { animation: tick 360ms var(--spring); }
 input[type='checkbox'], input[type='radio'] { accent-color: var(--brand); }
-@media (hover: hover) { .glow:hover { box-shadow: 0 0 0 1px var(--line-strong), var(--card-shadow); } }
+@media (hover: hover) {
+  .glow:hover {
+    box-shadow: 0 0 0 1px var(--line-strong), var(--card-shadow);
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
-  main.enter, .btn, .icon-btn { animation: none !important; transition-duration: 0.01ms !important; }
+  main.enter, .btn, .icon-btn, .tactile-chip { animation: none !important; transition-duration: 0.01ms !important; }
 }
