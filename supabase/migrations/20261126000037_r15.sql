@@ -3,11 +3,8 @@
 
 -- ---------- 1. Warning e Final Warning ----------
 alter table public.warnings drop constraint warnings_type_check;
-do $$ begin
-  perform set_config('session_replication_role', 'replica', true);
-  update public.warnings set type = case type when 'final_written' then 'final_warning' else 'warning' end;
-  perform set_config('session_replication_role', 'origin', true);
-end $$;
+-- A conversão passa pelos gatilhos (a auditoria registra a troca de tipo).
+update public.warnings set type = case type when 'final_written' then 'final_warning' else 'warning' end;
 alter table public.warnings add constraint warnings_type_check check (type in ('warning', 'final_warning'));
 
 do $$ declare r record; d text; begin
