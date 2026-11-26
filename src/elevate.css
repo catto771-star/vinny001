@@ -248,3 +248,7 @@ a { transition:color 140ms var(--ios-ease), opacity 140ms }
 @media (min-width: 720px) {
   .dialog { position:fixed;inset:0;margin:auto;height:fit-content;max-height:calc(100vh - 32px);overflow:auto }
 }
+
+/* Settings > Registers: as sub-abas e o seletor de casa não ficam coladas */
+.registers > .tabs { margin-bottom:1rem }
+.registers > .toolbar { margin-top:0;margin-bottom:1rem }

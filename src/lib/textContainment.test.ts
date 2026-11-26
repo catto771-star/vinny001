@@ -63,3 +63,9 @@ describe("janelas centralizadas (revisão 15)", () => {
     expect(elevate).toMatch(/@media \(min-width: 720px\)\s*\{\s*\.dialog\s*\{[^}]*position:\s*fixed[^}]*inset:\s*0[^}]*margin:\s*auto/);
   });
 });
+
+describe("espaçamento em Registers (revisão 15)", () => {
+  it("sub-abas de Registers têm folga embaixo, separadas do seletor de casa", () => {
+    expect(elevate).toMatch(/\.registers > \.tabs\s*\{[^}]*margin-bottom:\s*1rem/);
+  });
+});
