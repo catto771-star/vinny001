@@ -265,7 +265,7 @@ a { transition:color 140ms var(--ios-ease), opacity 140ms }
 .dash-card-head { display:flex;justify-content:space-between;align-items:center;gap:.5rem }
 .dash-toggle svg { transition:transform 200ms var(--ios-ease, ease) }
 .dash-card.is-collapsed .dash-toggle svg { transform:rotate(-90deg) }
-.dash-card.is-collapsed { padding-block:.625rem }
+.dash-card.is-collapsed { padding-block:.625rem;align-self:start }
 .dash-summary { margin:.25rem 0 0;font-size:.8125rem;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
 .dash-card.is-collapsed .dash-card-head { margin:0 }
 .pending-list { gap:.5rem!important }

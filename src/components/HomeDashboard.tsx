@@ -165,7 +165,7 @@ export function HomeDashboard() {
                     <span className="stack-occ" style={{ width: `${pct(l.occupied, l.beds_total)}%` }} />
                     <span className="stack-off" style={{ width: `${pct(l.out_of_use, l.beds_total)}%` }} />
                   </div>
-                  <span className="small-text muted">{t("home.occLegend", { free, off: l.out_of_use, out: l.out_pending })}</span>
+                  <span className="small-text muted">{t(l.out_pending > 0 ? "home.occLegendCancelled" : "home.occLegend", { free, off: l.out_of_use, out: l.out_pending })}</span>
                 </div>
                 <Ring value={seenPct} label={t("home.seenToday")} />
               </div>

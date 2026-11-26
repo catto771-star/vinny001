@@ -1250,7 +1250,8 @@ const enIE = {
   home: {
     dashboard: "Dashboard",
     beds: "beds",
-    occLegend: "{free} free · {off} out of use · {out} from cancelled beds",
+    occLegend: "{free} free · {off} out of use",
+    occLegendCancelled: "{free} free ({out} cancelled) · {off} out of use",
     seenToday: "Seen today",
     checks: "Checks",
     rounds: "Rounds",
