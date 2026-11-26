@@ -68,6 +68,7 @@ const shot = async (p, name, path, o = {}) => {
   await shot(a, "23-people", "/users");
   await shot(a, "24-audit", "/audit");
   await shot(a, "25-structure", "/settings?tab=registers");
+  await shot(a, "25b-suppliers", "/settings?tab=registers&reg=suppliers");
   await shot(a, "26-settings", "/settings");
   for (const [n, label] of [["26b-settings-handover", /Handover/], ["26c-settings-system", /System/], ["26d-settings-notifications", /Notifications/]]) {
     await shot(a, n, "/settings", { act: async () => { await a.getByRole("tab", { name: label }).first().click().catch(async () => { await a.getByRole("button", { name: label }).first().click(); }); await a.waitForTimeout(1200); } });

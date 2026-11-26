@@ -242,4 +242,4 @@ a { transition:color 140ms var(--ios-ease), opacity 140ms }
 .tag + .tag { margin-left:.375rem }
 /* tabelas nunca alargam a página: ocupam no máximo a largura disponível e quebram palavras longas */
 .table { max-width:100% }
-.table td, .table th { overflow-wrap:anywhere }
+@media (max-width: 1099px) { .table td, .table th { overflow-wrap:anywhere } }
