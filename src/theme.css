@@ -294,3 +294,16 @@ a { color: var(--hc, var(--accent)); }
 .inline-field label { flex:1 1 12rem;min-width:0 }
 .inline-field label { font-size:.8125rem;font-weight:600;color:var(--ink-2) }
 .card .filter-field + .segmented { margin-top:.75rem }
+
+/* ---- Revisão 13: Estrutura ---- */
+.structure-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(17rem,1fr));gap:.75rem }
+.structure-room { display:grid;gap:.75rem;align-content:start }
+.structure-room header { display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.5rem }
+.structure-room h3 { margin:0;font-size:1rem }
+.bed-list, .item-list, .removed-list { list-style:none;margin:0;padding:0;display:grid;gap:.375rem }
+.bed-list li { display:flex;align-items:center;gap:.5rem;min-height:36px;padding:0 .5rem 0 .75rem;border-radius:14px;background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--line) }
+.bed-list li > span:first-child { flex:1;min-width:0 }
+.bed-list li.is-removed { opacity:.55 }
+.item-list li { display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap }
+.removed-block { display:grid;gap:.5rem }
+.removed-list li { display:flex;justify-content:space-between;align-items:center;gap:.75rem;min-height:36px;padding:0 .5rem 0 .75rem;border-radius:14px;background:var(--surface-2) }

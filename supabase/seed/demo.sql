@@ -167,7 +167,7 @@ begin
   -- ---------------------------------------------------------------------------
   insert into public.staff (full_name, display_name, role, email, locale, home_lodge_id, must_change_password, created_at, user_id)
   select v.full_name, v.display_name, v.role::public.staff_role, v.email, v.locale::public.app_locale,
-         case v.lodge when 'A' then v_amiens when 'C' then v_connolly end, false, (v_first - 90)::timestamptz,
+         case when v.role = 'station' then case v.lodge when 'A' then v_amiens when 'C' then v_connolly end end, false, (v_first - 90)::timestamptz,
          case when v.role <> 'cleaner' then (select u.id from auth.users u where lower(u.email) = v.email) end
   from (values
     ('Pedro Almeida', 'Pedro', 'porter', 'pedro.almeida@demo.ds-lodge.test', 'pt-PT', 'A'),
@@ -181,7 +181,9 @@ begin
     ('Siobhán Murphy', null, 'manager', 'siobhan.murphy@demo.ds-lodge.test', 'en-IE', 'A'),
     ('Declan O''Brien', null, 'owner', 'declan.obrien@demo.ds-lodge.test', 'en-IE', null),
     ('Ana Costa', null, 'cleaner', 'ana.costa@demo.ds-lodge.test', 'pt-PT', 'A'),
-    ('Joanna Zielińska', null, 'cleaner', 'joanna.zielinska@demo.ds-lodge.test', 'pl-PL', 'C')
+    ('Joanna Zielińska', null, 'cleaner', 'joanna.zielinska@demo.ds-lodge.test', 'pl-PL', 'C'),
+    ('Amiens Reception', null, 'station', 'amiens.reception@demo.ds-lodge.test', 'en-IE', 'A'),
+    ('Connolly Reception', null, 'station', 'connolly.reception@demo.ds-lodge.test', 'en-IE', 'C')
   ) v(full_name, display_name, role, email, locale, lodge);
 
   select array_agg(id order by ord) into v_p from (
@@ -900,6 +902,19 @@ begin
   delete from public.products p where p.created_at < (p_first - 5)::timestamptz and p.created_at >= (p_first - 15)::timestamptz
     and not exists (select 1 from public.purchase_lines l where l.product_id = p.id)
     and not exists (select 1 from public.product_movements m where m.product_id = p.id);
+  -- Turnos do Handover (abertos na demonstração, ligados ao Roster) saem antes do Roster, com as anotações que pertencem a eles.
+  create temporary table if not exists demo_shifts_tmp (id uuid) on commit drop;
+  truncate demo_shifts_tmp;
+  insert into demo_shifts_tmp
+    select id from public.handover_shifts
+    where staff_id = any (p_staff) or opened_by = any (p_staff) or closed_by = any (p_staff) or handed_to = any (p_staff) or confirmed_by = any (p_staff)
+       or rota_shift_id in (select id from public.rota_shifts where staff_id = any (p_staff) or created_by = any (p_staff));
+  delete from public.handover_entries e where e.shift_id in (select id from demo_shifts_tmp)
+    and not exists (select 1 from public.maintenance_tickets t where t.handover_entry_id = e.id)
+    and not exists (select 1 from public.warnings w where w.handover_entry_id = e.id)
+    and not exists (select 1 from public.laundry_uses u where u.handover_entry_id = e.id);
+  update public.handover_entries set shift_id = null where shift_id in (select id from demo_shifts_tmp);
+  delete from public.handover_shifts where id in (select id from demo_shifts_tmp);
   delete from public.rota_shifts where staff_id = any (p_staff) or created_by = any (p_staff);
   delete from public.work_intervals where staff_id = any (p_staff) or created_by = any (p_staff);
   delete from public.vacations where staff_id = any (p_staff) or created_by = any (p_staff);

@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
         email: withLogin ? body.email?.trim().toLowerCase() : body.email?.trim() || null,
         role: body.role,
         locale: body.locale,
-        home_lodge_id: body.home_lodge_id || null,
+        home_lodge_id: body.role === "station" ? body.home_lodge_id || null : null,
         must_change_password: withLogin,
       })
       .select("id")

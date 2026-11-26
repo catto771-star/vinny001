@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FilterBar } from "@/components/FilterBar";
 import { matchesText, type FilterDef } from "@/lib/filters";
 import { useUrlFilters } from "@/lib/useUrlFilters";
@@ -284,8 +284,21 @@ export function MaintenanceReminder() {
     return () => window.clearInterval(id);
   }, [load]);
 
+  // Não interrompe quem está preenchendo outro formulário: espera todas as outras janelas fecharem.
+  const [blocked, setBlocked] = useState(false);
+  const shown = useRef(false);
+  useEffect(() => {
+    const check = () => setBlocked(document.querySelectorAll("dialog[open]").length > 0 && !shown.current);
+    check();
+    const mo = new MutationObserver(check);
+    mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["open"] });
+    return () => mo.disconnect();
+  }, []);
+
   const current = items[0];
-  if (!current) return null;
+  if (!current) { shown.current = false; return null; }
+  if (blocked && !shown.current) return null;
+  shown.current = true;
 
   async function answer(status: TicketStatus | "later") {
     if (status === "later") {

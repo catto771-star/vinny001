@@ -1,5 +1,5 @@
 // Dados de demonstração (fictícios) no projeto Supabase.
-//   node scripts/demo.mjs seed   → cria os logins da equipe demo (8 Porters) e ~30 dias de operação
+//   node scripts/demo.mjs seed   → cria os logins demo (2 Admins e 2 contas de casa), a equipe e ~30 dias de operação
 //   node scripts/demo.mjs clear  → remove tudo o que é demo (residentes, equipe, registros, logins)
 // Variáveis: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (logins), SUPABASE_PROJECT_REF e
 // SUPABASE_ACCESS_TOKEN (SQL pela Management API; o token pode vir de um proxy que já autentica).
@@ -24,8 +24,8 @@ async function sql(query) {
   return JSON.parse(body);
 }
 
-const PORTERS = ["pedro.almeida", "aoife.kelly", "tomasz.nowak", "lucas.ferreira", "ciaran.byrne", "marta.wisniewska", "rafael.souza", "niamh.doyle"]
-  .map((n) => `${n}@demo.ds-lodge.test`);
+// Só quem entra no sistema tem login: Manager, Owner e as duas contas de casa. Porter e Cleaner não têm login.
+const PORTERS = ["siobhan.murphy", "declan.obrien", "amiens.reception", "connolly.reception"].map((n) => `${n}@demo.ds-lodge.test`);
 
 if (action === "seed") {
   const admin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
@@ -51,9 +51,14 @@ if (action === "seed") {
     }
   }
   await sql(readFileSync(new URL("../supabase/seed/demo.sql", import.meta.url), "utf8"));
+  await sql(readFileSync(new URL("../supabase/seed/demo-enrich.sql", import.meta.url), "utf8"));
   const [{ r }] = await sql("select demo.seed() as r");
+  const [{ e }] = await sql("select demo.enrich() as e");
+  console.log(JSON.stringify({ enriched: e }));
   console.log(JSON.stringify({ seeded: r, logins: PORTERS, password }, null, 2));
 } else {
+  // Recarrega as funções (a limpeza pode ter sido corrigida desde o último seed).
+  await sql(readFileSync(new URL("../supabase/seed/demo.sql", import.meta.url), "utf8"));
   const [{ r }] = await sql("select demo.clear() as r");
   console.log(JSON.stringify({ cleared: r }, null, 2));
 }

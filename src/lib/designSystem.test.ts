@@ -97,3 +97,11 @@ describe("tabela do Audit em telas estreitas (revisão 12)", () => {
     expect(css).toMatch(/@media \(max-width:\s*719px\)\s*\{[^}]*\.audit-table thead[^}]*display:\s*none/);
   });
 });
+
+describe("texto longo em cartões (revisão 13)", () => {
+  it("descrição do pedido de manutenção quebra de linha em vez de vazar ou truncar", () => {
+    const r = rule(".ticket-main .muted");
+    expect(r).toMatch(/white-space:\s*normal/);
+    expect(r).toMatch(/overflow-wrap:\s*anywhere/);
+  });
+});

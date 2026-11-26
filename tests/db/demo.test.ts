@@ -35,6 +35,7 @@ beforeAll(async () => {
   await db.asSuperuser();
   before = await counts();
   await db.query(readFileSync("supabase/seed/demo.sql", "utf8"));
+  await db.query(readFileSync("supabase/seed/demo-enrich.sql", "utf8"));
   seeded = (await db.one<{ r: Record<string, number | string> }>("select demo.seed() r")).r;
   first = String(seeded.first_day);
   today = String(seeded.last_day);
@@ -46,7 +47,7 @@ afterAll(async () => {
 
 describe("demo.seed", () => {
   it("cria 30 dias de operação nos dois Lodges, com residentes e equipe identificáveis", () => {
-    expect(seeded.staff).toBe(12);
+    expect(seeded.staff).toBe(14);
     expect(Number(seeded.residents)).toBeGreaterThan(70);
     expect(Number(seeded.open_stays)).toBeGreaterThan(65);
     expect(Number(seeded.checks)).toBeGreaterThan(170);
@@ -55,6 +56,15 @@ describe("demo.seed", () => {
     expect(Number(seeded.purchases)).toBe(8);
   });
 
+  it("enriquecimento: anotações ganham tags e colegas (no máximo 3, sem repetir o autor)", async () => {
+    const e = (await db.one<{ e: { tags: number; colleagues: number } }>("select demo.enrich() e")).e;
+    expect(e.tags).toBeGreaterThan(0);
+    expect(e.colleagues).toBeGreaterThan(0);
+    const bad = await db.one<{ n: string }>(`select count(*) n from (select entry_id from public.handover_entry_staff group by 1 having count(*) > 3) x`);
+    expect(bad.n).toBe("0");
+    const self = await db.one<{ n: string }>(`select count(*) n from public.handover_entry_staff c join public.handover_entries e on e.id = c.entry_id where c.staff_id = coalesce(e.filled_by, e.author_id)`);
+    expect(self.n).toBe("0");
+  });
   it("não semeia duas vezes", async () => {
     await db.query("savepoint again");
     await expect(db.query("select demo.seed()")).rejects.toThrow(/demo_already_seeded/);
@@ -199,11 +209,21 @@ describe("demo.clear", () => {
     await db.query("select demo.seed()");
   }, 60_000);
 
+  it("turnos do Handover abertos durante a demonstração (ligados ao Roster) também saem, com as anotações deles", async () => {
+    await db.asSuperuser();
+    const rota = await db.one<{ id: string; staff_id: string; lodge_id: string }>("select id, staff_id, lodge_id from public.rota_shifts where lodge_id is not null and staff_id in (select id from public.staff where email like '%@demo.ds-lodge.test') limit 1");
+    const sh = await db.one<{ id: string }>("insert into public.handover_shifts (lodge_id, staff_id, opened_by, rota_shift_id) values ($1, $2, $2, $3) returning id", [rota.lodge_id, rota.staff_id, rota.id]);
+    await db.query("insert into public.handover_entries (lodge_id, kind, body, occurred_at, operational_day, author_id, shift_id) values ($1, 'note', 'Anotação do turno de demo', now(), public.operational_day(now()), $2, $3)", [rota.lodge_id, rota.staff_id, sh.id]);
+    await expect(db.query("select demo.clear()")).resolves.toBeDefined();
+    expect((await db.one<{ n: string }>("select count(*) n from public.handover_shifts")).n).toBe("0");
+    await db.query("select demo.seed()");
+  }, 60_000);
+
   it("remove tudo o que o seed criou e devolve as contagens ao estado anterior", async () => {
     await db.asSuperuser();
     const r = (await db.one<{ r: { residents: number; staff: number } }>("select demo.clear() r")).r;
     expect(r.residents).toBe(Number(seeded.residents));
-    expect(r.staff).toBe(12);
+    expect(r.staff).toBe(14);
     expect(await counts()).toEqual(before);
     const left = await db.one<{ audit: string; beds: string; templates: string }>(
       `select (select count(*) from public.audit_log where table_name = 'residents' and new_data ->> 'is_demo' = 'true') audit,

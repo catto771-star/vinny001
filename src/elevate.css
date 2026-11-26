@@ -198,3 +198,8 @@ a { transition:color 140ms var(--ios-ease), opacity 140ms }
   .audit-table .audit-actions { margin-top:.5rem }
   .audit-table .audit-detail td { padding:.75rem!important }
 }
+
+/* Texto longo (revisão 13): descrições quebram em linhas em vez de vazar ou virar reticências */
+.ticket-main .muted { white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere }
+.ticket-main strong { overflow-wrap:anywhere }
+:root[data-theme] .topbar .user-name { overflow:hidden;text-overflow:ellipsis;white-space:nowrap }

@@ -129,7 +129,7 @@ export function Users() {
               </td>
               <td>{t(`users.roles.${s.role}`)}</td>
               <td>{s.user_id ? s.email : <span className="muted">{t("users.noLogin")}</span>}</td>
-              <td>{lodgeName(s.home_lodge_id)}</td>
+              <td>{s.role === "station" ? lodgeName(s.home_lodge_id) : <span className="muted">{t("users.bothHouses")}</span>}</td>
               <td>{s.active ? t("users.active") : `${t("users.inactive")} ${s.deactivated_at ? formatDate(s.deactivated_at, locale) : ""}`}</td>
               <td className="actions">
                 {s.role !== "developer" && s.id !== me?.id && (
@@ -277,7 +277,7 @@ function StaffForm({
           display_name: displayName.trim() || null,
           role: existing.user_id ? (LOGIN_ROLES.includes(role) ? role : existing.role) : LOGIN_ROLES.includes(role) ? existing.role : role,
           locale,
-          home_lodge_id: homeLodge || null,
+          home_lodge_id: role === "station" ? homeLodge || null : null,
           version: existing.version,
         })
         .eq("id", existing.id);
@@ -293,7 +293,7 @@ function StaffForm({
       email: email || null,
       role,
       locale,
-      home_lodge_id: homeLodge || null,
+      home_lodge_id: role === "station" ? homeLodge || null : null,
       password,
     });
     setBusy(false);
@@ -327,13 +327,15 @@ function StaffForm({
           {!existing && needsLogin && (
             <label>{t("users.email")}<input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
           )}
-          <label>
-            {t("users.homeLodge")}
-            <select value={homeLodge} onChange={(e) => setHomeLodge(e.target.value)} required={role === "station"}>
-              <option value="">{t("app.none")}</option>
-              {lodges.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
-          </label>
+          {role === "station" && (
+            <label>
+              {t("users.homeLodge")}
+              <select value={homeLodge} onChange={(e) => setHomeLodge(e.target.value)} required>
+                <option value="">{t("app.none")}</option>
+                {lodges.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </label>
+          )}
         </div>
         {role === "station" && <p className="hint">{t("users.stationHint")}</p>}
         {!needsLogin ? <p className="hint">{t("users.cleanerNoLogin")}</p> : !existing && <p className="hint">{t("users.temporaryPasswordHint")}</p>}

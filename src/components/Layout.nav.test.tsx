@@ -63,4 +63,11 @@ describe("menu lateral em módulos", () => {
     const overview = await screen.findByRole("button", { name: /Overview/ });
     expect(within(overview).queryByLabelText("29 pending in total")).toBeNull();
   });
+
+  it("o topo mostra o perfil abreviado (Manager, não 'Manager (Admin)') para caber em qualquer nome", async () => {
+    show("/");
+    await screen.findByRole("button", { name: /Overview/ });
+    const chip = document.querySelector(".topbar .user-name")!;
+    expect(chip.textContent).toBe("Me · Manager");
+  });
 });

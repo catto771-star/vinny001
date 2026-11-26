@@ -44,8 +44,10 @@ describe("Usuários", () => {
     const dialog = document.querySelector("dialog[open]") as HTMLElement;
     fireEvent.change(dialog.querySelector("input")!, { target: { value: "Pedro Almeida" } });
     expect(dialog.querySelector('input[type="email"]')).toBeNull();
+    // Revisão 13: Staff (Porter ou Float) atua nas duas casas — o cadastro não pede casa.
+    expect(dialog.querySelectorAll("select")).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith("admin-users", { body: expect.objectContaining({ role: "porter", password: null }) }));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith("admin-users", { body: expect.objectContaining({ role: "porter", password: null, home_lodge_id: null }) }));
     fireEvent.click(await screen.findByRole("button", { name: "Create user" }));
     const again = await waitFor(() => document.querySelector("dialog[open]") as HTMLElement);
     fireEvent.change(again.querySelectorAll("select")[0], { target: { value: "station" } });
