@@ -32,7 +32,7 @@ const results = [];
   const expectDb = async (q, check) => { const r = await sql(q); if (!check(r)) throw new Error("DB: " + JSON.stringify(r).slice(0, 140)); return JSON.stringify(r[0] ?? r).slice(0, 100); };
 
   await p.goto(BASE);
-  await p.getByLabel("Email").fill("siobhan.murphy@demo.ds-lodge.test");
+  await p.getByLabel("Email").fill("sean.murphy@demo.ds-lodge.test");
   await p.getByLabel("Password").fill(DEMO_PASSWORD);
   await p.getByRole("button", { name: "Sign in" }).click();
   await p.locator(".content").waitFor({ timeout: 30000 });

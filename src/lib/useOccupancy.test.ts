@@ -9,14 +9,14 @@ const bed = (over: Partial<BedOccupancy>): BedOccupancy => ({
 });
 
 describe("ocupação", () => {
-  it("conta ocupadas, livres, fora de uso e Out pendente", () => {
+  it("conta ocupadas, livres (a cama de cancelamento decidido conta como livre), fora de uso e cancelamentos", () => {
     const s = summarise([
       bed({ stay_id: "s1", stay_status: "active" }),
       bed({ stay_id: "s2", stay_status: "out_pending" }),
       bed({}),
       bed({ bed_status: "out_of_service" }),
     ]);
-    expect(s).toEqual({ total: 4, occupied: 2, free: 1, outOfService: 1, outPending: 1 });
+    expect(s).toEqual({ total: 4, occupied: 1, free: 2, outOfService: 1, outPending: 1 });
   });
   it("agrupa por quarto na ordem recebida", () => {
     const rooms = groupByRoom([bed({ room_id: "A", bed_number: 1 }), bed({ room_id: "B" }), bed({ room_id: "A", bed_number: 2 })]);

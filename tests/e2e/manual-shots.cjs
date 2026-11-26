@@ -36,7 +36,7 @@ const shot = async (p, name, path, o = {}) => {
   const b = await chromium.launch();
   const V = { width: 1366, height: 980 };
   // ---- Admin (Manager)
-  const a = await session(b, "siobhan.murphy@demo.ds-lodge.test", V);
+  const a = await session(b, "sean.murphy@demo.ds-lodge.test", V);
   const dlgClose = async () => { await a.keyboard.press("Escape"); await a.waitForTimeout(500); };
   await shot(a, "01-home", "/");
   await shot(a, "02-daily-tasks", "/tasks");

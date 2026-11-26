@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
 import { useAuth } from "@/auth/AuthProvider";
 import { useI18n, type MessageKey } from "@/i18n";
 import { usePendingCounts, type PendingCounts } from "@/lib/pending";
@@ -30,9 +31,9 @@ export function PendingTile() {
           {rows.map((r) => (
             <li key={r.key}>
               <Link to={r.to}>
-                <span className="pending-dot" aria-hidden="true" />
-                <span>{t(r.label, { n: counts[r.key] })}</span>
-                <span aria-hidden="true" className="pending-arrow">→</span>
+                <span className="pending-count mono" aria-hidden="true">{counts[r.key]}</span>
+                <span className="pending-label">{t(r.label, { n: counts[r.key] })}</span>
+                <span className="pending-go" aria-hidden="true"><ArrowRight size={16} /></span>
               </Link>
             </li>
           ))}

@@ -34,7 +34,7 @@ const SUP = `E2E Supplier ${RUN}`, PASS = `E2E${RUN}`;
 (async () => {
   const b = await chromium.launch();
   // ---- Admin
-  await session(b, "siobhan.murphy@demo.ds-lodge.test", async ({ p, step, go, dlg, db }) => {
+  await session(b, "sean.murphy@demo.ds-lodge.test", async ({ p, step, go, dlg, db }) => {
     await step("Registers: Settings tem a aba Registers e a tela Structure foi embora do menu", async () => {
       await go("/settings?tab=registers");
       if (!(await p.getByRole("tab", { name: "Registers" }).count())) throw new Error("sem aba Registers");
@@ -125,7 +125,7 @@ const SUP = `E2E Supplier ${RUN}`, PASS = `E2E${RUN}`;
     });
   });
   // ---- Admin: confirma o cancelamento e re-admite pelo PASS ID; vincula a entrega do Tesco
-  await session(b, "siobhan.murphy@demo.ds-lodge.test", async ({ p, step, go, dlg, db }) => {
+  await session(b, "sean.murphy@demo.ds-lodge.test", async ({ p, step, go, dlg, db }) => {
     await step("Confirm Cancellation: só o Admin efetiva; a cama é liberada", async () => {
       const r = await sql(`select r.id from public.residents r where r.pass_id='${PASS}'`);
       await go(`/residents/${r[0].id}`);

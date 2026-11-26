@@ -25,7 +25,7 @@ async function sql(query) {
 }
 
 // Só quem entra no sistema tem login: Manager, Owner e as duas contas de casa. Porter e Cleaner não têm login.
-const PORTERS = ["siobhan.murphy", "declan.obrien", "amiens.reception", "connolly.reception"].map((n) => `${n}@demo.ds-lodge.test`);
+const PORTERS = ["sean.murphy", "declan.obrien", "amiens.reception", "connolly.reception"].map((n) => `${n}@demo.ds-lodge.test`);
 
 if (action === "seed") {
   const admin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });

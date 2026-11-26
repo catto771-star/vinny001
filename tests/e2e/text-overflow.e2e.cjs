@@ -61,7 +61,7 @@ function audit() {
         p.addLocatorHandler(p.getByRole("dialog").filter({ hasText: /Tasks waiting for you/ }), async () => { await p.getByRole("button", { name: /^Later$/ }).click(); });
         p.addLocatorHandler(p.getByRole("dialog").filter({ hasText: /Deadline passed/ }), async (d) => { await d.getByRole("button", { name: /Remind me in 24 h/ }).click(); }, { noWaitAfter: true });
         await p.goto(BASE);
-        await p.getByLabel("Email").fill("siobhan.murphy@demo.ds-lodge.test");
+        await p.getByLabel("Email").fill("sean.murphy@demo.ds-lodge.test");
         await p.getByLabel("Password").fill(DEMO_PASSWORD);
         await p.getByRole("button", { name: "Sign in" }).click();
         total++;

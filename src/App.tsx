@@ -7,6 +7,7 @@ import { ToastProvider } from "@/components/Toast";
 import { Skeleton } from "@/components/Skeleton";
 import { Absences } from "@/pages/Absences";
 import { Audit } from "@/pages/Audit";
+import { Continuity, ContinuityOffline } from "@/pages/Continuity";
 import { DailySheet } from "@/pages/DailySheet";
 import { NoShows } from "@/pages/NoShows";
 import { PrintSheet } from "@/pages/PrintSheet";
@@ -39,6 +40,9 @@ import { Vacations } from "@/pages/Vacations";
 function Gate() {
   const { stage, isManagement, staff, signOut } = useAuth();
   const { t } = useI18n();
+
+  // Sem internet e abrindo a folha de continuidade: mostra a cópia guardada, mesmo sem sessão válida.
+  if (typeof navigator !== "undefined" && !navigator.onLine && window.location.pathname === "/continuity") return <ContinuityOffline />;
 
   switch (stage) {
     case "loading":
@@ -106,6 +110,7 @@ function Gate() {
         <Route path="dinner" element={<Dinner />} />
         <Route path="laundry" element={<Laundry />} />
         <Route path="notifications" element={<Notifications />} />
+        <Route path="continuity" element={<Continuity />} />
         {isManagement && <Route path="rota" element={<Rota />} />}
         {isManagement && <Route path="purchases" element={<Purchases />} />}
         {isManagement && <Route path="hours" element={<Hours />} />}

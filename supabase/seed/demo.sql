@@ -41,7 +41,7 @@ returns uuid language sql stable set search_path = public as $$
        and started_at <= p_at and coalesce(ended_at, 'infinity') > p_at order by started_at desc limit 1),
     (select staff_id from public.duty_posts where function = 'float'
        and started_at <= p_at and coalesce(ended_at, 'infinity') > p_at order by started_at desc limit 1),
-    (select id from public.staff where email = 'siobhan.murphy@demo.ds-lodge.test'))
+    (select id from public.staff where email = 'sean.murphy@demo.ds-lodge.test'))
 $$;
 
 create or replace function demo.minutes(p_min integer, p_max integer)
@@ -113,10 +113,10 @@ declare
   v_temp numeric;
   v_out boolean;
   v_names text[];
-  v_first_names text[] := array['Seán','Aoife','Darragh','Chiamaka','Mateus','Oksana','Piotr','Fatima','Conor','Larisa','Emeka','Bruna',
-    'Kacper','Yusuf','Siobhra','Andrei','Thiago','Agnieszka','Liam','Amina','Dmytro','Gabriela','Cathal','Ioana','Tunde','Rafaela',
-    'Paweł','Omar','Róisín','Bogdan','Igor','Leticia','Ciara','Abdul','Natalia','Eoin','Juliana','Viktor','Nkechi','Kieran',
-    'Mariana','Stefan','Hassan','Orla','Wojciech','Beatriz','Ahmed','Niall','Iryna','Felipe'];
+  v_first_names text[] := array['Seán','Aidan','Darragh','Chidi','Mateus','Oleksandr','Piotr','Farid','Conor','Lucian','Emeka','Bruno',
+    'Kacper','Yusuf','Séamus','Andrei','Thiago','Andrzej','Liam','Amir','Dmytro','Gabriel','Cathal','Ionut','Tunde','Rafael',
+    'Paweł','Omar','Rónán','Bogdan','Igor','Leo','Cian','Abdul','Nathan','Eoin','Julian','Viktor','Nnamdi','Kieran',
+    'Mario','Stefan','Hassan','Oisín','Wojciech','Bernardo','Ahmed','Niall','Ihor','Felipe'];
   v_last_names text[] := array['Brennan','Okafor','Silva','Kowalczyk','Popescu','Shevchenko','Doherty','Haddad','Lynch','Santos',
     'Mazur','Adeyemi','Costello','Ionescu','Pereira','Kavanagh','Bondarenko','Nolan','Rahman','Oliveira','Zielinski','Fitzgerald',
     'Moldovan','Eze','Carvalho','Quinn','Kozak','Barbosa','Walsh','Nowicki','Mensah','Rocha','Hennessy','Lewandowski','Azizi',
@@ -171,14 +171,14 @@ begin
          case when v.role <> 'cleaner' then (select u.id from auth.users u where lower(u.email) = v.email) end
   from (values
     ('Pedro Almeida', 'Pedro', 'porter', 'pedro.almeida@demo.ds-lodge.test', 'pt-PT', 'A'),
-    ('Aoife Kelly', null, 'porter', 'aoife.kelly@demo.ds-lodge.test', 'en-IE', 'A'),
+    ('Aidan Kelly', null, 'porter', 'aidan.kelly@demo.ds-lodge.test', 'en-IE', 'A'),
     ('Tomasz Nowak', 'Tomek', 'porter', 'tomasz.nowak@demo.ds-lodge.test', 'pl-PL', 'A'),
     ('Lucas Ferreira', null, 'porter', 'lucas.ferreira@demo.ds-lodge.test', 'pt-PT', 'C'),
     ('Ciarán Byrne', null, 'porter', 'ciaran.byrne@demo.ds-lodge.test', 'en-IE', 'C'),
-    ('Marta Wiśniewska', 'Marta', 'porter', 'marta.wisniewska@demo.ds-lodge.test', 'pl-PL', 'C'),
+    ('Marek Wiśniewski', 'Marek', 'porter', 'marek.wisniewski@demo.ds-lodge.test', 'pl-PL', 'C'),
     ('Rafael Souza', 'Rafa', 'porter', 'rafael.souza@demo.ds-lodge.test', 'pt-PT', null),
-    ('Niamh Doyle', null, 'porter', 'niamh.doyle@demo.ds-lodge.test', 'en-IE', null),
-    ('Siobhán Murphy', null, 'manager', 'siobhan.murphy@demo.ds-lodge.test', 'en-IE', 'A'),
+    ('Niall Doyle', null, 'porter', 'niall.doyle@demo.ds-lodge.test', 'en-IE', null),
+    ('Seán Murphy', null, 'manager', 'sean.murphy@demo.ds-lodge.test', 'en-IE', 'A'),
     ('Declan O''Brien', null, 'owner', 'declan.obrien@demo.ds-lodge.test', 'en-IE', null),
     ('Ana Costa', null, 'cleaner', 'ana.costa@demo.ds-lodge.test', 'pt-PT', 'A'),
     ('Joanna Zielińska', null, 'cleaner', 'joanna.zielinska@demo.ds-lodge.test', 'pl-PL', 'C'),
@@ -187,10 +187,10 @@ begin
   ) v(full_name, display_name, role, email, locale, lodge);
 
   select array_agg(id order by ord) into v_p from (
-    select s.id, array_position(array['pedro.almeida','aoife.kelly','tomasz.nowak','lucas.ferreira','ciaran.byrne','marta.wisniewska','rafael.souza','niamh.doyle'],
+    select s.id, array_position(array['pedro.almeida','aidan.kelly','tomasz.nowak','lucas.ferreira','ciaran.byrne','marek.wisniewski','rafael.souza','niall.doyle'],
                                 split_part(s.email, '@', 1)) ord
     from public.staff s where s.role = 'porter' and s.email like '%@demo.ds-lodge.test') x;
-  select id into v_mgr from public.staff where email = 'siobhan.murphy@demo.ds-lodge.test';
+  select id into v_mgr from public.staff where email = 'sean.murphy@demo.ds-lodge.test';
   select id into v_owner from public.staff where email = 'declan.obrien@demo.ds-lodge.test';
   select id into v_ana from public.staff where email = 'ana.costa@demo.ds-lodge.test';
   select id into v_joanna from public.staff where email = 'joanna.zielinska@demo.ds-lodge.test';
@@ -378,7 +378,7 @@ begin
     v_k := v_k + 1;
     v_staff := demo.on_duty(v_amiens, public.slot_instant(v_today, '10:30'));
     insert into public.residents (pass_id, first_name, last_name, date_of_birth, is_demo, created_at, created_by)
-    values ('DEMO-' || lpad(v_k::text, 4, '0'), 'Kateryna', 'Melnyk', date '1991-04-12', true, public.slot_instant(v_today, '10:30'), v_staff)
+    values ('DEMO-' || lpad(v_k::text, 4, '0'), 'Kyrylo', 'Melnyk', date '1991-04-12', true, public.slot_instant(v_today, '10:30'), v_staff)
     returning id into v_res;
     select bed_id into v_id from _beds where lodge_id = v_amiens and free_from < public.slot_instant(v_today, '08:00') order by free_from, ord limit 1;
     if v_id is not null then

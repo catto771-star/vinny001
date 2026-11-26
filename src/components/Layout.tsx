@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigationType } from "react-router-do
 import { transitionKind, type TransitionKind } from "@/lib/transition";
 import {
   BedDouble, Settings2, ListChecks, ClipboardCheck, Eye, History, House, LayoutGrid, NotebookPen, Plane, ScrollText,
-  Bell, CalendarDays, ChartColumn, ChevronDown, ShieldAlert, ShoppingCart, Timer, TreePalm, Shirt, Thermometer, Truck, UserX, Users, UtensilsCrossed, Wrench,
+  Bell, CalendarDays, FileText, ChartColumn, ChevronDown, ShieldAlert, ShoppingCart, Timer, TreePalm, Shirt, Thermometer, Truck, UserX, Users, UtensilsCrossed, Wrench,
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthProvider";
@@ -17,6 +17,7 @@ import { Clock } from "./Clock";
 import { Dialog } from "./Dialog";
 import { ThemeToggle } from "./ThemeToggle";
 import { onDutyFor, useOnDuty } from "@/lib/useOnDuty";
+import { useContinuitySnapshot } from "@/lib/continuity";
 import { ActiveLodgeProvider, houseOf, useActiveLodge } from "@/lib/activeLodge";
 
 type Item = { to: string; label: MessageKey; icon: LucideIcon; managementOnly?: boolean };
@@ -30,6 +31,7 @@ export const GROUPS: Group[] = [
       { to: "/", label: "nav.today", icon: House },
       { to: "/tasks", label: "nav.tasks", icon: ListChecks },
       { to: "/notifications", label: "nav.notifications", icon: Bell, managementOnly: true },
+      { to: "/continuity", label: "nav.continuity", icon: FileText },
     ],
   },
   {
@@ -99,9 +101,18 @@ const BOTTOM: Item[] = [
   { to: "/residents", label: "nav.residents", icon: Users },
 ];
 
+/** Mantém a cópia da folha de continuidade atualizada (a cada hora, com o sistema aberto). */
+function ContinuityKeeper() {
+  const { lodges, staff } = useAuth();
+  const { posts } = useOnDuty();
+  useContinuitySnapshot(!!staff, lodges, posts);
+  return null;
+}
+
 export function Layout() {
   return (
     <ActiveLodgeProvider>
+      <ContinuityKeeper />
       <Shell />
     </ActiveLodgeProvider>
   );

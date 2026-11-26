@@ -69,3 +69,17 @@ describe("espaçamento em Registers (revisão 15)", () => {
     expect(elevate).toMatch(/\.registers > \.tabs\s*\{[^}]*margin-bottom:\s*1rem/);
   });
 });
+
+describe("Home do Admin (revisão 16)", () => {
+  it("filtro de período compacto e cartões recolhíveis têm estilo próprio", () => {
+    expect(elevate).toMatch(/\.period-filter\s*\{/);
+    expect(elevate).toMatch(/\.dash-card\.is-collapsed/);
+  });
+  it("botão de pendência moderno: contador, texto que corta com reticências e seta redonda", () => {
+    expect(elevate).toMatch(/\.pending-go\s*\{[^}]*border-radius:\s*999px/);
+    expect(elevate).toMatch(/\.pending-label\s*\{[^}]*text-overflow:\s*ellipsis/);
+  });
+  it("cama cancelada é desenhada como cama livre com marca", () => {
+    expect(elevate).toMatch(/\.bed-cell\.cancelled::after/);
+  });
+});

@@ -27,11 +27,12 @@ describe("Quadro de camas", () => {
     );
     expect(container.querySelectorAll(".board-room")).toHaveLength(2);
     expect(container.querySelectorAll(".board-beds .bed-cell.occ")).toHaveLength(1);
-    expect(container.querySelectorAll(".board-beds .bed-cell.out")).toHaveLength(1);
-    expect(container.querySelectorAll(".board-beds .bed-cell.free")).toHaveLength(1);
+    expect(container.querySelectorAll(".board-beds .bed-cell.cancelled")).toHaveLength(1);
+    expect(container.querySelectorAll(".board-beds .bed-cell.free")).toHaveLength(2);
     expect(container.querySelectorAll(".board-beds .bed-cell.oos")).toHaveLength(1);
     expect(screen.getByText("of 4 beds")).toBeTruthy();
-    expect(screen.getByText(/1 Bed cancelled/)).toBeTruthy();
+    expect(screen.getByText(/1 free from a cancelled bed/)).toBeTruthy();
+    expect(screen.getByText(/2 free/)).toBeTruthy();
     expect(screen.getByRole("link").getAttribute("href")).toBe("/beds");
   });
 });

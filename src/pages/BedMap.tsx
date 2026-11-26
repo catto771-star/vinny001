@@ -29,7 +29,7 @@ export function BedMap() {
   const s = summarise(beds);
 
   function open(bed: BedOccupancy) {
-    if (bed.resident_id) return navigate(`/residents/${bed.resident_id}`);
+    if (bed.resident_id && bed.stay_status !== "out_pending") return navigate(`/residents/${bed.resident_id}`);
     if (isManagement) {
       setNote("");
       return setManageBed(bed);
@@ -66,24 +66,28 @@ export function BedMap() {
               {room.beds.map((b) => {
                 const state = b.stay_id
                   ? b.stay_status === "out_pending"
-                    ? "out-pending"
+                    ? "cancelled"
                     : "occupied"
                   : b.bed_status === "out_of_service"
                     ? "oos"
                     : "free";
                 return (
                   <li key={b.bed_id}>
-                    <button type="button" className={`bed bed-${state}`} onClick={() => open(b)}>
+                    <button type="button" className={`bed bed-${state === "cancelled" ? "free bed-cancelled" : state}`} onClick={() => open(b)}>
                       <span className="bed-number">{b.bed_number}</span>
                       <span className="bed-body">
-                        {b.resident_id ? (
+                        {state === "cancelled" ? (
+                          <>
+                            <em>{t("beds.free")}</em>
+                            <small title={residentName(b)}>{t("beds.cancelledOf", { name: residentName(b) })}</small>
+                          </>
+                        ) : b.resident_id ? (
                           <>
                             <strong title={residentName(b)}>{residentName(b)}</strong>
                             <small>
                               {b.final_warning && <span className="tag tag-danger fw-tag fw-inline">FW</span>}
                               {formatCivilDate(b.date_of_birth, locale)}
                             </small>
-                            {state === "out-pending" && <small className="tag">{t("beds.outPending")}</small>}
                           </>
                         ) : state === "oos" ? (
                           <em>{t("beds.outOfService")}</em>

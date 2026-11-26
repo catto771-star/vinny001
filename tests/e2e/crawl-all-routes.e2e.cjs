@@ -18,7 +18,7 @@ const ROUTES = ["/", "/tasks", "/notifications", "/residents", "/sheet", "/seen"
   p.on("console", (m) => { if (m.type() === "error") probs.push(`[${cur}] CONSOLE ${m.text().slice(0, 160)}`); });
   p.on("response", (r) => { const u = r.url(); if (r.status() >= 400 && /supabase\.co/.test(u) && !/auth\/v1\/(token|user)/.test(u)) probs.push(`[${cur}] HTTP ${r.status()} ${u.replace(/^https:\/\/[^/]+/, "").slice(0, 110)}`); });
   await p.goto(BASE);
-  await p.getByLabel("Email").fill("siobhan.murphy@demo.ds-lodge.test");
+  await p.getByLabel("Email").fill("sean.murphy@demo.ds-lodge.test");
   await p.getByLabel("Password").fill(DEMO_PASSWORD);
   await p.getByRole("button", { name: "Sign in" }).click();
   await p.waitForTimeout(3500);

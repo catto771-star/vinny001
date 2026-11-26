@@ -35,7 +35,7 @@ export function FreeBedSelect({
   useEffect(() => {
     onLoadingChange?.(loading);
   }, [loading, onLoadingChange]);
-  const free = beds.filter((b) => !b.stay_id && b.bed_status === "in_use" && b.bed_id !== exclude && allowLodge(b.lodge_id));
+  const free = beds.filter((b) => (!b.stay_id || b.stay_status === "out_pending") && b.bed_status === "in_use" && b.bed_id !== exclude && allowLodge(b.lodge_id));
 
   return (
     <select
@@ -56,7 +56,7 @@ export function FreeBedSelect({
               .filter((b) => b.lodge_id === l.id)
               .map((b: BedOccupancy) => (
                 <option key={b.bed_id} value={b.bed_id}>
-                  {roomLabel(t, b.room_kind, b.room_code)} — {t("beds.bedN", { n: b.bed_number })}
+                  {roomLabel(t, b.room_kind, b.room_code)} — {t("beds.bedN", { n: b.bed_number })}{b.stay_status === "out_pending" ? ` · ${t("beds.cancelledOf", { name: residentName(b) })}` : ""}
                 </option>
               ))}
           </optgroup>

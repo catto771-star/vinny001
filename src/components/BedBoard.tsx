@@ -3,7 +3,7 @@ import { useI18n } from "@/i18n";
 import type { BedOccupancy, Lodge } from "@/lib/types";
 import { summarise } from "@/lib/useOccupancy";
 
-/** Quadro de camas do Lodge: cada quarto com as suas camas, ocupadas, livres, com Out decidido ou fora de uso. */
+/** Quadro de camas do Lodge: ocupadas, livres (inclui as de cancelamento decidido) ou fora de uso. */
 export function BedBoard({ lodge, beds }: { lodge: Lodge; beds: BedOccupancy[] }) {
   const { t } = useI18n();
   const s = summarise(beds);
@@ -14,7 +14,7 @@ export function BedBoard({ lodge, beds }: { lodge: Lodge; beds: BedOccupancy[] }
     room.beds.push(b);
   }
   const state = (b: BedOccupancy) =>
-    b.stay_id ? (b.stay_status === "out_pending" ? "out" : "occ") : b.bed_status === "out_of_service" ? "oos" : "free";
+    b.stay_id ? (b.stay_status === "out_pending" ? "free cancelled" : "occ") : b.bed_status === "out_of_service" ? "oos" : "free";
 
   return (
     <Link to="/beds" className="board-card" aria-label={`${lodge.name}: ${t("today.boardOpen")}`}>
@@ -26,9 +26,9 @@ export function BedBoard({ lodge, beds }: { lodge: Lodge; beds: BedOccupancy[] }
           </div>
         </div>
         <ul className="board-legend">
-          <li><i className="bed-cell occ" />{s.occupied - s.outPending} {t("today.occupied")}</li>
+          <li><i className="bed-cell occ" />{s.occupied} {t("today.occupied")}</li>
           <li><i className="bed-cell free" />{s.free} {t("today.free")}</li>
-          {s.outPending > 0 && <li><i className="bed-cell out" />{s.outPending} {t("today.boardOutPending")}</li>}
+          {s.outPending > 0 && <li className="legend-sub"><i className="bed-cell free cancelled" />{t("today.boardCancelledFree", { n: s.outPending })}</li>}
           {s.outOfService > 0 && <li><i className="bed-cell oos" />{s.outOfService} {t("today.boardOos")}</li>}
         </ul>
       </header>

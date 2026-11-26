@@ -27,14 +27,15 @@ export function useOccupancy(lodgeId?: string) {
   return { beds, loading, error, reload };
 }
 
+/** `free` inclui as camas com cancelamento decidido (`outPending`). */
 export type OccupancySummary = { total: number; occupied: number; free: number; outOfService: number; outPending: number };
 
 export function summarise(beds: BedOccupancy[]): OccupancySummary {
   const s = { total: beds.length, occupied: 0, free: 0, outOfService: 0, outPending: 0 };
   for (const b of beds) {
     if (b.stay_id) {
-      s.occupied++;
-      if (b.stay_status === "out_pending") s.outPending++;
+      // cancelamento decidido: a cama já conta como livre (outro residente pode ocupá-la)
+      if (b.stay_status === "out_pending") { s.outPending++; s.free++; } else s.occupied++;
     } else if (b.bed_status === "out_of_service") s.outOfService++;
     else s.free++;
   }

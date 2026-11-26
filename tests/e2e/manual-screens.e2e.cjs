@@ -117,7 +117,7 @@ async function settle(page) {
     // ---- Porter
     let ctx = await browser.newContext({ viewport: { width: 1366, height: 768 }, proxy: proxyCfg, locale: "pt-PT" });
     let page = await ctx.newPage();
-    await login(page, "niamh.doyle@demo.ds-lodge.test", DEMO_PASSWORD);
+    await login(page, "niall.doyle@demo.ds-lodge.test", DEMO_PASSWORD);
     await page.locator(".content").first().waitFor({ timeout: 30000 });
     for (const [name, route] of PORTER) {
       await page.goto(`${BASE}${route}`);
@@ -138,7 +138,7 @@ async function settle(page) {
     await ctx.close();
     ctx = await browser.newContext({ viewport: { width: 390, height: 780 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, proxy: proxyCfg, locale: "pt-PT" });
     page = await ctx.newPage();
-    await login(page, "niamh.doyle@demo.ds-lodge.test", DEMO_PASSWORD);
+    await login(page, "niall.doyle@demo.ds-lodge.test", DEMO_PASSWORD);
     await page.locator(".content").first().waitFor({ timeout: 30000 });
     await settle(page);
     await page.screenshot({ path: path.join(SHOTS, "28-celular-hoje.png") });

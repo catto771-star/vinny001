@@ -203,7 +203,7 @@ scene("01", "acesso-gestao", "Acesso da gestão: senha provisória, troca obriga
 
 /* ---------- 02 · Assumir o posto ---------- */
 scene("02", "assumir-posto", "Porter assume o posto (Office), troca com quem estava e escolhe o idioma", "none", async ({ page, u, ctxState }) => {
-  const niamh = "niamh.doyle@demo.ds-lodge.test";
+  const niamh = "niall.doyle@demo.ds-lodge.test";
   await page.goto(BASE);
   await page.selectOption(".lang-select select", "pt-PT"); await u.wait(500);
   await u.say("O Porter entra com e-mail e senha (sem segunda etapa)", 1500);
@@ -874,7 +874,7 @@ const PREP = {
   const stateFile = async (role) => {
     const file = path.join(stateDir, `${role}-${Date.now()}.json`);
     if (role === "owner") await saveState(browser, OWNER.email, NEW_PASSWORD, file, { management: true });
-    else if (role === "niamh") await saveState(browser, "niamh.doyle@demo.ds-lodge.test", DEMO_PASSWORD, file);
+    else if (role === "niamh") await saveState(browser, "niall.doyle@demo.ds-lodge.test", DEMO_PASSWORD, file);
     else if (role === "connolly") {
       const h = await holders();
       await saveState(browser, h.connolly ?? "lucas.ferreira@demo.ds-lodge.test", DEMO_PASSWORD, file);
@@ -882,7 +882,7 @@ const PREP = {
     return file;
   };
   // A conta demo usada nos vídeos fala português.
-  await admin.from("staff").update({ locale: "pt-PT" }).eq("email", "niamh.doyle@demo.ds-lodge.test");
+  await admin.from("staff").update({ locale: "pt-PT" }).eq("email", "niall.doyle@demo.ds-lodge.test");
   try {
     for (const sc of SCENES) {
       if (ONLY.length && !ONLY.includes(sc.id)) continue;
