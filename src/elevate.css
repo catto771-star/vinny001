@@ -243,3 +243,8 @@ a { transition:color 140ms var(--ios-ease), opacity 140ms }
 /* tabelas nunca alargam a página: ocupam no máximo a largura disponível e quebram palavras longas */
 .table { max-width:100% }
 @media (max-width: 1099px) { .table td, .table th { overflow-wrap:anywhere } }
+
+/* janelas (dialog) sempre centralizadas na tela no computador; no celular continuam como folha embaixo */
+@media (min-width: 720px) {
+  .dialog { position:fixed;inset:0;margin:auto;height:fit-content;max-height:calc(100vh - 32px);overflow:auto }
+}

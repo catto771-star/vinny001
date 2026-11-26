@@ -57,3 +57,9 @@ describe("texto dentro da caixa (revisão 15)", () => {
     expect(elevate).toMatch(/\.task-check:empty::after\s*\{[^}]*left:\s*50%[^}]*top:\s*50%/);
   });
 });
+
+describe("janelas centralizadas (revisão 15)", () => {
+  it("no computador o dialog é centralizado na tela (inset 0 + margin auto)", () => {
+    expect(elevate).toMatch(/@media \(min-width: 720px\)\s*\{\s*\.dialog\s*\{[^}]*position:\s*fixed[^}]*inset:\s*0[^}]*margin:\s*auto/);
+  });
+});
