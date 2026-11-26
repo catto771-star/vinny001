@@ -47,7 +47,9 @@ describe("valores do Audit", () => {
 describe("CSV", () => {
   it("escapa aspas, vírgulas e quebras de linha e protege contra fórmulas de planilha", () => {
     expect(toCsv([["a", 'b "q"', "c,d", "e\nf"]])).toBe('a,"b ""q""","c,d","e\nf"');
-    expect(toCsv([["=SUM(A1)", "+1", "-2", "@x"]])).toBe("'=SUM(A1),'+1,'-2,'@x");
+    expect(toCsv([["=SUM(A1)", "@x", "-2+3", "+cmd|' /C calc'!A0"]])).toBe(`'=SUM(A1),'@x,'-2+3,'+cmd|' /C calc'!A0`);
+    // números e durações simples (inclusive negativos) passam como estão: não são fórmulas
+    expect(toCsv([["-2", "+1", "-0:30", "12:00", "-3,5"]])).toBe('-2,+1,-0:30,12:00,"-3,5"');
   });
   it("usa CRLF entre linhas e começa com BOM para o Excel abrir em UTF-8 quando pedido", () => {
     expect(toCsv([["a"], ["b"]])).toBe("a\r\nb");

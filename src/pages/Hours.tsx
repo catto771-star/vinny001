@@ -4,8 +4,12 @@ import { useAuth } from "@/auth/AuthProvider";
 import { useI18n } from "@/i18n";
 import { supabase } from "@/lib/supabase";
 import { errorKey } from "@/lib/errors";
-import { minutesLabel } from "@/lib/management";
-import { addDays, dublinWallTimeToDate, formatDateTime, fromDublinInputValue, operationalDay, toDublinInputValue } from "@/lib/time";
+import { toCsv } from "@/lib/csv";
+import { minutesLabel, periodRange, shiftPeriod, type PeriodKind } from "@/lib/management";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Tabs } from "@/components/Tabs";
+import type { MessageKey } from "@/i18n";
+import { addDays, dublinWallTimeToDate, formatCivilDate, formatDateTime, fromDublinInputValue, operationalDay, toDublinInputValue } from "@/lib/time";
 import { useLatestRequest } from "@/lib/useLatestRequest";
 import { Dialog, DialogCancel } from "@/components/Dialog";
 import { Notice } from "@/components/Notice";
@@ -29,13 +33,15 @@ export function Hours() {
   const { lodges } = useAuth();
   const toast = useToast();
   const latest = useLatestRequest();
-  const [month, setMonth] = useState(() => operationalDay(new Date()).slice(0, 7));
+  const [kind, setKind] = useState<Exclude<PeriodKind, "custom">>("month");
+  const [anchor, setAnchor] = useState(() => operationalDay(new Date()));
   const [rows, setRows] = useState<Row[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [log, setLog] = useState<LogItem[] | null>(null);
   const [adjusting, setAdjusting] = useState<LogItem | null>(null);
   const [adding, setAdding] = useState<string | null>(null);
-  const range = useMemo(() => monthRange(month), [month]);
+  const days = useMemo(() => periodRange(kind, anchor), [kind, anchor]);
+  const range = useMemo(() => ({ from: dublinWallTimeToDate(days.from, "07:00"), to: dublinWallTimeToDate(days.to, "07:00") }), [days]);
 
   const load = useCallback(async () => {
     const isLatest = latest();
@@ -69,6 +75,21 @@ export function Hours() {
     if (open) await loadLog(open);
   }
 
+  function exportCsv() {
+    const hm = (m: number) => `${m < 0 ? "-" : ""}${Math.floor(Math.abs(m) / 60)}:${String(Math.abs(m) % 60).padStart(2, "0")}`;
+    const label = `${formatCivilDate(days.from, locale)} → ${formatCivilDate(addDays(days.to, -1), locale)}`;
+    const body = (rows ?? []).map((r) => [r.full_name, t(`users.roles.${r.role}` as never), hm(r.planned_minutes), hm(r.effective_minutes), hm(r.effective_minutes - r.planned_minutes)]);
+    const blob = new Blob([toCsv([["Name", "Profile", "Planned", "Worked", "Difference"], ...body, [], ["Period", label]], { bom: true })], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `hours-${days.from}_${addDays(days.to, -1)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   const lodgeShort = (id: string | null) => lodges.find((l) => l.id === id)?.short_name ?? "";
 
   return (
@@ -78,8 +99,18 @@ export function Hours() {
           <span className="eyebrow">{t("hours.eyebrow")}</span>
           <h1>{t("hours.title")}</h1>
         </div>
-        <label className="inline">{t("hours.period")}<input type="month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} /></label>
       </header>
+      <div className="toolbar no-print">
+        <Tabs label={t("hours.period")} value={kind} onChange={(v) => setKind(v as Exclude<PeriodKind, "custom">)}
+          items={(["day", "week", "fortnight", "month"] as const).map((k) => ({ value: k, label: t(`reports.p_${k}` as MessageKey) }))} />
+        <span className="inline">
+          <button type="button" className="icon-btn" aria-label={t("hours.prevPeriod")} onClick={() => setAnchor(shiftPeriod(kind, anchor, -1))}><ChevronLeft size={18} aria-hidden="true" /></button>
+          <button type="button" className="icon-btn" aria-label={t("hours.nextPeriod")} onClick={() => setAnchor(shiftPeriod(kind, anchor, 1))}><ChevronRight size={18} aria-hidden="true" /></button>
+        </span>
+        <label className="inline">{t("reports.reference")}<input type="date" value={anchor} onChange={(e) => e.target.value && setAnchor(e.target.value)} /></label>
+        <span className="muted" role="status">{formatCivilDate(days.from, locale)} → {formatCivilDate(addDays(days.to, -1), locale)}</span>
+        <button type="button" className="small" onClick={exportCsv} disabled={!rows || rows.length === 0}>{t("audit.exportCsv")}</button>
+      </div>
       <ShiftReview onConfirmed={() => void load()} />
       {rows === null ? (
         <div className="card"><Skeleton rows={6} label={t("app.loading")} /></div>

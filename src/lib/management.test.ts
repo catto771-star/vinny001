@@ -111,3 +111,15 @@ describe("Revisão 25/11: relatório por categorias", () => {
     expect(blocksOf("presence", blocks).map((b) => b.key)).toEqual(["no_shows", "warnings"]);
   });
 });
+
+describe("shiftPeriod (revisão 14)", () => {
+  it("anda um período para frente ou para trás sem pular meses curtos", async () => {
+    const { shiftPeriod } = await import("./management");
+    expect(shiftPeriod("day", "2026-11-26", 1)).toBe("2026-11-27");
+    expect(shiftPeriod("week", "2026-11-26", -1)).toBe("2026-11-19");
+    expect(shiftPeriod("fortnight", "2026-11-26", 1)).toBe("2026-12-10");
+    expect(shiftPeriod("month", "2027-01-31", 1)).toBe("2027-02-01");
+    expect(shiftPeriod("month", "2026-01-15", -1)).toBe("2025-12-01");
+    expect(shiftPeriod("month", "2026-12-20", 1)).toBe("2027-01-01");
+  });
+});

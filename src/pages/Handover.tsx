@@ -289,7 +289,7 @@ export function Handover() {
                     <div className="mention-chips">
                       {entryTags.filter((x) => x.entry_id === item.id).map((x) => {
                         const g = allTags.find((y) => y.id === x.tag_id);
-                        return g ? <span key={x.tag_id} className={`tag tag-${g.code}`}>{g.label}</span> : null;
+                        return g ? <span key={x.tag_id} className={`tag tag-c-${g.color}`}>{g.label}</span> : null;
                       })}
                     </div>
                   )}
@@ -360,13 +360,15 @@ export function Handover() {
 
 const FILLER_ROLES = ["porter", "manager", "owner", "developer"];
 
-export type HandoverTag = { id: string; code: string; label: string; sort_order: number; visible: boolean; notify_default: boolean };
+export type TagColor = "red" | "amber" | "blue" | "green" | "violet" | "grey";
+export const TAG_COLORS: TagColor[] = ["red", "amber", "blue", "green", "violet", "grey"];
+export type HandoverTag = { id: string; code: string; label: string; color: TagColor; sort_order: number; visible: boolean; notify_default: boolean };
 
 /** Tags do Handover (revisão 3). onlyVisible = as que o Admin deixou aparecer. */
 export function useHandoverTags(onlyVisible: boolean): HandoverTag[] {
   const [tags, setTags] = useState<HandoverTag[]>([]);
   useEffect(() => {
-    void supabase.from("handover_tags").select("id, code, label, sort_order, visible, notify_default").order("sort_order")
+    void supabase.from("handover_tags").select("id, code, label, color, sort_order, visible, notify_default").order("sort_order")
       .then(({ data }) => setTags(((data ?? []) as HandoverTag[]).filter((g) => !onlyVisible || g.visible)));
   }, [onlyVisible]);
   return tags;
@@ -615,7 +617,7 @@ function Composer({
           {tags.map((g) => {
             const on = chosenTags.includes(g.id);
             return (
-              <button key={g.id} type="button" className={`chip tag-${g.code}${on ? " is-on" : ""}`} aria-pressed={on}
+              <button key={g.id} type="button" className={`chip tag-c-${g.color}${on ? " is-on" : ""}`} aria-pressed={on}
                 onClick={() => setChosenTags((x) => (on ? x.filter((y) => y !== g.id) : [...x, g.id]))}>
                 {g.label}
               </button>

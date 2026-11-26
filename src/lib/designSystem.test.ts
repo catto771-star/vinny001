@@ -105,3 +105,12 @@ describe("texto longo em cartões (revisão 13)", () => {
     expect(r).toMatch(/overflow-wrap:\s*anywhere/);
   });
 });
+
+describe("cores das tags (revisão 14)", () => {
+  it("cada cor da lista tem estilo para a etiqueta e para o chip selecionado", () => {
+    for (const c of ["red", "amber", "blue", "green", "violet"]) {
+      expect(css).toContain(`.tag.tag-c-${c}`);
+      expect(css).toContain(`.chip.tag-c-${c}.is-on`);
+    }
+  });
+});

@@ -139,6 +139,20 @@ export function periodRange(kind: PeriodKind, anchor: string, custom?: { from: s
   }
 }
 
+/** Revisão 14: dia de referência do período vizinho (mês vai para o dia 1, sem pular meses curtos). */
+export function shiftPeriod(kind: PeriodKind, anchor: string, dir: 1 | -1): string {
+  switch (kind) {
+    case "week": return addDays(anchor, 7 * dir);
+    case "fortnight": return addDays(anchor, 14 * dir);
+    case "month": {
+      const [y, m] = anchor.slice(0, 7).split("-").map(Number);
+      const idx = y * 12 + (m - 1) + dir;
+      return `${Math.floor(idx / 12)}-${String((idx % 12) + 1).padStart(2, "0")}-01`;
+    }
+    default: return addDays(anchor, dir);
+  }
+}
+
 /** Revisão 25/11: o relatório é dividido em categorias, cada uma com os seus blocos. */
 export const REPORT_CATEGORIES: { key: string; blocks: string[] }[] = [
   { key: "occupancy", blocks: ["occupancy", "movements"] },

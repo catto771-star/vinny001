@@ -145,6 +145,56 @@ describe("Horas", () => {
   });
 });
 
+describe("Horas por período (revisão 14)", () => {
+  const lastHours = () => { const c = rpc.mock.calls.filter((x) => x[0] === "staff_hours").at(-1)?.[1] as { p_from: string; p_to: string } | undefined; return c; };
+  async function openAt(day: string) {
+    rpcResult.staff_hours = [{ staff_id: "s1", full_name: "Ana Porter", role: "porter", planned_minutes: 720, effective_minutes: 690 }];
+    wrap(<Hours />);
+    await screen.findByText("Ana Porter");
+    fireEvent.change(screen.getByLabelText("Reference day"), { target: { value: day } });
+  }
+  it("Day, Week, Fortnight e Month pedem o intervalo certo (dia operacional começa às 07:00)", async () => {
+    await openAt("2026-11-26");
+    fireEvent.click(screen.getByRole("tab", { name: "Day" }));
+    await waitFor(() => expect(lastHours()).toEqual({ p_from: "2026-11-26T07:00:00.000Z", p_to: "2026-11-27T07:00:00.000Z" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Week" }));
+    await waitFor(() => expect(lastHours()).toEqual({ p_from: "2026-11-23T07:00:00.000Z", p_to: "2026-11-30T07:00:00.000Z" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Fortnight" }));
+    await waitFor(() => expect(lastHours()).toEqual({ p_from: "2026-11-16T07:00:00.000Z", p_to: "2026-11-30T07:00:00.000Z" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Month" }));
+    await waitFor(() => expect(lastHours()).toEqual({ p_from: "2026-11-01T07:00:00.000Z", p_to: "2026-12-01T07:00:00.000Z" }));
+  });
+  it("o padrão é o mês; as setas andam um período e o intervalo aparece escrito", async () => {
+    await openAt("2026-11-26");
+    expect(screen.getByRole("tab", { name: "Month" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByText("01/11/2026 → 30/11/2026")).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Week" }));
+    expect(await screen.findByText("23/11/2026 → 29/11/2026")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Next period" }));
+    await waitFor(() => expect(lastHours()).toEqual({ p_from: "2026-11-30T07:00:00.000Z", p_to: "2026-12-07T07:00:00.000Z" }));
+    fireEvent.click(screen.getByRole("button", { name: "Previous period" }));
+    fireEvent.click(screen.getByRole("button", { name: "Previous period" }));
+    await waitFor(() => expect(lastHours()).toEqual({ p_from: "2026-11-16T07:00:00.000Z", p_to: "2026-11-23T07:00:00.000Z" }));
+  });
+  it("Export CSV baixa o período escolhido: nome, perfil, planejado, trabalhado e diferença", async () => {
+    let text = "";
+    Object.assign(URL, { createObjectURL: vi.fn((b: Blob) => { const fr = new FileReader(); fr.onload = () => { text = String(fr.result); }; fr.readAsText(b); return "blob:x"; }), revokeObjectURL: vi.fn() });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    await openAt("2026-11-26");
+    fireEvent.click(await screen.findByRole("button", { name: "Export CSV" }));
+    await waitFor(() => expect(click).toHaveBeenCalled());
+    await waitFor(() => expect(text).toContain("Name,Profile,Planned,Worked,Difference"));
+    expect(text).toContain("Ana Porter,Staff (Porter or Float),12:00,11:30,-0:30");
+    expect(text).toContain("01/11/2026 → 30/11/2026");
+    click.mockRestore();
+  });
+  it("o dia, no passo do mês, não pula meses curtos (31 de janeiro → fevereiro)", async () => {
+    await openAt("2027-01-31");
+    fireEvent.click(screen.getByRole("button", { name: "Next period" }));
+    await waitFor(() => expect(lastHours()).toEqual({ p_from: "2027-02-01T07:00:00.000Z", p_to: "2027-03-01T07:00:00.000Z" }));
+  });
+});
+
 describe("Férias", () => {
   it("registra e avisa quando há conflito com a Rota", async () => {
     tables.staff = [{ id: "s1", full_name: "Ana Porter", display_name: null, role: "porter" }];
