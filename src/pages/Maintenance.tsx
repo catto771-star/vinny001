@@ -263,6 +263,15 @@ export function TicketDialog({ ticket, onClose, onDone }: { ticket: Ticket; onCl
 }
 
 /** Lembrete ao Manager (B34/B35): prazo vencido sem alteração; respostas rápidas; adiar não resolve. */
+const DISMISS_KEY = "maint.reminder.until";
+/** O X dispensa todos os avisos de prazo por 1 hora (neste navegador). */
+function reminderDismissed(): boolean {
+  try { return Number(window.sessionStorage.getItem(DISMISS_KEY) ?? 0) > Date.now(); } catch { return false; }
+}
+function dismissReminders(): void {
+  try { window.sessionStorage.setItem(DISMISS_KEY, String(Date.now() + 3_600_000)); } catch { /* armazenamento indisponível */ }
+}
+
 export function MaintenanceReminder() {
   const { t, locale } = useI18n();
   const { isManagement } = useAuth();
@@ -274,6 +283,7 @@ export function MaintenanceReminder() {
 
   const load = useCallback(async () => {
     if (!isManagement) return;
+    if (reminderDismissed()) return setItems([]);
     const { data } = await supabase.rpc("maintenance_reminders");
     setItems((data ?? []) as Ticket[]);
   }, [isManagement]);
@@ -320,7 +330,8 @@ export function MaintenanceReminder() {
   }
 
   return (
-    <Dialog title={t("maintenance.reminderTitle")} onClose={() => void answer("later")}>
+    <Dialog title={t("maintenance.reminderTitle")} onClose={() => { dismissReminders(); setItems([]); }}>
+      {items.length > 1 && <p className="small-text muted">{t("maintenance.reminderCount", { n: 1, total: items.length })}</p>}
       <p><strong>{current.location}</strong> — {current.description}</p>
       <p className="muted small-text">{t("maintenance.deadline")}: {formatDateTime(current.deadline_at, locale)}</p>
       {mode === "in_progress" && (

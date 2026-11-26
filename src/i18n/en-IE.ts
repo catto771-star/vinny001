@@ -618,6 +618,7 @@ const enIE = {
     ev_status: "status",
     ev_deadline: "deadline",
     ev_note: "note",
+    reminderCount: "{n} of {total}",
     reminderTitle: "Deadline passed — what is the status?",
     reminderResolved: "Resolved",
     reminderInProgress: "In progress (new deadline)",
