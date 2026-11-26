@@ -31,7 +31,7 @@ describe("Quadro de camas", () => {
     expect(container.querySelectorAll(".board-beds .bed-cell.free")).toHaveLength(1);
     expect(container.querySelectorAll(".board-beds .bed-cell.oos")).toHaveLength(1);
     expect(screen.getByText("of 4 beds")).toBeTruthy();
-    expect(screen.getByText(/1 Out decided/)).toBeTruthy();
+    expect(screen.getByText(/1 Bed cancelled/)).toBeTruthy();
     expect(screen.getByRole("link").getAttribute("href")).toBe("/beds");
   });
 });

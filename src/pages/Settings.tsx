@@ -4,6 +4,7 @@ import { useAuth } from "@/auth/AuthProvider";
 import { Tabs } from "@/components/Tabs";
 import { AccountSettings } from "./settings/AccountSettings";
 import { SystemSettings } from "./settings/SystemSettings";
+import { Structure } from "./Structure";
 import { useI18n, type MessageKey } from "@/i18n";
 import { supabase } from "@/lib/supabase";
 import { errorKey } from "@/lib/errors";
@@ -92,6 +93,7 @@ export function Settings() {
       { value: "notifications", label: t("settings.tabNotifications") },
       { value: "handover", label: t("settings.tabHandover") },
       { value: "system", label: t("settings.tabSystem") },
+      { value: "registers", label: t("settings.tabRegisters") },
     ] : []),
   ];
   const wanted = params.get("tab") ?? "account";
@@ -111,6 +113,7 @@ export function Settings() {
       {isManagement && tab === "notifications" && <NotificationSettings />}
       {isManagement && tab === "handover" && <HandoverTagSettings />}
       {isManagement && tab === "system" && <SystemSettings />}
+      {isManagement && tab === "registers" && <Structure embedded />}
     </section>
   );
 }

@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ExternalLink, Plus } from "lucide-react";
-import { useI18n } from "@/i18n";
+import { useI18n, type MessageKey } from "@/i18n";
+import { useStaffList } from "@/lib/useStaffList";
+import { staffName } from "@/lib/types";
+import { formatDateTime } from "@/lib/time";
 import { supabase } from "@/lib/supabase";
 import { errorKey } from "@/lib/errors";
 import { formatEUR } from "@/lib/management";
@@ -13,7 +16,10 @@ import { Tabs } from "@/components/Tabs";
 import { useToast } from "@/components/Toast";
 
 export type ShopItem = { id: string; sort_order: number; category: string; name: string; default_qty: number; default_action: "buy" | "dont_buy"; tesco_url: string | null; image_path: string | null; version: number };
-export type ShopOrder = { id: string; delivery_date: string; notes: string | null; status: "draft" | "placed"; created_at: string };
+export type OrderStatus = "created" | "placed" | "awaiting" | "delivered";
+export type ShopOrder = { id: string; delivery_date: string; notes: string | null; status: OrderStatus; created_at: string; delivered_at: string | null; delivered_by: string | null };
+export const STATUS_LABEL: Record<OrderStatus, MessageKey> = { created: "purchases.sCreated", placed: "purchases.sPlaced", awaiting: "purchases.sAwaiting", delivered: "purchases.sDelivered" };
+type Unlinked = { id: string; product: string; supplier: string; received_at: string; received_by: string };
 export type ShopLine = { id: string; item_id: string; standard_qty: number; action: LineAction; delta: number; final_qty: number; unit_price: string | null };
 export type LineAction = "standard" | "more" | "less" | "dont";
 
@@ -54,12 +60,20 @@ export function Purchases() {
   const [lines, setLines] = useState<ShopLine[] | null>(null);
   const [editing, setEditing] = useState<ShopItem | "new" | null>(null);
   const [creating, setCreating] = useState(false);
+  const staffList = useStaffList();
+  const [unlinked, setUnlinked] = useState<Unlinked[]>([]);
 
   const loadBase = useCallback(async () => {
     const [{ data: it }, { data: or }] = await Promise.all([
       supabase.from("shop_items").select("id, sort_order, category, name, default_qty, default_action, tesco_url, image_path, version").eq("active", true).order("sort_order"),
-      supabase.from("shop_orders").select("id, delivery_date, notes, status, created_at").order("delivery_date", { ascending: false }).limit(30),
+      supabase.from("shop_orders").select("id, delivery_date, notes, status, created_at, delivered_at, delivered_by").order("delivery_date", { ascending: false }).limit(30),
     ]);
+    const { data: sup } = await supabase.from("suppliers").select("id").eq("links_order", true);
+    const ids = ((sup ?? []) as { id: string }[]).map((s) => s.id);
+    if (ids.length) {
+      const { data: un } = await supabase.from("food_deliveries").select("id, product, supplier, received_at, received_by").in("supplier_id", ids).is("order_id", null).order("received_at", { ascending: false }).limit(20);
+      setUnlinked((un ?? []) as Unlinked[]);
+    } else setUnlinked([]);
     setItems((it ?? []) as ShopItem[]);
     const list = (or ?? []) as ShopOrder[];
     setOrders(list);
@@ -97,10 +111,26 @@ export function Purchases() {
   async function saveOrder(patch: { notes?: string; placed?: boolean; delivery?: string }) {
     if (!order) return;
     const { error } = await supabase.rpc("set_shop_order", {
-      p_order: order.id, p_delivery: patch.delivery ?? order.delivery_date, p_notes: patch.notes ?? order.notes ?? "", p_placed: patch.placed ?? order.status === "placed",
+      p_order: order.id, p_delivery: patch.delivery ?? order.delivery_date, p_notes: patch.notes ?? order.notes ?? "", p_placed: patch.placed ?? order.status !== "created",
     });
     if (error) return toast.error(t(errorKey(error)));
     if (patch.placed) toast.success(t("purchases.placedOk"));
+    void loadBase();
+  }
+
+  async function setStatus(status: "created" | "placed" | "awaiting") {
+    if (!order) return;
+    const { error } = await supabase.rpc("set_shop_order_status", { p_order: order.id, p_status: status });
+    if (error) return toast.error(t(errorKey(error)));
+    if (status === "placed") toast.success(t("purchases.placedOk"));
+    void loadBase();
+  }
+
+  async function link(deliveryId: string, orderToLink: string) {
+    const { error } = await supabase.rpc("link_delivery_to_order", { p_delivery: deliveryId, p_order: orderToLink });
+    if (error) return toast.error(t(errorKey(error)));
+    toast.success(t("purchases.linkedOk"));
+    setOrderId(orderToLink);
     void loadBase();
   }
 
@@ -150,7 +180,7 @@ export function Purchases() {
             <label className="inline">
               {t("purchases.order")}
               <select value={orderId} onChange={(e) => setOrderId(e.target.value)}>
-                {orders.map((o) => <option key={o.id} value={o.id}>{formatCivilDate(o.delivery_date, locale)}{o.status === "placed" ? ` · ${t("purchases.placed")}` : ""}</option>)}
+                {orders.map((o) => <option key={o.id} value={o.id}>{formatCivilDate(o.delivery_date, locale)} · {t(STATUS_LABEL[o.status])}</option>)}
               </select>
             </label>
             {order && (
@@ -161,12 +191,27 @@ export function Purchases() {
             )}
           </div>
 
+          {unlinked.length > 0 && (
+            <div className="card unlinked-box" role="region" aria-label={t("purchases.unlinkedTitle")}>
+              <h2 className="section-title">{t("purchases.unlinkedTitle")}</h2>
+              <p className="hint">{t("purchases.unlinkedHint")}</p>
+              <ul className="item-list">
+                {unlinked.map((d) => (
+                  <UnlinkedRow key={d.id} d={d} orders={orders.filter((o) => o.status === "placed" || o.status === "awaiting")} who={staffName(staffList.find((s) => s.id === d.received_by))} onLink={(o) => void link(d.id, o)} />
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="shop-summary card">
             <div><span className="big-number">{toBuy}</span><span className="muted"> {t("purchases.itemsToBuy")}</span></div>
             <div><span className="big-number mono">{formatEUR(total, locale)}</span><span className="muted"> {t("purchases.estimatedTotal")}</span></div>
             {missingPrice > 0 && <span className="muted small-text">{t("purchases.missingPrice", { n: missingPrice })}</span>}
-            {order && order.status === "draft" && <button className="primary" onClick={() => void saveOrder({ placed: true })}>{t("purchases.markPlaced")}</button>}
-            {order && order.status === "placed" && <button onClick={() => void saveOrder({ placed: false })}>{t("purchases.reopen")}</button>}
+            {order && <span className={`tag status-${order.status}`}>{t(STATUS_LABEL[order.status])}</span>}
+            {order?.status === "created" && <button className="primary" onClick={() => void setStatus("placed")}>{t("purchases.markPlaced")}</button>}
+            {order?.status === "placed" && <button className="primary" onClick={() => void setStatus("awaiting")}>{t("purchases.markAwaiting")}</button>}
+            {(order?.status === "placed" || order?.status === "awaiting") && <button onClick={() => void setStatus(order.status === "awaiting" ? "placed" : "created")}>{order.status === "awaiting" ? t("purchases.backToPlaced") : t("purchases.reopen")}</button>}
+            {order?.status === "delivered" && <span className="muted small-text">{t("purchases.deliveredInfo", { who: staffName(staffList.find((s) => s.id === order.delivered_by)), time: order.delivered_at ? formatDateTime(order.delivered_at, locale) : "—" })}</span>}
           </div>
 
           {lines === null ? (
@@ -329,5 +374,23 @@ function ItemDialog({ item, categories, onClose, onDone }: { item: ShopItem | nu
         <Notice kind="error">{error}</Notice>
       </div>
     </Dialog>
+  );
+}
+
+
+function UnlinkedRow({ d, orders, who, onLink }: { d: Unlinked; orders: ShopOrder[]; who: string; onLink: (orderId: string) => void }) {
+  const { t, locale } = useI18n();
+  const [pick, setPick] = useState(orders[0]?.id ?? "");
+  return (
+    <li className="card">
+      <span className="supplier-main"><strong>{d.supplier}</strong> <span className="muted">{d.product} · {formatDateTime(d.received_at, locale)} · {who}</span></span>
+      <span className="inline">
+        <select aria-label={t("purchases.linkTo")} value={pick || orders[0]?.id || ""} onChange={(e) => setPick(e.target.value)} disabled={orders.length === 0}>
+          {orders.length === 0 && <option value="">{t("purchases.noOpenOrders")}</option>}
+          {orders.map((o) => <option key={o.id} value={o.id}>{formatCivilDate(o.delivery_date, locale)} · {t(STATUS_LABEL[o.status])}</option>)}
+        </select>
+        <button type="button" className="primary small" disabled={!(pick || orders[0]?.id)} onClick={() => onLink(pick || orders[0]!.id)}>{t("purchases.link")}</button>
+      </span>
+    </li>
   );
 }

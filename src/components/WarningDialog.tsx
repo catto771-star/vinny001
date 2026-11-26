@@ -8,11 +8,10 @@ import { Dialog, DialogCancel } from "./Dialog";
 import { Notice } from "./Notice";
 import { Tabs } from "./Tabs";
 
-export type WarningType = "verbal" | "written" | "final_written";
+export type WarningType = "warning" | "final_warning";
 export const WARNING_LABEL: Record<WarningType, MessageKey> = {
-  verbal: "warnings.t_verbal",
-  written: "warnings.t_written",
-  final_written: "warnings.t_final_written",
+  warning: "warnings.t_warning",
+  final_warning: "warnings.t_final_warning",
 };
 
 /** Registrar Warning (s.7): ligado à anotação do Handover e ao perfil; qualquer usuário registra. */
@@ -29,7 +28,7 @@ export function WarningDialog({
 }) {
   const { t } = useI18n();
   const [stayId, setStayId] = useState(initialStay ?? "");
-  const [type, setType] = useState<WarningType>("verbal");
+  const [type, setType] = useState<WarningType>("warning");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +49,7 @@ export function WarningDialog({
       footer={
         <>
           <DialogCancel>{t("app.cancel")}</DialogCancel>
-          <button type="submit" form="warning-form" className={type === "final_written" ? "danger" : "primary"} disabled={busy || !stayId}>
+          <button type="submit" form="warning-form" className={type === "final_warning" ? "danger" : "primary"} disabled={busy || !stayId}>
             {t("warnings.record")}
           </button>
         </>
@@ -74,7 +73,7 @@ export function WarningDialog({
             label={t("warnings.type")}
             value={type}
             onChange={(v) => setType(v as WarningType)}
-            items={(["verbal", "written", "final_written"] as WarningType[]).map((w) => ({ value: w, label: t(WARNING_LABEL[w]) }))}
+            items={(["warning", "final_warning"] as WarningType[]).map((w) => ({ value: w, label: t(WARNING_LABEL[w]) }))}
           />
         </div>
         <label>

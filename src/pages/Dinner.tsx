@@ -140,7 +140,7 @@ export function Dinner() {
         <ul className="task-list">
           {rows.map((r) => (
             <li key={r.stay_id} className={`task-item${r.served ? " is-done" : ""}`}>
-              <span className="task-check" aria-hidden="true">{r.served ? "✓" : ""}</span>
+              <span className="task-check" aria-hidden="true" />
               <div className="task-main">
                 <span className="task-title">
                   {residentName(r)}
@@ -150,7 +150,7 @@ export function Dinner() {
               </div>
               <button type="button" className={`took-btn${r.served === true ? " is-on" : ""}`} aria-pressed={r.served === true}
                 aria-label={`${t("dinner.took")} — ${residentName(r)}`} disabled={!canWrite} onClick={() => mark(r, r.served !== true)}>
-                {r.served === true ? `✓ ${t("dinner.took")}` : t("dinner.took")}
+                {t("dinner.took")}
               </button>
             </li>
           ))}

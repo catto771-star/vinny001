@@ -39,14 +39,14 @@ const results = [];
   // ---------- PESSOAS ----------
   await step("People: criar Staff (Porter/Float) sem casa e sem login", async () => {
     await go("/users");
-    await p.getByRole("button", { name: "Create user" }).click();
+    await p.getByRole("button", { name: "New User" }).click();
     await dlg().getByLabel("Full name").fill("Scenario Porter");
     await dlg().getByRole("button", { name: "Save" }).click();
     await p.waitForTimeout(3500);
     return expectDb("select role, home_lodge_id is null as no_home, user_id is null as no_login from public.staff where full_name='Scenario Porter'", (r) => r[0]?.role === "porter" && r[0].no_home && r[0].no_login);
   });
   await step("People: criar Cleaner", async () => {
-    await p.getByRole("button", { name: "Create user" }).click();
+    await p.getByRole("button", { name: "New User" }).click();
     await dlg().getByLabel("Full name").fill("Scenario Cleaner");
     await dlg().locator("select").first().selectOption({ label: "Cleaner" });
     await dlg().getByRole("button", { name: "Save" }).click();
@@ -54,7 +54,7 @@ const results = [];
     return expectDb("select role from public.staff where full_name='Scenario Cleaner'", (r) => r[0]?.role === "cleaner");
   });
   await step("People: criar Manager (conta Admin) mostra a primeira senha", async () => {
-    await p.getByRole("button", { name: "Create user" }).click();
+    await p.getByRole("button", { name: "New User" }).click();
     await dlg().getByLabel("Full name").fill("Scenario Manager");
     await dlg().locator("select").first().selectOption({ label: "Manager (Admin)" });
     await dlg().getByLabel("Email").fill("scenario.manager@demo.ds-lodge.test");
@@ -81,11 +81,11 @@ const results = [];
 
   // ---------- ESTRUTURA ----------
   await step("Structure: criar quarto S1 com 2 camas", async () => {
-    await go("/structure");
-    await p.getByRole("button", { name: "Add room" }).click();
+    await go("/settings?tab=registers");
+    await p.getByRole("button", { name: "New Room" }).click();
     await dlg().getByLabel("Room", { exact: true }).fill("S1");
     await dlg().getByLabel("Beds").fill("2");
-    await dlg().getByRole("button", { name: "Add room" }).click();
+    await dlg().getByRole("button", { name: "New Room" }).click();
     await p.waitForTimeout(3500);
     return expectDb("select count(*)::int n from public.beds b join public.rooms r on r.id=b.room_id where r.code='S1'", (r) => r[0]?.n === 2);
   });
@@ -96,7 +96,7 @@ const results = [];
     return expectDb("select count(*) filter (where b.active)::int a, count(*)::int t from public.beds b join public.rooms r on r.id=b.room_id where r.code='S1'", (r) => r[0]?.a === 2 && r[0].t === 3);
   });
   await step("Structure: geladeira nova, renomear, remover e restaurar", async () => {
-    await go("/structure?tab=fridges");
+    await go("/settings?tab=registers&reg=fridges");
     await p.getByRole("button", { name: "Add fridge" }).click();
     await dlg().getByLabel("Name").fill("Scenario fridge");
     await dlg().getByRole("button", { name: "Add fridge" }).click(); await p.waitForTimeout(3000);
@@ -110,7 +110,7 @@ const results = [];
     return expectDb("select active from public.fridges where name='Scenario cold room'", (r) => r[0]?.active === true);
   });
   await step("Structure: máquina de lavar nova e removida", async () => {
-    await go("/structure?tab=laundry");
+    await go("/settings?tab=registers&reg=laundry");
     await p.getByRole("button", { name: "Add machine" }).click();
     await dlg().getByLabel("Name").fill("Scenario washer");
     await dlg().getByRole("button", { name: "Add machine" }).click(); await p.waitForTimeout(3000);
@@ -118,14 +118,14 @@ const results = [];
     return expectDb("select active from public.laundry_machines where label='Scenario washer'", (r) => r[0]?.active === false);
   });
   await step("Structure: remover quarto ocupado mostra erro claro", async () => {
-    await go("/structure");
+    await go("/settings?tab=registers");
     await p.locator("article", { hasText: "Room 1" }).first().getByRole("button", { name: "Remove room" }).click(); await p.waitForTimeout(2500);
     const t = await p.locator(".notice-error").allTextContents();
     if (!t.join(" ").includes("A resident is in this room")) throw new Error("mensagem: " + t.join("|"));
     return t[0];
   });
   await step("Structure: renomear a casa e voltar", async () => {
-    await go("/structure?tab=houses");
+    await go("/settings?tab=registers&reg=houses");
     const name = p.getByLabel("Name").first();
     await name.fill("Amiens Street House");
     await p.getByRole("button", { name: "Save" }).first().click(); await p.waitForTimeout(3000);
@@ -138,33 +138,34 @@ const results = [];
   // ---------- RESIDENTES ----------
   await step("Residents: admitir residente na cama nova do quarto S1", async () => {
     await go("/residents");
-    await p.getByRole("button", { name: "Admit resident" }).click();
+    await p.getByRole("button", { name: "Admit Resident" }).click();
+    await dlg().getByLabel("PASS ID").fill("SCN" + Date.now().toString(36));
     await dlg().getByLabel("First name").fill("Scenario");
     await dlg().getByLabel("Surname").fill("Resident");
     await dlg().getByLabel("Date of birth").fill("1985-06-15");
     await dlg().getByLabel("Bed").selectOption({ index: 1 });
-    await dlg().getByRole("button", { name: "Admit resident" }).click(); await p.waitForTimeout(4000);
+    await dlg().getByRole("button", { name: "Admit Resident" }).click(); await p.waitForTimeout(4000);
     return expectDb("select s.status from public.stays s join public.residents r on r.id=s.resident_id where r.first_name='Scenario' and r.last_name='Resident'", (r) => r[0]?.status === "active");
   });
-  await step("Residents: aviso Verbal e Final Written; desativar o FW com motivo", async () => {
+  await step("Residents: Warning e Final Warning; desativar o Final Warning com motivo", async () => {
     await go("/warnings");
-    await p.getByRole("button", { name: "Record Warning" }).click();
+    await p.getByRole("button", { name: "New Warning" }).click();
     await dlg().locator("input").first().fill("Scenario"); await p.waitForTimeout(800);
     await dlg().getByRole("option").first().click().catch(async () => { await dlg().locator("[role=option], li button").first().click(); });
-    await dlg().locator("select").first().selectOption({ label: "Final Written (FW)" }).catch(() => {});
+    await dlg().locator("select").first().selectOption({ label: "Final Warning" }).catch(() => {});
     await dlg().locator("textarea").first().fill("Scenario final warning");
     await dlg().getByRole("button", { name: /Save|Record/ }).last().click(); await p.waitForTimeout(3500);
-    await expectDb("select type, active from public.warnings where note='Scenario final warning'", (r) => r[0]?.type === "final_written" && r[0].active);
-    await p.getByRole("button", { name: "Deactivate FW" }).first().click();
+    await expectDb("select type, active from public.warnings where note='Scenario final warning'", (r) => r[0]?.type === "final_warning" && r[0].active);
+    await p.getByRole("button", { name: "Deactivate Final Warning" }).first().click();
     await dlg().locator("textarea, input").last().fill("Scenario reason");
-    await dlg().getByRole("button", { name: "Deactivate FW" }).click(); await p.waitForTimeout(3000);
+    await dlg().getByRole("button", { name: "Deactivate Final Warning" }).click(); await p.waitForTimeout(3000);
     return expectDb("select active from public.warnings where note='Scenario final warning'", (r) => r[0]?.active === false);
   });
 
   // ---------- OCORRÊNCIAS / SERVIÇOS ----------
   await step("Maintenance: abrir pedido urgente e marcar como resolvido", async () => {
     await go("/maintenance");
-    await p.getByRole("button", { name: "New request" }).click();
+    await p.getByRole("button", { name: "New Maintenance Request" }).click();
     await dlg().getByLabel("Where").fill("Scenario boiler");
     await dlg().getByLabel("What happened").fill("No hot water");
     await dlg().getByRole("button", { name: "Urgent" }).click();
@@ -178,7 +179,7 @@ const results = [];
   await step("Fridge: leitura fora da faixa avisa o Manager e gera notificação", async () => {
     await go("/fridge");
     await p.getByLabel("Temperature (°C)").fill("11");
-    await p.getByRole("button", { name: "Record temperature" }).click(); await p.waitForTimeout(3500);
+    await p.getByRole("button", { name: "New Reading" }).click(); await p.waitForTimeout(3500);
     const t = await toast();
     await expectDb("select count(*)::int n from public.notifications where kind='fridge_out_of_range' and created_at > now() - interval '3 minutes'", (r) => r[0]?.n >= 1);
     return t;
@@ -189,7 +190,7 @@ const results = [];
     await p.locator(".composer").getByRole("button", { name: "Incident / Safety" }).click();
     await p.getByRole("button", { name: /Add colleague/ }).click();
     await p.getByRole("option").first().click();
-    await p.getByRole("button", { name: "Add entry" }).click(); await p.waitForTimeout(4000);
+    await p.getByRole("button", { name: "Save Entry" }).click(); await p.waitForTimeout(4000);
     return expectDb("select (select count(*)::int from public.handover_entry_tags t where t.entry_id=e.id) tags, (select count(*)::int from public.handover_entry_staff c where c.entry_id=e.id) co from public.handover_entries e where body like 'Scenario: fire alarm%'", (r) => r[0]?.tags === 1 && r[0].co === 1);
   });
   await step("Handover: busca em vários dias encontra a anotação", async () => {

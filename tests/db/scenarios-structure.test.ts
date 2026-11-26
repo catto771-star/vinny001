@@ -24,9 +24,9 @@ describe("estrutura removida não recebe uso novo", () => {
     const room = (await db.one<{ id: string }>("select public.add_room($1, 'R1', 'room', 2) as id", [amiens])).id;
     const beds = (await db.query<{ id: string }>("select id from public.beds where room_id = $1 order by number", [room])).rows.map((r) => r.id);
     await db.query("select public.set_bed_active($1, false)", [beds[0]]);
-    expect(await db.error("select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => 'A', p_last_name => 'B')", [amiens, beds[0]])).toMatch(/bed_out_of_service/);
+    expect(await db.error("select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => 'A', p_last_name => 'B')", [amiens, beds[0]])).toMatch(/bed_out_of_service/);
     await db.query("select public.set_room_active($1, false)", [room]);
-    expect(await db.error("select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => 'A', p_last_name => 'B')", [amiens, beds[1]])).toMatch(/bed_out_of_service/);
+    expect(await db.error("select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => 'A', p_last_name => 'B')", [amiens, beds[1]])).toMatch(/bed_out_of_service/);
   });
   it("não transfere residente para cama removida", async () => {
     await db.asSuperuser();
@@ -34,7 +34,7 @@ describe("estrutura removida não recebe uso novo", () => {
     await db.as(admin);
     const room = (await db.one<{ id: string }>("select public.add_room($1, 'R2', 'room', 1) as id", [amiens])).id;
     const target = (await db.one<{ id: string }>("select id from public.beds where room_id = $1", [room])).id;
-    const stay = (await db.one<{ id: string }>("select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => 'Rui', p_last_name => 'Costa') as id", [amiens, bed])).id;
+    const stay = (await db.one<{ id: string }>("select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => 'Rui', p_last_name => 'Costa') as id", [amiens, bed])).id;
     await db.query("select public.set_bed_active($1, false)", [target]);
     expect(await db.error("select public.transfer_resident($1, $2, null)", [stay, target])).toMatch(/bed_out_of_service/);
   });

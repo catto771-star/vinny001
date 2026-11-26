@@ -10,7 +10,9 @@ const tables: Record<string, unknown[]> = {
     { id: "i1", sort_order: 1, category: "Dairy & Chilled", name: "Milk", default_qty: 18, default_action: "buy", tesco_url: "https://www.tesco.ie/shop/en-IE/products/260776455", image_path: "/products/milk.jpg", version: 1 },
     { id: "i2", sort_order: 2, category: "Drinks & Groceries", name: "Salt", default_qty: 1, default_action: "dont_buy", tesco_url: null, image_path: null, version: 1 },
   ],
-  shop_orders: [{ id: "o1", delivery_date: "2026-11-27", notes: null, status: "draft", created_at: "2026-11-24T10:00:00Z" }],
+  shop_orders: [{ id: "o1", delivery_date: "2026-11-27", notes: null, status: "created", created_at: "2026-11-24T10:00:00Z", delivered_at: null, delivered_by: null }],
+  suppliers: [{ id: "sup-tesco" }],
+  food_deliveries: [],
   shop_order_lines: [
     { id: "l1", item_id: "i1", standard_qty: 18, action: "standard", delta: 0, final_qty: 18, unit_price: null },
     { id: "l2", item_id: "i2", standard_qty: 1, action: "dont", delta: 0, final_qty: 0, unit_price: null },
@@ -18,7 +20,7 @@ const tables: Record<string, unknown[]> = {
 };
 function query(result: unknown) {
   const q: Record<string, unknown> = {};
-  for (const m of ["select", "eq", "order", "limit"]) q[m] = () => q;
+  for (const m of ["select", "eq", "neq", "in", "is", "order", "limit"]) q[m] = () => q;
   q.then = (resolve: (v: unknown) => void) => resolve({ data: result, error: null });
   return q;
 }
@@ -68,5 +70,23 @@ describe("Purchases — pedido", () => {
     fireEvent.blur(price);
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("set_shop_line", { p_line: "l1", p_action: "more", p_delta: 5, p_unit_price: 1.2 }));
     expect(screen.getAllByText(/27,60|27\.60/).length).toBeGreaterThan(0);
+  });
+
+  it("status do pedido: Created → Placed → Awaiting Delivery pelo Admin", async () => {
+    wrap();
+    await screen.findByRole("article", { name: "Milk" });
+    expect(screen.getAllByText("Created").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "Mark as placed" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("set_shop_order_status", { p_order: "o1", p_status: "placed" }));
+  });
+
+  it("entrega do Tesco ainda sem vínculo: o Admin escolhe o pedido e vincula", async () => {
+    tables.shop_orders = [{ id: "o1", delivery_date: "2026-11-27", notes: null, status: "awaiting", created_at: "2026-11-24T10:00:00Z", delivered_at: null, delivered_by: null }];
+    tables.food_deliveries = [{ id: "d1", product: "Tesco order", supplier: "Tesco", received_at: "2026-11-27T10:30:00Z", received_by: "s1" }];
+    wrap();
+    const box = await screen.findByRole("region", { name: "Tesco deliveries to link" });
+    fireEvent.click(within(box).getByRole("button", { name: "Link" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("link_delivery_to_order", { p_delivery: "d1", p_order: "o1" }));
+    tables.food_deliveries = [];
   });
 });

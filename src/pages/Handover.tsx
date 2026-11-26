@@ -629,7 +629,8 @@ function Composer({
         <StaffPicker
           people={fillers.map((p) => ({ id: p.id, name: staffName(p) }))}
           author={filledBy}
-          rosteredId={rostered}
+          defaultId={rostered}
+          hintKey={shiftStaff ? "handover.onShift" : "handover.notStartedHint"}
           coAuthors={chosenFiller ? coAuthorIds : []}
           onAuthor={setFilledBy}
           onCoAuthors={setCoAuthorIds}

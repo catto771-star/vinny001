@@ -57,12 +57,12 @@ describe("Configurações do Admin", () => {
 
   it("revisão 14: cria uma tag nova (nome, cor, avisa por padrão)", async () => {
     render(<I18nProvider><MemoryRouter initialEntries={["/settings?tab=handover"]}><Settings /></MemoryRouter></I18nProvider>);
-    fireEvent.click(await screen.findByRole("button", { name: "Add tag" }));
+    fireEvent.click(await screen.findByRole("button", { name: "New Tag" }));
     const dlg = document.querySelector("dialog[open]") as HTMLElement;
     fireEvent.change(within(dlg).getByLabelText("Name"), { target: { value: "Fire drill" } });
     fireEvent.change(within(dlg).getByLabelText("Colour"), { target: { value: "red" } });
     fireEvent.click(within(dlg).getByRole("checkbox", { name: "Notify Admins by default" }));
-    fireEvent.click(within(dlg).getByRole("button", { name: "Add tag" }));
+    fireEvent.click(within(dlg).getByRole("button", { name: "New Tag" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("add_handover_tag", { p_label: "Fire drill", p_color: "red", p_notify: true }));
   });
   it("revisão 14: liga o aviso padrão de uma tag, edita e muda a ordem", async () => {
@@ -80,10 +80,10 @@ describe("Configurações do Admin", () => {
   it("revisão 14: erro do banco (nome repetido) aparece em linguagem clara", async () => {
     rpc.mockImplementation(async (name: string) => (name === "add_handover_tag" ? { data: null, error: { message: "tag_exists" } } : impl(name)));
     render(<I18nProvider><MemoryRouter initialEntries={["/settings?tab=handover"]}><Settings /></MemoryRouter></I18nProvider>);
-    fireEvent.click(await screen.findByRole("button", { name: "Add tag" }));
+    fireEvent.click(await screen.findByRole("button", { name: "New Tag" }));
     const dlg = document.querySelector("dialog[open]") as HTMLElement;
     fireEvent.change(within(dlg).getByLabelText("Name"), { target: { value: "Delivery" } });
-    fireEvent.click(within(dlg).getByRole("button", { name: "Add tag" }));
+    fireEvent.click(within(dlg).getByRole("button", { name: "New Tag" }));
     expect(await screen.findByText("A tag with this name already exists.")).toBeTruthy();
     rpc.mockImplementation(impl);
   });

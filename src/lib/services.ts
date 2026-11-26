@@ -47,6 +47,14 @@ export function notificationText(
       return t("notifications.vacation_conflict", { name: p.name, conflicts: p.conflicts });
     case "shift_hours_review":
       return t("notifications.shift_hours_review", { name: p.name, lodge: lodgeName(n.lodge_id) });
+    case "delivery_received":
+      return t("notifications.delivery_received", { lodge: lodgeName(n.lodge_id), supplier: String(p.supplier ?? ""), who: String(p.received_by ?? "—") });
+    case "delivery_expiring":
+      return t("notifications.delivery_expiring", { lodge: lodgeName(n.lodge_id), product: String(p.product ?? ""), supplier: String(p.supplier ?? ""), date: String(p.expiry ?? "").split("-").reverse().join("/") });
+    case "handover_tag":
+      return t("notifications.handover_tag", { lodge: lodgeName(n.lodge_id), excerpt: String(p.excerpt ?? "") });
+    case "warning_recorded":
+      return t("notifications.warning_recorded", { lodge: lodgeName(n.lodge_id), type: t(p.type === "final_warning" ? "warnings.t_final_warning" : "warnings.t_warning"), name: String(p.name ?? "") });
     default:
       return t("notifications.unknown");
   }

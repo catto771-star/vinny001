@@ -41,7 +41,7 @@ const shot = async (p, name, path, o = {}) => {
   await shot(a, "01-home", "/");
   await shot(a, "02-daily-tasks", "/tasks");
   await shot(a, "03-residents", "/residents");
-  await shot(a, "03b-admit", "/residents", { act: async () => { await a.getByRole("button", { name: "Admit resident" }).click(); await a.waitForTimeout(900); } });
+  await shot(a, "03b-admit", "/residents", { act: async () => { await a.getByRole("button", { name: "Admit Resident" }).click(); await a.waitForTimeout(900); } });
   await dlgClose();
   await shot(a, "04-resident-profile", "/residents", { act: async () => { await a.locator("table a, .list a").first().click(); await a.waitForTimeout(3000); } });
   await shot(a, "05-room-check", "/sheet");
@@ -54,7 +54,7 @@ const shot = async (p, name, path, o = {}) => {
   await shot(a, "11b-handover-note", "/handover", { act: async () => { await a.getByRole("button", { name: /New note|Add note|New entry/ }).first().click().catch(() => {}); await a.waitForTimeout(900); } });
   await dlgClose();
   await shot(a, "12-maintenance", "/maintenance");
-  await shot(a, "12b-maintenance-new", "/maintenance", { act: async () => { await a.getByRole("button", { name: "New request" }).click(); await a.waitForTimeout(900); } });
+  await shot(a, "12b-maintenance-new", "/maintenance", { act: async () => { await a.getByRole("button", { name: "New Maintenance Request" }).click(); await a.waitForTimeout(900); } });
   await dlgClose();
   await shot(a, "13-fridge", "/fridge");
   await shot(a, "14-deliveries", "/deliveries");
@@ -67,7 +67,7 @@ const shot = async (p, name, path, o = {}) => {
   await shot(a, "22-reports", "/reports");
   await shot(a, "23-people", "/users");
   await shot(a, "24-audit", "/audit");
-  await shot(a, "25-structure", "/structure");
+  await shot(a, "25-structure", "/settings?tab=registers");
   await shot(a, "26-settings", "/settings");
   for (const [n, label] of [["26b-settings-handover", /Handover/], ["26c-settings-system", /System/], ["26d-settings-notifications", /Notifications/]]) {
     await shot(a, n, "/settings", { act: async () => { await a.getByRole("tab", { name: label }).first().click().catch(async () => { await a.getByRole("button", { name: label }).first().click(); }); await a.waitForTimeout(1200); } });

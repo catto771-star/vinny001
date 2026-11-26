@@ -86,7 +86,7 @@ async function admitIn(lodge: string, code: "AMIENS" | "CONNOLLY", name: string)
   await db.as(manager);
   const stay = (
     await db.one<{ id: string }>(
-      "select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => $3, p_last_name => 'Test', p_admitted_at => now() - interval '3 days') as id",
+      "select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => $3, p_last_name => 'Test', p_admitted_at => now() - interval '3 days') as id",
       [lodge, bed, name],
     )
   ).id;
@@ -134,11 +134,11 @@ describe("Food Delivery sem temperatura (escopo 3)", () => {
   it("entrega de mercado/itens secos grava com a temperatura em branco; com temperatura continua igual", async () => {
     await db.as(officeA);
     const id = (await db.one<{ id: string }>(
-      "select public.record_food_delivery($1, 'Weekly shopping', 'Tesco', 'n/a', (now() + interval '30 days')::date, null, null) as id", [amiens])).id;
+      "select public.record_food_delivery($1, 'Weekly shopping', (select id from public.suppliers where name = 'Tesco'), null, (now() + interval '30 days')::date, null, null) as id", [amiens])).id;
     expect((await db.one("select temperature from public.food_deliveries where id = $1", [id])).temperature).toBeNull();
-    expect(await db.error("select public.record_food_delivery($1, 'Chicken', 'Musgrave', 'L1', (now() + interval '3 days')::date, 3.5, null)", [amiens])).toBeNull();
-    expect(await db.error("select public.record_food_delivery($1, '', 'Tesco', 'n/a', (now() + interval '3 days')::date, null, null)", [amiens])).toMatch(/fields_required/);
-    expect(await db.error("select public.record_food_delivery($1, 'Ice', 'Tesco', 'n/a', (now() + interval '3 days')::date, 123456, null)", [amiens])).toMatch(/invalid_temperature/);
+    expect(await db.error("select public.record_food_delivery($1, 'Chicken', (select id from public.suppliers where name = 'Ripley''s'), 'L1', (now() + interval '3 days')::date, 3.5, null)", [amiens])).toBeNull();
+    expect(await db.error("select public.record_food_delivery($1, '', (select id from public.suppliers where name = 'Tesco'), null, (now() + interval '3 days')::date, null, null)", [amiens])).toMatch(/fields_required/);
+    expect(await db.error("select public.record_food_delivery($1, 'Ice', (select id from public.suppliers where name = 'Tesco'), null, (now() + interval '3 days')::date, 123456, null)", [amiens])).toMatch(/invalid_temperature/);
   });
 });
 
@@ -187,6 +187,6 @@ describe("Baixa automática da cama (escopo 3)", () => {
     await db.asSuperuser();
     expect((await db.one("select stay_id from public.bed_occupancy where bed_id = $1", [bed])).stay_id).toBeNull();
     await db.as(manager);
-    expect(await db.error("select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => 'Next')", [amiens, bed])).toBeNull();
+    expect(await db.error("select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => 'Next')", [amiens, bed])).toBeNull();
   });
 });

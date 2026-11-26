@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLodgeState } from "@/lib/activeLodge";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthProvider";
 import { useI18n } from "@/i18n";
@@ -17,9 +18,9 @@ import { Skeleton } from "@/components/Skeleton";
 /** Mapa de camas (s.11): cada cama ocupada, livre, fora de uso ou com Out pendente. */
 export function BedMap() {
   const { t, locale } = useI18n();
-  const { lodges, canWriteLodge, isManagement, post } = useAuth();
+  const { canWriteLodge, isManagement } = useAuth();
   const navigate = useNavigate();
-  const [lodgeId, setLodgeId] = useState(post?.lodge_id ?? lodges[0]?.id ?? "");
+  const [lodgeId, setLodgeId] = useLodgeState();
   const { beds, reload, loading } = useOccupancy(lodgeId);
   const [admitBed, setAdmitBed] = useState<BedOccupancy | null>(null);
   const [manageBed, setManageBed] = useState<BedOccupancy | null>(null);
@@ -77,7 +78,7 @@ export function BedMap() {
                       <span className="bed-body">
                         {b.resident_id ? (
                           <>
-                            <strong>{residentName(b)}</strong>
+                            <strong title={residentName(b)}>{residentName(b)}</strong>
                             <small>
                               {b.final_warning && <span className="tag tag-danger fw-tag fw-inline">FW</span>}
                               {formatCivilDate(b.date_of_birth, locale)}

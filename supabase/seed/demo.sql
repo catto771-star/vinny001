@@ -145,7 +145,7 @@ declare
     'Resident received a parcel — kept at reception and handed over.',
     'Resident seemed upset after a phone call — offered support, calm now.'];
   v_places text[] := array['Reception', 'Kitchen', 'Garden', 'Corridor', 'Smoking area', 'Laundry room', 'Front door'];
-  v_suppliers text[] := array['Musgrave', 'Pallas Foods', 'Brakes Ireland'];
+  v_suppliers text[] := array['Ripley''s', 'Tesco', 'Ripley''s'];
   v_foods text[] := array['Chicken breast', 'Minced beef', 'Salmon fillets', 'Vegetable mix', 'Pork sausages', 'Chicken curry (ready meal)', 'Lasagne trays'];
   v_late text[] := array['other_occurrence', 'system_failure', 'forgot', 'info_received_later'];
   v_counts jsonb;
@@ -720,18 +720,20 @@ begin
     end if;
   end loop;
 
+  update public.food_deliveries d set supplier_id = s.id from public.suppliers s where lower(s.name) = lower(d.supplier) and d.supplier_id is null;
+
   -- ---------------------------------------------------------------------------
   -- Warnings (com a anotação no Handover)
   -- ---------------------------------------------------------------------------
   for v_rec in select * from (values
-    ('A', 3, 'verbal', 'Smoking in the room', null::text),
-    ('A', 13, 'written', 'Second time smoking indoors', null),
-    ('A', 20, 'verbal', 'Noise after 23:00', null),
-    ('A', 28, 'verbal', 'Guest in the room after hours', null),
-    ('A', 2, 'final_written', 'Threatened another resident', 'fw_deactivated'),
-    ('C', 6, 'written', 'Aggressive language with staff', null),
-    ('C', 16, 'final_written', 'Repeated aggressive behaviour — last warning', 'final_warning'),
-    ('C', 25, 'verbal', 'Left the kitchen dirty', null)
+    ('A', 3, 'warning', 'Smoking in the room', null::text),
+    ('A', 13, 'warning', 'Second time smoking indoors', null),
+    ('A', 20, 'warning', 'Noise after 23:00', null),
+    ('A', 28, 'warning', 'Guest in the room after hours', null),
+    ('A', 2, 'final_warning', 'Threatened another resident', 'fw_deactivated'),
+    ('C', 6, 'warning', 'Aggressive language with staff', null),
+    ('C', 16, 'final_warning', 'Repeated aggressive behaviour — last warning', 'final_warning'),
+    ('C', 25, 'warning', 'Left the kitchen dirty', null)
   ) w(lodge, off, type, note, role) loop
     v_lodge := case v_rec.lodge when 'A' then v_amiens else v_connolly end;
     v_at := public.slot_instant(v_first + v_rec.off, '20:00') + demo.minutes(0, 120);
@@ -740,17 +742,17 @@ begin
        or s.resident_id in (select resident_id from _special where role = v_rec.role)
     order by random() limit 1;
     continue when v_rec2.id is null;
-    v_staff := case when v_rec.type = 'final_written' then v_mgr else demo.on_duty(v_lodge, v_at) end;
+    v_staff := case when v_rec.type = 'final_warning' then v_mgr else demo.on_duty(v_lodge, v_at) end;
     insert into public.handover_entries (lodge_id, kind, body, occurred_at, operational_day, author_id, created_at)
     values (v_lodge, 'warning',
-            case v_rec.type when 'verbal' then 'Verbal Warning' when 'written' then 'Written Warning' else 'Final Written Warning (FW)' end || ': ' || v_rec.note,
+            case v_rec.type when 'warning' then 'Warning' else 'Final Warning' end || ': ' || v_rec.note,
             v_at, public.operational_day(v_at), v_staff, v_at)
     returning id into v_entry;
     insert into public.handover_mentions (entry_id, resident_id) values (v_entry, v_rec2.resident_id);
     insert into public.warnings (resident_id, stay_id, lodge_id, type, note, handover_entry_id, issued_by, issued_at,
                                  active, deactivated_by, deactivated_at, deactivation_reason)
     values (v_rec2.resident_id, v_rec2.id, v_lodge, v_rec.type, v_rec.note, v_entry, v_staff, v_at,
-            v_rec.role is distinct from 'fw_deactivated' or v_rec.type <> 'final_written',
+            v_rec.role is distinct from 'fw_deactivated' or v_rec.type <> 'final_warning',
             case when v_rec.role = 'fw_deactivated' then v_mgr end,
             case when v_rec.role = 'fw_deactivated' then public.slot_instant(v_first + 19, '11:00') end,
             case when v_rec.role = 'fw_deactivated' then 'Behaviour improved — agreed at the review meeting' end);

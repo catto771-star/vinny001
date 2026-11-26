@@ -53,7 +53,7 @@ describe("3. admit_resident — admitir residente numa cama livre", () => {
     await db.as(porter);
     await db.query("select public.assume_post('office', $1)", [amiens]);
     const stay = await db.one<{ id: string }>(
-      "select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => 'Ana', p_last_name => 'Teste') as id",
+      "select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => 'Ana', p_last_name => 'Teste') as id",
       [amiens, bed],
     );
 
@@ -72,7 +72,7 @@ describe("4. decide_out / effect_out — fluxo do Out", () => {
     await db.as(porter);
     await db.query("select public.assume_post('office', $1)", [amiens]);
     const stay = await db.one<{ id: string }>(
-      "select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => 'Bruno') as id",
+      "select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => 'Bruno') as id",
       [amiens, bed],
     );
 

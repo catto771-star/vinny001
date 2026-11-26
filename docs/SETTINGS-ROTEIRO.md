@@ -27,7 +27,7 @@ registros antigos. Regra que protege residentes ou contas, ou que a lei exige, f
 8. **Resumo diário por e-mail para o Manager** (depende de provedor de e-mail/SMTP; hoje inexistente).
 
 ## O que NÃO virar configuração
-- Verificação em duas etapas e tamanho mínimo da senha (segurança); quem pode ver o quê entre casas (isolamento); tipos de Warning e a regra do Final Written
+- Verificação em duas etapas e tamanho mínimo da senha (segurança); quem pode ver o quê entre casas (isolamento); tipos de Warning e a regra do Final Warning
   (regra de negócio e jurídica); numeração de camas e a regra "uma estadia por cama"; qualquer coisa que reescreva registros do passado.
 
 ## Primeiro lote entregue agora

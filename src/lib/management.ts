@@ -45,7 +45,7 @@ export function defaultTimes(fn: RotaFunction, night: boolean): { start: string;
 export const DETAIL_METRICS = new Set([
   "occupancy.admissions", "occupancy.outs", "occupancy.transfers_in", "occupancy.transfers_out",
   "maintenance.opened", "maintenance.resolved", "maintenance.overdue", "maintenance.on_hold", "maintenance.in_progress",
-  "no_shows.total", "no_shows.undone", "warnings.verbal", "warnings.written", "warnings.final_written",
+  "no_shows.total", "no_shows.undone", "warnings.warning", "warnings.final_warning",
   "temperature.alerts", "dinner.served", "laundry.uses", "late_entries.total",
 ]);
 
@@ -67,7 +67,7 @@ const METRIC_ORDER: Record<string, string[]> = {
   occupancy: ["beds_total", "occupied", "protected_by_absence", "average_occupancy", "admissions", "outs", "transfers_in", "transfers_out"],
   maintenance: ["opened", "in_progress", "on_hold", "resolved", "reopened", "overdue", "average_hours_to_resolve"],
   no_shows: ["total", "residents_1", "residents_2", "residents_3_plus", "beds_cancelled", "undone"],
-  warnings: ["verbal", "written", "final_written"],
+  warnings: ["warning", "final_warning"],
   dinner: ["services", "served"],
   hours: ["planned_minutes", "effective_minutes"],
   tasks: ["done", "not_done"],

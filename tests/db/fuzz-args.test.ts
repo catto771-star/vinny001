@@ -55,7 +55,7 @@ function value(name: string, type: string): unknown {
     if (/priority/.test(n)) return pick([null, "urgent", "normal", "low", "nope"]);
     if (/status/.test(n)) return pick([null, "open", "in_progress", "on_hold", "resolved", "reopened", "nope"]);
     if (/^shift$/.test(n)) return pick([null, "day", "night", "nope"]);
-    if (/^type$/.test(n)) return pick([null, "verbal", "written", "final_written", "nope"]);
+    if (/^type$/.test(n)) return pick([null, "warning", "final_warning", "verbal", "nope"]);
     if (/^kind$/.test(n)) return pick([null, "template", "extra", "nope"]);
     if (/metric/.test(n)) return pick([null, "occupancy.admissions", "maintenance.opened", "dinner.served", "nope.nope", "", "x"]);
     return pick(TEXTS);

@@ -16,7 +16,7 @@ function Harness({ required = false, rostered = "p" }: { required?: boolean; ros
   const [co, setCo] = useState<string[]>([]);
   return (
     <I18nProvider>
-      <StaffPicker people={PEOPLE} author={author} rosteredId={rostered} coAuthors={co} onAuthor={setAuthor} onCoAuthors={setCo} required={required} />
+      <StaffPicker people={PEOPLE} author={author} defaultId={rostered} hintKey="handover.onShift" coAuthors={co} onAuthor={setAuthor} onCoAuthors={setCo} required={required} />
       <output data-testid="state">{JSON.stringify({ author, co })}</output>
     </I18nProvider>
   );

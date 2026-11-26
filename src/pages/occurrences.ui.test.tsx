@@ -96,7 +96,7 @@ describe("Handover", () => {
     fireEvent.change(box, { target: { value: "Conversei com @Se" } });
     const option = await screen.findByText("@Seán Byrne");
     fireEvent.click(option);
-    fireEvent.click(screen.getByRole("button", { name: "Add entry" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save Entry" }));
     await waitFor(() =>
       expect(rpc).toHaveBeenCalledWith("add_handover_note", expect.objectContaining({ p_lodge: "a", p_mentions: [{ resident_id: "res1" }], p_late_reason: null })),
     );
@@ -119,7 +119,7 @@ describe("Handover", () => {
     fireEvent.click(authorBtn);
     expect(within(screen.getByRole("listbox")).queryByRole("option", { name: /Amiens Reception/ })).toBeNull();
     fireEvent.keyDown(screen.getByLabelText("Search colleague"), { key: "Escape" });
-    fireEvent.click(screen.getByRole("button", { name: "Add entry" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save Entry" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("add_handover_note", expect.objectContaining({ p_filled_by: "pedro" })));
     expect(rpc.mock.calls.find((c) => c[0] === "add_handover_note")![1]).not.toHaveProperty("p_co_authors");
     fireEvent.click(screen.getByRole("button", { name: /Change author/ }));
@@ -128,7 +128,7 @@ describe("Handover", () => {
     fireEvent.click(screen.getByRole("button", { name: /Add colleague/ }));
     fireEvent.click(within(screen.getByRole("listbox")).getByRole("option", { name: /Pedro Almeida/ }));
     fireEvent.change(box, { target: { value: "Covered the desk" } });
-    fireEvent.click(screen.getByRole("button", { name: "Add entry" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save Entry" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("add_handover_note", expect.objectContaining({ p_body: "Covered the desk", p_filled_by: "ana", p_co_authors: ["pedro"] })));
   });
 
@@ -148,7 +148,7 @@ describe("Handover", () => {
     wrap(<Handover />);
     expect(await screen.findByText("Shift of Pedro Almeida")).toBeTruthy();
     await waitFor(() => expect(screen.getByRole("button", { name: /Change author/ }).textContent).toContain("Pedro Almeida"));
-    fireEvent.click(screen.getByRole("button", { name: "Close shift / hand over" }));
+    fireEvent.click(screen.getByRole("button", { name: "Hand Over Shift" }));
     const dialog = await screen.findByRole("dialog");
     fireEvent.change(within(dialog).getByLabelText("Hand over to"), { target: { value: "ana" } });
     // revisão 5: o horário da passagem é informado (aqui, 19:10 de 24/11 em Dublin = UTC no inverno)
@@ -181,7 +181,7 @@ describe("Handover", () => {
     const group = await screen.findByRole("group", { name: "Tags" });
     expect(within(group).queryByRole("button", { name: "Delivery" })).toBeNull();
     fireEvent.click(within(group).getByRole("button", { name: "Incident / Safety" }));
-    fireEvent.click(screen.getByRole("button", { name: "Add entry" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save Entry" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("add_handover_note", expect.objectContaining({ p_body: "Fight in room 4", p_tags: ["g1"] })));
   });
 
@@ -205,7 +205,7 @@ describe("Handover", () => {
     const input = document.querySelector('.composer input[type="datetime-local"]') as HTMLInputElement;
     fireEvent.change(input, { target: { value: "2026-01-10T10:00" } });
     expect(await screen.findByText("Occurred in a finished shift. Select a reason.")).toBeTruthy();
-    const post = screen.getByRole("button", { name: "Add entry" }) as HTMLButtonElement;
+    const post = screen.getByRole("button", { name: "Save Entry" }) as HTMLButtonElement;
     expect(post.disabled).toBe(true);
     fireEvent.change(screen.getByLabelText("Reason for late entry"), { target: { value: "forgot" } });
     expect(post.disabled).toBe(false);
@@ -330,8 +330,8 @@ describe("Revisão 8: filtros em Maintenance e Warnings", () => {
       id, resident_id: `r-${id}`, type, note: null, issued_by: "me", issued_at: "2026-11-12T10:00:00Z", active, deactivation_reason: null,
       residents: { first_name: name, last_name: "Test" },
     });
-    tables.warnings = [w("1", "verbal", true, "Alice"), w("2", "final_written", true, "Bruno"), w("3", "final_written", false, "Carla")];
-    render(<I18nProvider><MemoryRouter initialEntries={["/warnings?type=final_written&status=active"]}><Warnings /></MemoryRouter></I18nProvider>);
+    tables.warnings = [w("1", "warning", true, "Alice"), w("2", "final_warning", true, "Bruno"), w("3", "final_warning", false, "Carla")];
+    render(<I18nProvider><MemoryRouter initialEntries={["/warnings?type=final_warning&status=active"]}><Warnings /></MemoryRouter></I18nProvider>);
     expect(await screen.findByText("Bruno Test")).toBeTruthy();
     expect(screen.queryByText("Alice Test")).toBeNull();
     expect(screen.queryByText("Carla Test")).toBeNull();

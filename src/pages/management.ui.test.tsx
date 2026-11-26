@@ -59,7 +59,7 @@ describe("Rota", () => {
     wrap(<Rota />);
     expect(await screen.findByText("You see the published Roster.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Publish week/ })).toBeNull();
-    expect(screen.queryAllByRole("button", { name: /Add shift/ })).toHaveLength(0);
+    expect(screen.queryAllByRole("button", { name: /New Shift/ })).toHaveLength(0);
     expect(rpc).not.toHaveBeenCalledWith("coverage_gaps", expect.anything());
   });
 
@@ -68,7 +68,7 @@ describe("Rota", () => {
     tables.staff = [{ id: "s1", full_name: "Ana Porter", display_name: null, role: "porter" }];
     wrap(<Rota />);
     expect(await screen.findByText(/not covered/)).toBeTruthy();
-    fireEvent.click(screen.getAllByRole("button", { name: /Add shift/ })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: /New Shift/ })[0]);
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: /Night 19–07/ }));
     fireEvent.change(within(dialog).getByLabelText("Person"), { target: { value: "s1" } });
@@ -104,7 +104,7 @@ describe("Rota", () => {
   it("Float não tem Lodge e só aceita cargos permitidos", async () => {
     tables.staff = [{ id: "s1", full_name: "Ana Porter", display_name: null, role: "porter" }, { id: "s2", full_name: "Cleo Cleaner", display_name: null, role: "cleaner" }];
     wrap(<Rota />);
-    fireEvent.click((await screen.findAllByRole("button", { name: /Add shift/ }))[0]);
+    fireEvent.click((await screen.findAllByRole("button", { name: /New Shift/ }))[0]);
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: "Float" }));
     expect(within(dialog).queryByLabelText("Lodge")).toBeNull();
@@ -200,7 +200,7 @@ describe("Férias", () => {
     tables.staff = [{ id: "s1", full_name: "Ana Porter", display_name: null, role: "porter" }];
     rpcResult.register_vacation = { id: "v1", conflicts: 2 };
     wrap(<Vacations />);
-    fireEvent.click(await screen.findByRole("button", { name: "Register holidays" }));
+    fireEvent.click(await screen.findByRole("button", { name: "New Holiday" }));
     const dialog = await screen.findByRole("dialog");
     fireEvent.change(within(dialog).getByLabelText("Person"), { target: { value: "s1" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
@@ -219,7 +219,7 @@ describe("Holidays — calendário anual (Beta)", () => {
     const day = await screen.findByRole("button", { name: /03\/03\/2026 · Under review/ });
     expect((day as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByRole("button", { name: /24\/12\/2026 · Locked dates/ })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Register holidays" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "New Holiday" })).toBeNull();
     cleanup();
     management = true;
     rpcResult.holiday_calendar = [{ day: "2026-03-03", status: "under_review", people: { names: [{ name: "Ana Porter", status: "under_review", vacation_id: "v9" }], lock_note: null } }];

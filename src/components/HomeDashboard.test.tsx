@@ -31,7 +31,7 @@ describe("Home — painéis", () => {
     expect(screen.getByText("3 past the deadline")).toBeTruthy();
     // revisão 4: ocupação e movimento em gráficos separados (não se sobrepõem)
     expect(screen.getByRole("img", { name: "Occupancy · last 14 days" })).toBeTruthy();
-    expect(screen.getByRole("img", { name: "Admissions and Outs · last 14 days" }).querySelectorAll(".barchart-col")).toHaveLength(14);
+    expect(screen.getByRole("img", { name: "Admissions and cancelled beds · last 14 days" }).querySelectorAll(".barchart-col")).toHaveLength(14);
     expect(screen.getByText("28–31")).toBeTruthy();
     expect(screen.getByText("1 No Show(s) in the period.")).toBeTruthy();
   });

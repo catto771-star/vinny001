@@ -129,6 +129,7 @@ function SystemForms({ p, onSaved }: { p: Params; onSaved: () => Promise<void> }
   const [correction, setCorrection] = useState(str(p["records.correction_window_hours"]));
   const [noShow, setNoShow] = useState(str(p["presence.no_show_monthly_alert"]));
   const [idle, setIdle] = useState(str(p["security.session_idle_minutes"]));
+  const [expiryDays, setExpiryDays] = useState(str(p["delivery.expiry_alert_days"], "3"));
   const after = (fn: () => Promise<void>) => async () => { await fn(); await onSaved(); };
 
   return (
@@ -150,6 +151,10 @@ function SystemForms({ p, onSaved }: { p: Params; onSaved: () => Promise<void> }
       <Section id="s-fridges" title="settings.sFridges" hint="settings.sFridgesHint" onSave={after(() => setParam("fridge.range_celsius", { min: num(fMin), max: num(fMax) }))}>
         <NumberField label="settings.fridgeMin" value={fMin} onChange={setFMin} step={0.5} />
         <NumberField label="settings.fridgeMax" value={fMax} onChange={setFMax} step={0.5} />
+      </Section>
+
+      <Section id="s-deliveries" title="settings.sDeliveries" hint="settings.sDeliveriesHint" onSave={after(() => setParam("delivery.expiry_alert_days", num(expiryDays)))}>
+        <NumberField label="settings.expiryDays" value={expiryDays} onChange={setExpiryDays} />
       </Section>
 
       <Section id="s-maint" title="settings.sMaintenance" hint="settings.sMaintenanceHint"

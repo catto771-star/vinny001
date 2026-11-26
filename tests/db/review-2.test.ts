@@ -101,11 +101,11 @@ describe("Correção: Final Written Warning duplicada (achada pela simulação e
     const amiens = await db.lodgeId("AMIENS");
     const [bed] = await db.freeBeds("AMIENS");
     await db.as(admin);
-    const stay = (await db.one<{ id: string }>("select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => 'Rui') as id", [amiens, bed])).id;
-    const fw = (await db.one<{ id: string }>("select public.record_warning($1, 'final_written', 'Fight') as id", [stay])).id;
-    expect(await db.error("select public.record_warning($1, 'final_written', 'Again')", [stay])).toMatch(/final_warning_active/);
+    const stay = (await db.one<{ id: string }>("select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => 'Rui') as id", [amiens, bed])).id;
+    const fw = (await db.one<{ id: string }>("select public.record_warning($1, 'final_warning', 'Fight') as id", [stay])).id;
+    expect(await db.error("select public.record_warning($1, 'final_warning', 'Again')", [stay])).toMatch(/final_warning_active/);
     await db.query("select public.deactivate_final_warning($1, 'Reviewed')", [fw]);
-    expect(await db.error("select public.record_warning($1, 'final_written', 'New one')", [stay])).toBeNull();
+    expect(await db.error("select public.record_warning($1, 'final_warning', 'New one')", [stay])).toBeNull();
   });
 });
 
@@ -197,7 +197,7 @@ describe("Home com painéis (item 11)", () => {
     const amiens = await db.lodgeId("AMIENS");
     const [bed] = await db.freeBeds("AMIENS");
     await db.as(admin);
-    await db.query("select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => 'Nova', p_admitted_at => now() - interval '2 days')", [amiens, bed]);
+    await db.query("select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => 'Nova', p_admitted_at => now() - interval '2 days')", [amiens, bed]);
     await db.query("select public.create_maintenance($1, 'Kitchen', 'Tap', 'urgent', gen_random_uuid())", [amiens]);
     await db.as(station);
     const d = (await db.one("select public.home_dashboard() as d")).d;

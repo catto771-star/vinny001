@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigationType } from "react-router-do
 import { transitionKind, type TransitionKind } from "@/lib/transition";
 import {
   BedDouble, Settings2, ListChecks, ClipboardCheck, Eye, History, House, LayoutGrid, NotebookPen, Plane, ScrollText,
-  Bell, Building2, CalendarDays, ChartColumn, ChevronDown, ShieldAlert, ShoppingCart, Timer, TreePalm, Shirt, Thermometer, Truck, UserX, Users, UtensilsCrossed, Wrench,
+  Bell, CalendarDays, ChartColumn, ChevronDown, ShieldAlert, ShoppingCart, Timer, TreePalm, Shirt, Thermometer, Truck, UserX, Users, UtensilsCrossed, Wrench,
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthProvider";
@@ -69,7 +69,6 @@ export const GROUPS: Group[] = [
       { to: "/vacations", label: "nav.vacations", icon: TreePalm },
       { to: "/reports", label: "nav.reports", icon: ChartColumn, managementOnly: true },
       { to: "/users", label: "nav.users", icon: ScrollText, managementOnly: true },
-      { to: "/structure", label: "nav.structure", icon: Building2, managementOnly: true },
       { to: "/audit", label: "nav.audit", icon: History, managementOnly: true },
       { to: "/settings", label: "nav.settings", icon: Settings2 },
     ],

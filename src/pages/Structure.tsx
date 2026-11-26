@@ -12,19 +12,48 @@ import { Notice } from "@/components/Notice";
 import { Skeleton } from "@/components/Skeleton";
 import { Tabs } from "@/components/Tabs";
 import { useToast } from "@/components/Toast";
+import { useSuppliers, type Supplier } from "./Deliveries";
 
 type Bed = { id: string; number: number; active: boolean; status: "in_use" | "out_of_service" };
 type Room = { id: string; code: string; kind: "room" | "apartment"; active: boolean; sort_order: number; beds: Bed[] };
 type Fridge = { id: string; code: string; name: string; active: boolean };
 type Machine = { id: string; code: string; label: string; kind: "wash" | "dry"; active: boolean };
-type Tab = "rooms" | "fridges" | "laundry" | "houses";
+type Tab = "rooms" | "fridges" | "laundry" | "suppliers" | "houses";
+const TABS: Tab[] = ["rooms", "fridges", "laundry", "suppliers", "houses"];
 
-/** Estrutura (Admin): quartos e camas, geladeiras, máquinas de lavar e dados das casas. "Remover" desativa; o histórico fica. */
-export function Structure() {
+/**
+ * Cadastros (Admin): quartos e camas, geladeiras, máquinas, fornecedores e dados das casas.
+ * "Remover" desativa; o histórico fica. `embedded`: aparece em Settings > Registers (sub-aba na chave `reg`).
+ */
+export function Structure({ embedded = false }: { embedded?: boolean }) {
   const { t } = useI18n();
   const [params, setParams] = useSearchParams();
-  const tab = (["rooms", "fridges", "laundry", "houses"].includes(params.get("tab") ?? "") ? params.get("tab") : "rooms") as Tab;
+  const key = embedded ? "reg" : "tab";
+  const raw = params.get(key) ?? "";
+  const tab = (TABS.includes(raw as Tab) ? raw : "rooms") as Tab;
   const [lodgeId, setLodgeId] = useLodgeState();
+  const change = (v: string) => {
+    const next = new URLSearchParams(params);
+    if (v === "rooms") next.delete(key); else next.set(key, v);
+    setParams(next, { replace: true });
+  };
+  const body = (
+    <>
+      <Tabs label={t("structure.title")} value={tab} onChange={change}
+        items={[
+          { value: "rooms", label: t("structure.tabRooms") }, { value: "fridges", label: t("structure.tabFridges") },
+          { value: "laundry", label: t("structure.tabLaundry") }, { value: "suppliers", label: t("structure.tabSuppliers") },
+          { value: "houses", label: t("structure.tabHouses") },
+        ]} />
+      {tab !== "houses" && tab !== "suppliers" && embedded && <div className="toolbar"><LodgeTabs value={lodgeId} onChange={setLodgeId} /></div>}
+      {tab === "rooms" && <Rooms lodgeId={lodgeId} />}
+      {tab === "fridges" && <Fridges lodgeId={lodgeId} />}
+      {tab === "laundry" && <Laundry lodgeId={lodgeId} />}
+      {tab === "suppliers" && <Suppliers />}
+      {tab === "houses" && <Houses />}
+    </>
+  );
+  if (embedded) return <div className="registers">{body}</div>;
   return (
     <section className="page">
       <header className="page-header">
@@ -32,17 +61,9 @@ export function Structure() {
           <span className="eyebrow">{t("structure.eyebrow")}</span>
           <h1>{t("structure.title")}</h1>
         </div>
-        {tab !== "houses" && <LodgeTabs value={lodgeId} onChange={setLodgeId} />}
+        {tab !== "houses" && tab !== "suppliers" && <LodgeTabs value={lodgeId} onChange={setLodgeId} />}
       </header>
-      <Tabs label={t("structure.title")} value={tab} onChange={(v) => setParams(v === "rooms" ? {} : { tab: v }, { replace: true })}
-        items={[
-          { value: "rooms", label: t("structure.tabRooms") }, { value: "fridges", label: t("structure.tabFridges") },
-          { value: "laundry", label: t("structure.tabLaundry") }, { value: "houses", label: t("structure.tabHouses") },
-        ]} />
-      {tab === "rooms" && <Rooms lodgeId={lodgeId} />}
-      {tab === "fridges" && <Fridges lodgeId={lodgeId} />}
-      {tab === "laundry" && <Laundry lodgeId={lodgeId} />}
-      {tab === "houses" && <Houses />}
+      {body}
     </section>
   );
 }
@@ -337,5 +358,62 @@ function HouseForm({ lodge }: { lodge: { id: string; name: string; short_name: s
       <Notice kind="error">{error}</Notice>
       <button type="button" className="primary" onClick={() => void save()}>{t("app.save")}</button>
     </article>
+  );
+}
+
+
+function Suppliers() {
+  const { t } = useI18n();
+  const { suppliers, reload } = useSuppliers(false);
+  const [dialog, setDialog] = useState<null | "add" | Supplier>(null);
+  const { run, error } = useAction(reload);
+  if (!suppliers) return <div className="card"><Skeleton rows={3} label={t("app.loading")} /></div>;
+  const active = suppliers.filter((s) => s.active);
+  const gone = suppliers.filter((s) => !s.active);
+  const flags = (s: Supplier) => [s.require_batch && t("suppliers.fBatch"), s.require_best_before && t("suppliers.fBestBefore"), s.require_temperature && t("suppliers.fTemperature"), s.links_order && t("suppliers.fLinksOrder")].filter(Boolean) as string[];
+  const save = (s: Supplier | null, f: SupplierForm) => (s
+    ? run("update_supplier", { p_id: s.id, p_name: f.name, p_batch: f.batch, p_best_before: f.bestBefore, p_temperature: f.temperature, p_links_order: f.linksOrder, p_active: s.active }, "structure.saved")
+    : run("add_supplier", { p_name: f.name, p_batch: f.batch, p_best_before: f.bestBefore, p_temperature: f.temperature, p_links_order: f.linksOrder }, "structure.saved"));
+  return (
+    <>
+      <div className="toolbar"><span className="muted">{t("suppliers.hint")}</span><button type="button" className="primary" onClick={() => setDialog("add")}><Plus size={16} aria-hidden="true" /> {t("suppliers.add")}</button></div>
+      <Notice kind="error">{error}</Notice>
+      <ul className="item-list">
+        {active.map((s) => (
+          <li key={s.id} className="card">
+            <span className="supplier-main"><strong>{s.name}</strong> {flags(s).map((f) => <span key={f} className="tag">{f}</span>)}</span>
+            <span className="inline">
+              <button type="button" className="small" aria-label={t("structure.editNamed", { name: s.name })} onClick={() => setDialog(s)}>{t("structure.edit")}</button>
+              <button type="button" className="small danger-outline" aria-label={t("structure.removeNamed", { name: s.name })} onClick={() => void run("update_supplier", { p_id: s.id, p_name: s.name, p_batch: s.require_batch, p_best_before: s.require_best_before, p_temperature: s.require_temperature, p_links_order: s.links_order, p_active: false })}>{t("structure.remove")}</button>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <Removed count={gone.length}>
+        <ul className="removed-list">
+          {gone.map((s) => (
+            <li key={s.id}><span>{s.name}</span><button type="button" className="small" aria-label={t("structure.restoreNamed", { name: s.name })} onClick={() => void run("update_supplier", { p_id: s.id, p_name: s.name, p_batch: s.require_batch, p_best_before: s.require_best_before, p_temperature: s.require_temperature, p_links_order: s.links_order, p_active: true })}>{t("structure.restore")}</button></li>
+          ))}
+        </ul>
+      </Removed>
+      {dialog && <SupplierDialog initial={dialog === "add" ? null : dialog} onClose={() => setDialog(null)} onSave={(f) => save(dialog === "add" ? null : dialog, f)} />}
+    </>
+  );
+}
+
+type SupplierForm = { name: string; batch: boolean; bestBefore: boolean; temperature: boolean; linksOrder: boolean };
+
+function SupplierDialog({ initial, onClose, onSave }: { initial: Supplier | null; onClose: () => void; onSave: (f: SupplierForm) => Promise<boolean> }) {
+  const { t } = useI18n();
+  const [f, setF] = useState<SupplierForm>({ name: initial?.name ?? "", batch: initial?.require_batch ?? false, bestBefore: initial?.require_best_before ?? false, temperature: initial?.require_temperature ?? false, linksOrder: initial?.links_order ?? false });
+  return (
+    <SimpleDialog title={initial ? t("suppliers.edit") : t("suppliers.add")} submit={initial ? t("app.save") : t("suppliers.add")} onClose={onClose} ready={f.name.trim().length > 0} onSave={() => onSave(f)}>
+      <label>{t("suppliers.name")}<input value={f.name} maxLength={40} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></label>
+      <p className="hint">{t("suppliers.requiredHint")}</p>
+      <label className="switch-row"><span>{t("suppliers.fBatch")}</span><input type="checkbox" role="switch" checked={f.batch} onChange={(e) => setF({ ...f, batch: e.target.checked })} aria-label={t("suppliers.fBatch")} /></label>
+      <label className="switch-row"><span>{t("suppliers.fBestBefore")}</span><input type="checkbox" role="switch" checked={f.bestBefore} onChange={(e) => setF({ ...f, bestBefore: e.target.checked })} aria-label={t("suppliers.fBestBefore")} /></label>
+      <label className="switch-row"><span>{t("suppliers.fTemperature")}</span><input type="checkbox" role="switch" checked={f.temperature} onChange={(e) => setF({ ...f, temperature: e.target.checked })} aria-label={t("suppliers.fTemperature")} /></label>
+      <label className="switch-row"><span>{t("suppliers.fLinksOrder")}</span><input type="checkbox" role="switch" checked={f.linksOrder} onChange={(e) => setF({ ...f, linksOrder: e.target.checked })} aria-label={t("suppliers.fLinksOrder")} /></label>
+    </SimpleDialog>
   );
 }

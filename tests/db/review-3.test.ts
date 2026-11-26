@@ -71,9 +71,9 @@ describe("Quem recebe cada notificação (preferência de cada Admin)", () => {
   it("Warning gera notificação para os Admins", async () => {
     const [bed] = await db.freeBeds("AMIENS");
     await db.as(admin);
-    const stay = (await db.one<{ id: string }>("select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => 'Rui') as id", [amiens, bed])).id;
+    const stay = (await db.one<{ id: string }>("select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => 'Rui') as id", [amiens, bed])).id;
     await db.as(station);
-    await db.query("select public.record_warning($1, 'written', 'Smoking indoors')", [stay]);
+    await db.query("select public.record_warning($1, 'warning', 'Smoking indoors')", [stay]);
     await db.asSuperuser();
     const w = await db.one<{ recipients: string[] }>("select public.push_recipients(id) as recipients from public.notifications where kind = 'warning_recorded'");
     expect(w.recipients).toHaveLength(2);

@@ -40,7 +40,7 @@ describe("Usuários", () => {
 
   it("Beta: Porter é cadastrado sem login (sem e-mail nem senha); conta da casa exige e-mail e a casa", async () => {
     render(<I18nProvider><MemoryRouter><Users /></MemoryRouter></I18nProvider>);
-    fireEvent.click(await screen.findByRole("button", { name: "Create user" }));
+    fireEvent.click(await screen.findByRole("button", { name: "New User" }));
     const dialog = document.querySelector("dialog[open]") as HTMLElement;
     fireEvent.change(dialog.querySelector("input")!, { target: { value: "Pedro Almeida" } });
     expect(dialog.querySelector('input[type="email"]')).toBeNull();
@@ -48,7 +48,7 @@ describe("Usuários", () => {
     expect(dialog.querySelectorAll("select")).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(invoke).toHaveBeenCalledWith("admin-users", { body: expect.objectContaining({ role: "porter", password: null, home_lodge_id: null }) }));
-    fireEvent.click(await screen.findByRole("button", { name: "Create user" }));
+    fireEvent.click(await screen.findByRole("button", { name: "New User" }));
     const again = await waitFor(() => document.querySelector("dialog[open]") as HTMLElement);
     fireEvent.change(again.querySelectorAll("select")[0], { target: { value: "station" } });
     expect(again.querySelector('input[type="email"]')).not.toBeNull();

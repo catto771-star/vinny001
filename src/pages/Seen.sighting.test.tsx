@@ -34,7 +34,7 @@ describe("Seen — diálogo 'Vi este residente'", () => {
   it("lista só quem está no Lodge agora (quem já saiu não pode ser marcado)", async () => {
     render(<I18nProvider><MemoryRouter><Seen /></MemoryRouter></I18nProvider>);
     await waitFor(() => expect(screen.getAllByText(/Left X/).length).toBeGreaterThan(0)); // a tabela do dia mostra os dois
-    fireEvent.click(screen.getByRole("button", { name: "Seen earlier (set time)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Seen at…" }));
     const dialog = await screen.findByRole("dialog");
     const options = Array.from(within(dialog).getByRole("combobox").querySelectorAll("option")).map((o) => o.textContent);
     expect(options.some((o) => o?.includes("Present"))).toBe(true);

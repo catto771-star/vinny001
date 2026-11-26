@@ -40,25 +40,25 @@ const results = [];
 
 
   // ---------- ADMIN: cenários que falharam por seletor ----------
-  await step("Warnings: Final Written para o residente de teste e desativação com motivo", async () => {
+  await step("Warnings: Final Warning para o residente de teste e desativação com motivo", async () => {
     await go("/warnings");
-    await p.getByRole("button", { name: "Record Warning" }).click();
+    await p.getByRole("button", { name: "New Warning" }).click();
     const sel = dlg().locator("select").first();
     const val = await sel.evaluate((el) => [...el.options].find((o) => o.text.includes("Scenario"))?.value);
     if (!val) throw new Error("residente Scenario não está na lista");
     await sel.selectOption(val);
-    await dlg().getByText("Final Written (FW)", { exact: true }).click();
+    await dlg().getByText("Final Warning", { exact: true }).click();
     await dlg().locator("textarea").first().fill("Scenario final warning");
-    await dlg().getByRole("button", { name: "Record Warning" }).click(); await p.waitForTimeout(3500);
-    await expectDb("select type, active from public.warnings where note='Scenario final warning'", (r) => r[0]?.type === "final_written" && r[0].active);
-    await p.getByRole("button", { name: "Deactivate FW" }).first().click();
+    await dlg().getByRole("button", { name: "New Warning" }).click(); await p.waitForTimeout(3500);
+    await expectDb("select type, active from public.warnings where note='Scenario final warning'", (r) => r[0]?.type === "final_warning" && r[0].active);
+    await p.getByRole("button", { name: "Deactivate Final Warning" }).first().click();
     await dlg().locator("textarea, input").last().fill("Scenario reason");
-    await dlg().getByRole("button", { name: "Deactivate FW" }).click(); await p.waitForTimeout(3000);
+    await dlg().getByRole("button", { name: "Deactivate Final Warning" }).click(); await p.waitForTimeout(3000);
     return expectDb("select active from public.warnings where note='Scenario final warning'", (r) => r[0]?.active === false);
   });
   await step("Maintenance: pedido urgente, atualizar para resolvido (sem aviso por cima)", async () => {
     await go("/maintenance");
-    await p.getByRole("button", { name: "New request" }).click();
+    await p.getByRole("button", { name: "New Maintenance Request" }).click();
     await dlg().getByLabel("Where").fill("Scenario boiler");
     await dlg().getByLabel("What happened").fill("No hot water");
     await dlg().getByText("Urgent", { exact: true }).click();
@@ -76,7 +76,7 @@ const results = [];
     await p.locator(".composer").getByRole("button", { name: "Incident / Safety" }).click();
     await p.getByRole("button", { name: /Add colleague/ }).click();
     await p.locator(".staff-options li").first().click();
-    await p.getByRole("button", { name: "Add entry" }).click(); await p.waitForTimeout(4000);
+    await p.getByRole("button", { name: "Save Entry" }).click(); await p.waitForTimeout(4000);
     await expectDb("select (select count(*)::int from public.handover_entry_tags t where t.entry_id=e.id) tags, (select count(*)::int from public.handover_entry_staff c where c.entry_id=e.id) co from public.handover_entries e where body like 'Scenario: fire alarm%'", (r) => r[0]?.tags === 1 && r[0].co === 1);
     await go("/handover?q=fire%20alarm", 6500);
     if (!(await p.locator(".content").innerText()).includes("Scenario: fire alarm")) throw new Error("busca não achou");
@@ -96,18 +96,18 @@ const results = [];
   // ---------- ADMIN: novos cenários ----------
   await step("Absences: registrar ausência do residente de teste e registrar o retorno", async () => {
     await go("/absences");
-    await p.getByRole("button", { name: "Register absence" }).click();
+    await p.getByRole("button", { name: "New Absence" }).click();
     const sel = dlg().locator("select").first();
     const val = await sel.evaluate((el) => [...el.options].find((o) => o.text.includes("Scenario"))?.value);
     if (!val) throw new Error("residente Scenario não está na lista");
     await sel.selectOption(val);
-    await dlg().getByRole("button", { name: /Register absence|Save/ }).last().click(); await p.waitForTimeout(3500);
+    await dlg().getByRole("button", { name: /New Absence|Save/ }).last().click(); await p.waitForTimeout(3500);
     await expectDb("select count(*)::int n from public.absences a join public.stays s on s.id=a.stay_id join public.residents r on r.id=s.resident_id where r.first_name='Scenario' and a.ended_at is null", (r) => r[0]?.n === 1);
-    await p.locator("tr, li, article", { hasText: "Scenario" }).first().getByRole("button", { name: "Record return" }).click();
-    await dlg().getByRole("button", { name: /Record return|Save|Confirm/ }).last().click(); await p.waitForTimeout(3500);
+    await p.locator("tr, li, article", { hasText: "Scenario" }).first().getByRole("button", { name: "Confirm Return" }).click();
+    await dlg().getByRole("button", { name: /Confirm Return|Save|Confirm/ }).last().click(); await p.waitForTimeout(3500);
     return expectDb("select count(*)::int n from public.absences a join public.stays s on s.id=a.stay_id join public.residents r on r.id=s.resident_id where r.first_name='Scenario' and a.ended_at is null", (r) => r[0]?.n === 0);
   });
-  await step("Residents: Out do residente de teste libera a cama (Decide Out + efetivar)", async () => {
+  await step("Residents: Out do residente de teste libera a cama (Cancel Bed + efetivar)", async () => {
     await go("/residents");
     await p.getByRole("link", { name: /Scenario Resident|Resident Scenario/ }).first().click(); await p.waitForTimeout(3500);
     const names = await p.getByRole("button").allTextContents();
@@ -119,7 +119,7 @@ const results = [];
   });
   await step("Roster: adicionar turno Office em Amiens e publicar a semana", async () => {
     await go("/rota", 4500);
-    await p.getByRole("button", { name: /Add shift/ }).first().click();
+    await p.getByRole("button", { name: /New Shift/ }).first().click();
     await dlg().locator("select").first().selectOption({ index: 1 }).catch(() => {});
     await dlg().getByRole("button", { name: "Save" }).click(); await p.waitForTimeout(3500);
     const t = await toast();
@@ -127,7 +127,7 @@ const results = [];
   });
   await step("Purchases: abrir novo pedido a partir da lista padrão", async () => {
     await go("/purchases", 4500);
-    await p.getByRole("button", { name: /New order/ }).click(); await p.waitForTimeout(3000);
+    await p.getByRole("button", { name: /New Order/ }).click(); await p.waitForTimeout(3000);
     const txt = await p.locator(".content").innerText();
     if (!/standard|Standard/.test(txt) && !(await dlg().count())) throw new Error("sem lista padrão");
     return "ok";

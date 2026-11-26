@@ -32,7 +32,7 @@ async function admit(actor: Actor, lodge: string, bed: string, firstName = "Demo
   await db.as(actor);
   return (
     await db.one<{ id: string }>(
-      "select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => $3, p_last_name => 'Resident') as id",
+      "select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => $3, p_last_name => 'Resident') as id",
       [lodge, bed, firstName],
     )
   ).id;
@@ -182,7 +182,7 @@ describe("Residentes, estadias e permissões por Lodge", () => {
     const [connollyBed] = await db.freeBeds("CONNOLLY");
     await db.as(porterA);
     expect(
-      await db.error("select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => 'X')", [connolly, connollyBed]),
+      await db.error("select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => 'X')", [connolly, connollyBed]),
     ).toMatch(/not_authorised/);
     expect((await db.query("select * from public.bed_occupancy where lodge_id = $1", [connolly])).rowCount).toBe(44);
   });
@@ -198,7 +198,7 @@ describe("Residentes, estadias e permissões por Lodge", () => {
   it("Porter sem posto assumido não registra", async () => {
     const [bed] = await db.freeBeds("AMIENS");
     await db.as(porterA);
-    expect(await db.error("select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => 'X')", [amiens, bed])).toMatch(/not_authorised/);
+    expect(await db.error("select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => 'X')", [amiens, bed])).toMatch(/not_authorised/);
   });
 
   it("Uma cama, um residente; um residente, uma estadia aberta", async () => {
@@ -206,16 +206,16 @@ describe("Residentes, estadias e permissões por Lodge", () => {
     const [bed, bed2] = await db.freeBeds("AMIENS", 2);
     const stay = await admit(porterA, amiens, bed);
     await db.as(porterA);
-    expect(await db.error("select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => 'Other')", [amiens, bed])).toMatch(/stays_one_open_per_bed/);
+    expect(await db.error("select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => 'Other')", [amiens, bed])).toMatch(/stays_one_open_per_bed/);
     const resident = (await db.one("select resident_id from public.stays where id = $1", [stay])).resident_id;
-    expect(await db.error("select public.admit_resident(p_lodge => $1, p_bed => $2, p_resident_id => $3)", [amiens, bed2, resident])).toMatch(/stays_one_open_per_resident/);
+    expect(await db.error("select public.admit_resident(p_lodge => $1, p_bed => $2, p_resident_id => $3)", [amiens, bed2, resident])).toMatch(/already_resident/);
   });
 
   it("Cama fora de uso não recebe residente", async () => {
     const [bed] = await db.freeBeds("AMIENS");
     await db.as(manager);
     await db.query("update public.beds set status = 'out_of_service' where id = $1", [bed]);
-    expect(await db.error("select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => 'X')", [amiens, bed])).toMatch(/bed_out_of_service/);
+    expect(await db.error("select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => 'X')", [amiens, bed])).toMatch(/bed_out_of_service/);
   });
 
   it("B11: Office decide Out → fica pendente até Manager/Owner efetivar; cama continua ocupada", async () => {

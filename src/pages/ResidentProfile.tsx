@@ -86,7 +86,7 @@ export function ResidentProfile() {
   }, [load]);
 
   const open = stays.find((s) => s.status !== "ended") ?? null;
-  const fwActive = warnings.some((w) => w.type === "final_written" && w.active);
+  const fwActive = warnings.some((w) => w.type === "final_warning" && w.active);
   const lodgeName = (lodgeId: string) => lodges.find((l) => l.id === lodgeId)?.name ?? "";
   const canWriteHere = !!open && canWriteLodge(open.lodge_id);
   const canEdit = isManagement || !!post;
@@ -186,7 +186,7 @@ export function ResidentProfile() {
               {warnings.map((w) => (
                 <li key={w.id} className={w.active ? "" : "muted"}>
                   <strong>{t(WARNING_LABEL[w.type])}</strong>
-                  {w.type === "final_written" && w.active && <span className="tag tag-danger fw-tag">FW</span>}
+                  {w.type === "final_warning" && w.active && <span className="tag tag-danger fw-tag">FW</span>}
                   {!w.active && ` · ${t("warnings.inactive")}`}
                   <br />
                   <small className="muted">{formatDateTime(w.issued_at, locale)}{w.note ? ` — ${w.note}` : ""}</small>

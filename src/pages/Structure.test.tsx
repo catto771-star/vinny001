@@ -8,7 +8,7 @@ const rpc = vi.fn(async (_n: string, _a?: unknown) => ({ data: null, error: null
 const tables: Record<string, unknown[]> = {};
 function query(result: unknown) {
   const q: Record<string, unknown> = {};
-  for (const m of ["select", "order", "eq"]) q[m] = () => q;
+  for (const m of ["select", "order", "eq", "in", "is"]) q[m] = () => q;
   q.then = (resolve: (v: unknown) => void) => resolve({ data: result, error: null });
   return q;
 }
@@ -51,11 +51,11 @@ describe("Structure", () => {
   });
   it("adiciona quarto (código, tipo e número de camas)", async () => {
     show();
-    fireEvent.click(await screen.findByRole("button", { name: "Add room" }));
+    fireEvent.click(await screen.findByRole("button", { name: "New Room" }));
     const dlg = document.querySelector("dialog[open]") as HTMLElement;
     fireEvent.change(within(dlg).getByLabelText("Room"), { target: { value: "13" } });
     fireEvent.change(within(dlg).getByLabelText("Beds"), { target: { value: "3" } });
-    fireEvent.click(within(dlg).getByRole("button", { name: "Add room" }));
+    fireEvent.click(within(dlg).getByRole("button", { name: "New Room" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("add_room", { p_lodge: "a", p_code: "13", p_kind: "room", p_beds: 3 }));
   });
   it("+ Bed, remover cama livre e remover quarto chamam as funções certas", async () => {
@@ -106,5 +106,30 @@ describe("Structure", () => {
     fireEvent.click(within(name.closest("article")!).getByRole("switch", { name: "Laundry" }));
     fireEvent.click(within(name.closest("article")!).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("update_lodge", { p_lodge: "a", p_name: "Amiens Street", p_short_name: "Amiens", p_has_dinner: true, p_has_laundry: true }));
+  });
+
+  it("Suppliers: lista com as regras de cada um e cria fornecedor com campos obrigatórios", async () => {
+    tables.suppliers = [
+      { id: "s1", name: "Tesco", active: true, require_batch: false, require_best_before: false, require_temperature: false, links_order: true, sort_order: 1 },
+      { id: "s2", name: "Ripley's", active: true, require_batch: true, require_best_before: true, require_temperature: false, links_order: false, sort_order: 2 },
+    ];
+    show("/structure?tab=suppliers");
+    const ripley = (await screen.findByText("Ripley's")).closest("li")!;
+    expect(within(ripley).getByText("Batch code")).toBeTruthy();
+    expect(within(ripley).getByText("Best before")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "New Supplier" }));
+    const dlg = document.querySelector("dialog[open]") as HTMLElement;
+    fireEvent.change(within(dlg).getByLabelText("Name"), { target: { value: "Dunnes" } });
+    fireEvent.click(within(dlg).getByRole("switch", { name: "Batch code" }));
+    fireEvent.click(within(dlg).getByRole("button", { name: "New Supplier" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("add_supplier", { p_name: "Dunnes", p_batch: true, p_best_before: false, p_temperature: false, p_links_order: false }));
+  });
+
+  it("embutido em Settings > Registers: sem título de página, com a sub-aba Suppliers e a chave 'reg' na URL", async () => {
+    tables.suppliers = [];
+    render(<I18nProvider><ToastProvider><MemoryRouter initialEntries={["/settings?tab=registers&reg=suppliers"]}><Structure embedded /></MemoryRouter></ToastProvider></I18nProvider>);
+    expect(await screen.findByRole("button", { name: "New Supplier" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
+    expect(screen.getByRole("tab", { name: "Suppliers" }).getAttribute("aria-selected")).toBe("true");
   });
 });

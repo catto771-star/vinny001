@@ -50,7 +50,7 @@ describe("quartos e camas", () => {
     await db.asSuperuser();
     const [bed] = await db.freeBeds("AMIENS");
     await db.as(admin);
-    const stay = (await one<{ id: string }>("select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => 'Joana', p_last_name => 'Silva') as id", [amiens, bed])).id;
+    const stay = (await one<{ id: string }>("select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => 'Joana', p_last_name => 'Silva') as id", [amiens, bed])).id;
     expect(await db.error("select public.set_bed_active($1, false)", [bed])).toMatch(/bed_occupied/);
     await db.query("select public.decide_out($1, 'Left')", [stay]);
     await db.query("select public.effect_out($1)", [stay]);
@@ -65,7 +65,7 @@ describe("quartos e camas", () => {
     const [bed] = await db.freeBeds("AMIENS");
     const room = (await one<{ room_id: string }>("select room_id from public.beds where id = $1", [bed])).room_id;
     await db.as(admin);
-    await db.query("select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => 'Rui', p_last_name => 'Costa')", [amiens, bed]);
+    await db.query("select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => 'Rui', p_last_name => 'Costa')", [amiens, bed]);
     expect(await db.error("select public.set_room_active($1, false)", [room])).toMatch(/room_occupied/);
     const empty = (await one<{ id: string }>("select public.add_room($1, 'Q1', 'room', 2) as id", [amiens])).id;
     expect(await db.error("select public.set_room_active($1, false)", [empty])).toBeNull();
@@ -107,7 +107,7 @@ describe("máquinas de lavar", () => {
     await db.asSuperuser();
     const [bed] = await db.freeBeds("CONNOLLY");
     await db.as(admin);
-    const stay = (await one<{ id: string }>("select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => 'Ana', p_last_name => 'Lima') as id", [connolly, bed])).id;
+    const stay = (await one<{ id: string }>("select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => 'Ana', p_last_name => 'Lima') as id", [connolly, bed])).id;
     const m = (await one<{ id: string }>("select public.add_laundry_machine($1, 'wash', 'D · Wash') as id", [connolly])).id;
     await db.query("select public.start_laundry($1, $2)", [m, stay]);
     expect(await db.error("select public.set_laundry_machine_active($1, false)", [m])).toMatch(/machine_busy/);

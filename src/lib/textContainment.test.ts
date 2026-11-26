@@ -35,3 +35,25 @@ describe("espaçamento (revisão 10)", () => {
     expect(r?.body).toMatch(/margin-bottom:\s*1rem/);
   });
 });
+
+// Revisão 15: regra permanente — nada de texto fora da caixa. O estouro real é verificado por
+// tests/e2e/text-overflow.e2e.cjs (todas as telas); aqui ficam as regras de CSS que o evitam.
+const elevate = readFileSync("src/elevate.css", "utf8");
+describe("texto dentro da caixa (revisão 15)", () => {
+  it("nome do residente no Bed map quebra em até 2 linhas e depois corta com reticências", () => {
+    expect(elevate).toMatch(/\.bed-body strong\s*\{[^}]*-webkit-line-clamp:\s*2/);
+    expect(elevate).toMatch(/\.bed-body strong\s*\{[^}]*overflow:\s*hidden/);
+  });
+  it("célula da cama não soma preenchimento ao botão (era o que empurrava o nome para fora do cartão)", () => {
+    expect(elevate).toMatch(/\.room-card \.bed-list li\s*\{[^}]*padding:\s*0/);
+  });
+  it("iniciais cabem no círculo: 28px e fonte pequena", () => {
+    expect(elevate).toMatch(/\.avatar\s*\{[^}]*width:\s*28px[^}]*font-size:\s*\.625rem/);
+  });
+  it("botão principal com brilho colorido reduzido (sombra colorida a 55%)", () => {
+    expect(elevate).toMatch(/button\.primary[\s\S]*?color-mix\(in srgb, var\(--hc-vivid\) 55%, transparent\)/);
+  });
+  it("check do Dinner e das tarefas é desenhado em CSS, centralizado no quadrado", () => {
+    expect(elevate).toMatch(/\.task-check:empty::after\s*\{[^}]*left:\s*50%[^}]*top:\s*50%/);
+  });
+});

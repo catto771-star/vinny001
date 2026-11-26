@@ -17,7 +17,7 @@ O resultado é conferido no banco, não só na tela. As capturas de tela dos rot
 | 9 | Structure: máquina de lavar nova e removida | Removida some da tela de Laundry | admin-people-structure |
 | 10 | Structure: renomear casa, ligar/desligar Dinner e Laundry | Valem nas telas na hora | admin-people-structure |
 | 11 | Residents: admitir em cama nova | Estadia ativa; cama aparece ocupada | admin-people-structure |
-| 12 | Warnings: Final Written e desativação com motivo | Só o Admin desativa; fica na auditoria | admin-operations |
+| 12 | Warnings: Final Warning e desativação com motivo | Só o Admin desativa; fica na auditoria | admin-operations |
 | 13 | Maintenance: pedido urgente até resolvido | Prazo por prioridade; aviso de prazo não interrompe formulário aberto | admin-operations |
 | 14 | Fridge: leitura fora da faixa | Alerta ao Manager e notificação | admin-people-structure |
 | 15 | Handover: anotação com tag e colega (até 3) | Tag e colegas gravados; busca em vários dias acha | admin-operations |
@@ -43,3 +43,13 @@ O resultado é conferido no banco, não só na tela. As capturas de tela dos rot
 2. Cama ativa dentro de quarto removido ainda aceitava residente (`tests/db/scenarios-structure.test.ts`).
 3. `demo.clear()` falhava com turnos do Handover ligados ao Roster (`tests/db/demo.test.ts`).
 4. Rótulo do perfil no topo estourava a largura; descrição longa do pedido de manutenção vazava do cartão.
+
+## Revisão 15
+| # | Cenário | Resultado esperado | Onde |
+|---|---|---|---|
+| 1 | Admitir com PASS ID de ex-residente | Aviso e pergunta para puxar o cadastro; nova estadia no mesmo residente | AdmitDialog, tests/db/r15.test.ts |
+| 2 | Admitir com PASS ID de quem ainda é residente | Aviso e botão desabilitado | AdmitDialog |
+| 3 | New Delivery com Ripley's sem Batch code | Botão desabilitado; DB recusa com `batch_required` | Deliveries, r15.test.ts |
+| 4 | Recebimento do Tesco por quem está On Duty | Alerta para o Admin; Admin vincula ao pedido; pedido vira Delivered e o Handover recebe a nota | Purchases, r15.test.ts |
+| 5 | Best before dentro do parâmetro | Alerta `delivery_expiring` para o Admin | r15.test.ts |
+| 6 | Qualquer tela, qualquer largura | Nenhum texto fora da caixa | tests/e2e/text-overflow.e2e.cjs |

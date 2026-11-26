@@ -20,6 +20,7 @@ const sup = async <T extends Record<string, unknown>>(sql: string, p: unknown[] 
   return (await db.query<T & Record<string, unknown>>(sql, p)).rows as T[];
 };
 const ids = async (sql: string, p: unknown[] = []) => (await sup<{ id: string }>(sql, p)).map((r) => r.id);
+const supplierId = async () => pick(await ids("select id from public.suppliers where active"));
 
 type Call = { actor: Actor; sql: string; params?: unknown[] } | null;
 const stats: Record<string, { ok: number; rule: number }> = {};
@@ -36,7 +37,7 @@ const OPS: Record<string, { w: number; build: () => Promise<Call> }> = {
     const l = pick([amiens, connolly])!;
     const bed = pick(await ids(`select b.id from public.beds b join public.rooms r on r.id=b.room_id where r.lodge_id=$1 and b.status='in_use' and not exists (select 1 from public.stays s where s.bed_id=b.id and s.status<>'ended')`, [l]));
     if (!bed) return null;
-    return { actor: anyWriter(l), sql: "select public.admit_resident($1,$2,null,$3,$4,$5,$6,null)", params: [l, bed, `Stress${Math.floor(rnd() * 1e6)}`, pick(["Murphy", "Silva", "Kowalski", "O'Neill", "Ünal"]), pick([null, "1980-05-05", "1999-12-31"]), pick([null, `ST-${Math.floor(rnd() * 1e7)}`])] };
+    return { actor: anyWriter(l), sql: "select public.admit_resident($1,$2,null,$3,$4,$5,$6,null)", params: [l, bed, `Stress${Math.floor(rnd() * 1e6)}`, pick(["Murphy", "Silva", "Kowalski", "O'Neill", "Ünal"]), pick([null, "1980-05-05", "1999-12-31"]), `ST-${Math.floor(rnd() * 1e9)}`] };
   } },
   transfer: { w: 3, build: async () => {
     const s = pick(await sup<{ id: string; lodge_id: string }>(`select id, lodge_id from public.stays where status='active' order by random() limit 10`));
@@ -88,11 +89,11 @@ const OPS: Record<string, { w: number; build: () => Promise<Call> }> = {
   } },
   warning: { w: 3, build: async () => {
     const s = pick(await sup<{ id: string; lodge_id: string }>(`select id, lodge_id from public.stays where status<>'ended' order by random() limit 8`));
-    return s ? { actor: anyWriter(s.lodge_id), sql: "select public.record_warning($1,$2,$3)", params: [s.id, pick(["verbal", "written", "final_written"]), pick(["Smoking indoors", "Noise", ""])] } : null;
+    return s ? { actor: anyWriter(s.lodge_id), sql: "select public.record_warning($1,$2,$3)", params: [s.id, pick(["warning", "final_warning"]), pick(["Smoking indoors", "Noise", ""])] } : null;
   } },
-  fwOff: { w: 1, build: async () => { const w = pick(await ids(`select id from public.warnings where type='final_written' and active`)); return w ? { actor: mgr(), sql: "select public.deactivate_final_warning($1,$2)", params: [w, "Reviewed"] } : null; } },
+  fwOff: { w: 1, build: async () => { const w = pick(await ids(`select id from public.warnings where type='final_warning' and active`)); return w ? { actor: mgr(), sql: "select public.deactivate_final_warning($1,$2)", params: [w, "Reviewed"] } : null; } },
   fridge: { w: 4, build: async () => { const l = pick([amiens, connolly])!; return { actor: anyWriter(l), sql: "select public.record_fridge_temperature($1,$2,$3)", params: [l, pick([2.5, 3.9, 5, 5.1, 7.4, 0, -0.5, 4.04, 41]), pick([null, "Door open"])] }; } },
-  delivery: { w: 2, build: async () => ({ actor: anyWriter(amiens), sql: "select public.record_food_delivery($1,$2,$3,$4,(current_date + 5),$5,$6)", params: [amiens, "Chicken", "Musgrave", `L${Math.floor(rnd() * 1000)}`, pick([2.1, 5.5, 8]), null] }) },
+  delivery: { w: 2, build: async () => ({ actor: anyWriter(amiens), sql: "select public.record_food_delivery($1,$2,$3,$4,(current_date + 5),$5,$6)", params: [amiens, "Chicken", await supplierId(), `L${Math.floor(rnd() * 1000)}`, pick([2.1, 5.5, 8]), null] }) },
   dinner: { w: 5, build: async () => {
     const s = pick(await ids(`select id from public.stays where lodge_id=$1 and status<>'ended' order by random() limit 10`, [amiens]));
     return s ? { actor: anyWriter(amiens), sql: "select public.mark_dinner($1,$2::date,$3,$4)", params: [amiens, `${await prevDay()}`, s, rnd() < 0.8] } : null;
@@ -225,7 +226,7 @@ describe("simulação em massa", () => {
       ["chamado: último status do histórico = status atual", `select count(*) n from public.maintenance_tickets t where exists (select 1 from public.maintenance_events e where e.ticket_id=t.id and e.kind='status') and (select e.to_value from public.maintenance_events e where e.ticket_id=t.id and e.kind='status' order by e.at desc, e.id desc limit 1) <> t.status`],
       ["Dinner: marca só de residente que estava no Lodge no dia", `select count(*) n from public.dinner_marks m join public.dinner_services s on s.id=m.service_id join public.stays st on st.id=m.stay_id where st.admitted_at >= public.operational_day_end(s.operational_day) or (st.ended_at is not null and st.ended_at <= public.operational_day_start(s.operational_day))`],
       ["Handover: ronda registrada tem horário de ronda", `select count(*) n from public.handover_entries where kind='round' and round_slot is null`],
-      ["Final Written ativo: só uma por estadia aberta ou encerrada", `select count(*) n from (select stay_id from public.warnings where type='final_written' and active group by 1 having count(*)>1) x`],
+      ["Final Written ativo: só uma por estadia aberta ou encerrada", `select count(*) n from (select stay_id from public.warnings where type='final_warning' and active group by 1 having count(*)>1) x`],
       ["checks lançados no horário (ou depois) têm marca para quem estava presente", `select count(*) n from public.room_check_runs r join lateral public.stays_present_at(r.lodge_id, r.checked_at) s on true where r.status='launched' and not exists (select 1 from public.room_check_marks m where m.run_id=r.id and m.stay_id=s.id) and r.entered_at > now() - interval '1 hour' and public.slot_instant(r.operational_day, r.slot) <= r.entered_at`], // só checks lançados no horário ou depois: abertos até 60 min antes (tolerância da regra) gravam a hora real e ficam de fora
     ];
     const failures: string[] = [];
@@ -243,7 +244,7 @@ describe("simulação em massa", () => {
     const month = `${day.slice(0, 7)}-01`;
     for (const l of [amiens, connolly]) {
       const rep = (await db.one<{ r: Record<string, Record<string, number> | null> }>("select public.report_monthly($1,$2::date) r", [l, month])).r;
-      for (const [block, metric] of [["occupancy", "admissions"], ["occupancy", "outs"], ["maintenance", "opened"], ["maintenance", "resolved"], ["warnings", "verbal"], ["warnings", "written"], ["warnings", "final_written"], ["no_shows", "total"], ["temperature", "alerts"], ["late_entries", "total"]]) {
+      for (const [block, metric] of [["occupancy", "admissions"], ["occupancy", "outs"], ["maintenance", "opened"], ["maintenance", "resolved"], ["warnings", "warning"], ["warnings", "final_warning"], ["no_shows", "total"], ["temperature", "alerts"], ["late_entries", "total"]]) {
         const n = Number((await db.one<{ n: string }>("select count(*) n from public.report_details($1,$2::date,$3)", [l, month, block === "temperature" ? "temperature.alerts" : `${block}.${metric}`])).n);
         const key = metric === "alerts" ? "alerts" : metric;
         if (rep[block]?.[key] !== n) failures.push(`relatório ${block}.${metric}: resumo ${rep[block]?.[key]} ≠ lista ${n}`);

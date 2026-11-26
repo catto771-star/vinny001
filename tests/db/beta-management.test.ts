@@ -105,7 +105,7 @@ describe("Reports por período e casa (4.4)", () => {
   async function admit(code: "AMIENS" | "CONNOLLY", lodge: string, daysAgo: number) {
     const [bed] = await db.freeBeds(code);
     await db.as(admin);
-    await db.query("select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => 'R', p_admitted_at => now() - make_interval(days => $3))", [lodge, bed, daysAgo]);
+    await db.query("select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => 'R', p_admitted_at => now() - make_interval(days => $3))", [lodge, bed, daysAgo]);
   }
 
   it("semana, intervalo livre e consolidado: o total das duas casas é a soma de cada uma, e o detalhe diz a casa", async () => {

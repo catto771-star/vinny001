@@ -42,7 +42,7 @@ async function admit(lodge: "AMIENS" | "CONNOLLY", name: string, admittedDaysAgo
   await db.as(manager);
   const stay = (
     await db.one<{ id: string }>(
-      "select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => $3, p_admitted_at => now() - make_interval(days => $4)) as id",
+      "select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => $3, p_admitted_at => now() - make_interval(days => $4)) as id",
       [lodge === "AMIENS" ? amiens : connolly, bed, name, admittedDaysAgo],
     )
   ).id;

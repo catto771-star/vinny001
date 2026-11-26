@@ -34,7 +34,7 @@ async function admit(lodge: "AMIENS" | "CONNOLLY", name: string) {
   await db.as(manager);
   const stay = (
     await db.one<{ id: string }>(
-      "select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => $3, p_admitted_at => now() - interval '10 days') as id",
+      "select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => $3, p_admitted_at => now() - interval '10 days') as id",
       [lodge === "AMIENS" ? amiens : connolly, bed, name],
     )
   ).id;
@@ -94,11 +94,11 @@ describe("Fridge / Temperatura", () => {
 describe("Food Delivery (Amiens)", () => {
   const deliver = (temp: string | null = "8.0", product: string | null = "Frango") =>
     db.error(
-      "select public.record_food_delivery($1, $2, 'Musgrave', 'L-2211', (now() + interval '5 days')::date, $3::numeric, null)",
+      "select public.record_food_delivery($1, $2, (select id from public.suppliers where name = 'Ripley''s'), 'L-2211', (now() + interval '5 days')::date, $3::numeric, null)",
       [amiens, product, temp],
     );
 
-  it("produto, fornecedor, lote e validade são obrigatórios; temperatura é opcional (Beta: itens secos)", async () => {
+  it("produto e fornecedor são obrigatórios; lote e validade dependem do fornecedor; temperatura é opcional (Beta: itens secos)", async () => {
     await db.as(officeA);
     expect(await deliver("8.0", null)).toMatch(/fields_required/);
     expect(await deliver(null)).toBeNull();
@@ -123,7 +123,7 @@ describe("Food Delivery (Amiens)", () => {
   it("só no Lodge com cozinha (Amiens)", async () => {
     await db.as(officeC);
     expect(
-      await db.error("select public.record_food_delivery($1, 'Pão', 'X', 'L1', now()::date + 2, 5.0, null)", [connolly]),
+      await db.error("select public.record_food_delivery($1, 'Pão', (select id from public.suppliers where name = 'Tesco'), 'L1', now()::date + 2, 5.0, null)", [connolly]),
     ).toMatch(/service_not_available/);
   });
 });

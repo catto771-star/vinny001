@@ -62,11 +62,11 @@ async function session(b, email, run) {
       await p.locator(".composer").getByRole("button", { name: "Delivery" }).click();
       await p.getByRole("button", { name: /Add colleague/ }).click();
       await p.locator(".staff-options li").first().click();
-      await p.getByRole("button", { name: "Add entry" }).click(); await p.waitForTimeout(4000);
+      await p.getByRole("button", { name: "Save Entry" }).click(); await p.waitForTimeout(4000);
       return db("select e.filled_by is not null as filled, (select count(*)::int from public.handover_entry_staff c where c.entry_id=e.id) co from public.handover_entries e where body like 'Station scenario%'", (r) => r[0]?.filled && r[0].co === 1);
     });
     await step("Handover: encerrar turno passando para outra pessoa", async () => {
-      await p.getByRole("button", { name: "Close shift / hand over" }).click();
+      await p.getByRole("button", { name: "Hand Over Shift" }).click();
       const sel = dlg().getByLabel("Hand over to");
       const v = await sel.evaluate((el) => [...el.options].find((o) => o.value)?.value);
       await sel.selectOption(v);
@@ -81,22 +81,22 @@ async function session(b, email, run) {
       if (after <= before) throw new Error(`sightings ${before} → ${after}`);
       return `${before} → ${after}`;
     });
-    await step("Dinner: marcar quem comeu (Took the meal)", async () => {
+    await step("Dinner: marcar quem comeu (Received)", async () => {
       await go("/dinner", 5500);
       const before = (await sql("select count(*)::int n from public.dinner_marks where served = true"))[0].n;
-      await p.getByRole("button", { name: /Took the meal/ }).first().click(); await p.waitForTimeout(3500);
+      await p.getByRole("button", { name: /Received/ }).first().click(); await p.waitForTimeout(3500);
       const after = (await sql("select count(*)::int n from public.dinner_marks where served = true"))[0].n;
       return `${before} → ${after}` + (after > before ? "" : " (sem mudança: talvez já marcado)");
     });
     await step("Fridge: leitura dentro da faixa", async () => {
       await go("/fridge", 5000);
       await p.getByLabel("Temperature (°C)").fill("3.5");
-      await p.getByRole("button", { name: "Record temperature" }).click(); await p.waitForTimeout(3500);
+      await p.getByRole("button", { name: "New Reading" }).click(); await p.waitForTimeout(3500);
       return db("select out_of_range from public.fridge_readings order by id desc limit 1", (r) => r[0]?.out_of_range === false);
     });
     await step("Maintenance: pedido novo pela conta da casa", async () => {
       await go("/maintenance", 5000);
-      await p.getByRole("button", { name: "New request" }).click();
+      await p.getByRole("button", { name: "New Maintenance Request" }).click();
       await dlg().getByLabel("Where").fill("Station scenario: hall light");
       await dlg().getByLabel("What happened").fill("Flickering");
       await dlg().getByRole("button", { name: "Save" }).click(); await p.waitForTimeout(3500);

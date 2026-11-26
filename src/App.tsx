@@ -33,7 +33,6 @@ import { Reports } from "@/pages/Reports";
 import { Rota } from "@/pages/Rota";
 import { Tasks } from "@/pages/Tasks";
 import { Settings } from "@/pages/Settings";
-import { Structure } from "@/pages/Structure";
 import { isStandalone } from "@/lib/push";
 import { Vacations } from "@/pages/Vacations";
 
@@ -114,7 +113,7 @@ function Gate() {
         {isManagement && <Route path="reports" element={<Reports />} />}
         {isManagement && <Route path="users" element={<Users />} />}
         {isManagement && <Route path="audit" element={<Audit />} />}
-        {isManagement && <Route path="structure" element={<Structure />} />}
+        {isManagement && <Route path="structure" element={<Navigate to="/settings?tab=registers" replace />} />}
         <Route path="settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

@@ -8,10 +8,11 @@ import { useLatestRequest } from "@/lib/useLatestRequest";
 import { Dialog } from "@/components/Dialog";
 import { Tabs } from "@/components/Tabs";
 import { Skeleton } from "@/components/Skeleton";
+import { STATUS_LABEL } from "./Purchases";
 
 type Detail = { ref_id: string; label: string; at: string | null; extra: string | null; lodge_id: string | null };
 type Report = Record<string, unknown>;
-type Purch = { orders: number; placed: number; items: number; total: number; lines_without_price: number;
+type Purch = { orders: number; placed: number; by_status: Record<"created" | "placed" | "awaiting" | "delivered", number>; items: number; total: number; lines_without_price: number;
   by_category: { category: string; total: number; items: number }[]; top_items: { name: string; qty: number; total: number }[] };
 
 /** Categoria Compras: pedidos do Tesco no período (as duas casas juntas). */
@@ -27,6 +28,11 @@ function PurchasesReport({ data }: { data: Purch | null }) {
           <div className="report-metric"><dt>{t("reports.p_orders")}</dt><dd>{data.orders}</dd></div>
           <div className="report-metric"><dt>{t("reports.p_items")}</dt><dd>{data.items}</dd></div>
           <div className="report-metric"><dt>{t("reports.p_total")}</dt><dd>{formatEUR(Number(data.total), locale)}</dd></div>
+        </dl>
+        <dl className="report-metrics">
+          {(["created", "placed", "awaiting", "delivered"] as const).map((s) => (
+            <div key={s} className="report-metric"><dt>{t(STATUS_LABEL[s])}</dt><dd>{data.by_status?.[s] ?? 0}</dd></div>
+          ))}
         </dl>
         {data.lines_without_price > 0 && <p className="hint">{t("reports.p_missing", { n: data.lines_without_price })}</p>}
         <p className="hint">{t("reports.p_note")}</p>

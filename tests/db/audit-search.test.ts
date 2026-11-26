@@ -83,7 +83,7 @@ describe("search_access_log", () => {
     await db.asSuperuser();
     const [bed] = await db.freeBeds("AMIENS");
     await db.as(manager);
-    const stay = (await db.one<{ id: string }>("select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => 'Joana', p_last_name => 'Silva') as id", [amiens, bed])).id;
+    const stay = (await db.one<{ id: string }>("select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => 'Joana', p_last_name => 'Silva') as id", [amiens, bed])).id;
     await db.asSuperuser();
     const resident = (await db.one<{ resident_id: string }>("select resident_id from public.stays where id = $1", [stay])).resident_id;
     await db.query("insert into public.access_log (actor_staff_id, resident_id, context) values ($1, $2, 'profile')", [manager.staffId, resident]);

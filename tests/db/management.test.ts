@@ -247,7 +247,7 @@ describe("Relatório mensal por Lodge", () => {
     // Uma admissão, um Out e um chamado no mês.
     const [bed] = await db.freeBeds("AMIENS");
     await db.as(manager);
-    const stay = (await db.one<{ id: string }>("select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => 'Ana', p_admitted_at => now() - interval '1 hour') as id", [amiens, bed])).id;
+    const stay = (await db.one<{ id: string }>("select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => 'Ana', p_admitted_at => now() - interval '1 hour') as id", [amiens, bed])).id;
     await db.query("select public.effect_out($1)", [stay]);
     await db.query("select public.create_maintenance($1, 'Cozinha', 'Torneira', 'normal', gen_random_uuid())", [amiens]);
     const month = (await db.one<{ m: string }>("select to_char(date_trunc('month', public.operational_day(now())), 'YYYY-MM-DD') as m")).m;

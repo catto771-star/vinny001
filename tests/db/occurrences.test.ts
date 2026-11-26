@@ -36,7 +36,7 @@ async function admit(lodge: "AMIENS" | "CONNOLLY", name: string) {
   await db.as(manager);
   const stay = (
     await db.one<{ id: string }>(
-      "select public.admit_resident(p_lodge => $1, p_bed => $2, p_first_name => $3, p_admitted_at => now() - interval '10 days') as id",
+      "select public.admit_resident(p_pass_id => 'T' || substr(md5(random()::text), 1, 10), p_lodge => $1, p_bed => $2, p_first_name => $3, p_admitted_at => now() - interval '10 days') as id",
       [lodge === "AMIENS" ? amiens : connolly, bed, name],
     )
   ).id;
@@ -296,17 +296,17 @@ describe("Warnings e FW", () => {
   it("qualquer usuário registra; ligado ao Handover e ao perfil; não expira sozinho", async () => {
     const a = await admit("AMIENS", "Ana");
     await db.as(officeA);
-    const w = (await db.one<{ id: string }>("select public.record_warning($1, 'verbal', 'Barulho após 23h') as id", [a.stay])).id;
+    const w = (await db.one<{ id: string }>("select public.record_warning($1, 'warning', 'Barulho após 23h') as id", [a.stay])).id;
     await db.asSuperuser();
     const row = await db.one("select type, active, handover_entry_id is not null as linked from public.warnings where id = $1", [w]);
-    expect(row).toEqual({ type: "verbal", active: true, linked: true });
+    expect(row).toEqual({ type: "warning", active: true, linked: true });
     expect((await db.one("select count(*)::int as n from public.handover_mentions m join public.warnings w on w.handover_entry_id = m.entry_id where w.id = $1 and m.resident_id = $2", [w, a.resident])).n).toBe(1);
   });
 
   it("B17: Final Warning ativo → etiqueta FW na folha, no mapa/listas; só Manager/Owner desativam", async () => {
     const a = await admit("AMIENS", "Ana");
     await db.as(officeA);
-    const w = (await db.one<{ id: string }>("select public.record_warning($1, 'final_written', 'Agressão verbal') as id", [a.stay])).id;
+    const w = (await db.one<{ id: string }>("select public.record_warning($1, 'final_warning', 'Agressão verbal') as id", [a.stay])).id;
     const day = (await db.one<{ d: string }>("select (public.operational_day(now()) - 1)::text as d")).d;
     const run = (await db.one<{ id: string }>("select public.open_room_check($1, $2::date, '12:00') as id", [amiens, day])).id;
     expect((await db.one("select final_warning from public.room_check_sheet($1) where stay_id = $2", [run, a.stay])).final_warning).toBe(true);

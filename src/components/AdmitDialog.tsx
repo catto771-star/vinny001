@@ -11,7 +11,7 @@ import { Dialog, DialogCancel } from "./Dialog";
 import { DateTimeField } from "./DateTimeField";
 import { Notice } from "./Notice";
 
-type FormerResident = { id: string; first_name: string; last_name: string; date_of_birth: string | null; pass_id: string | null };
+type FormerResident = { resident_id: string; first_name: string; last_name: string; date_of_birth: string | null; pass_id: string; has_open_stay: boolean; last_ended_at: string | null; last_house: string | null };
 
 /** Escolha de cama livre, agrupada por Lodge e quarto, só nos Lodges onde o usuário pode registrar. */
 export function FreeBedSelect({
@@ -76,7 +76,6 @@ export function AdmitDialog({
 }) {
   const { t, locale } = useI18n();
   const { canWriteLodge } = useAuth();
-  const [mode, setMode] = useState<"new" | "existing">("new");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [dob, setDob] = useState("");
@@ -84,36 +83,45 @@ export function AdmitDialog({
   const [bedId, setBedId] = useState(initialBed?.bedId ?? "");
   const [lodgeId, setLodgeId] = useState(initialBed?.lodgeId ?? "");
   const [admittedAt, setAdmittedAt] = useState<Date | null>(null);
-  const [query, setQuery] = useState("");
-  const [former, setFormer] = useState<FormerResident[]>([]);
+  const [found, setFound] = useState<FormerResident | null>(null);
   const [chosen, setChosen] = useState<FormerResident | null>(null);
   const [busy, setBusy] = useState(false);
   const [bedsLoading, setBedsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Ex-residentes sem estadia aberta (readmissão).
+  // PASS ID já cadastrado? Avisa e pergunta se quer puxar o cadastro (ex-residente) ou bloqueia (já internado).
   useEffect(() => {
-    if (mode !== "existing" || query.trim().length < 2) {
-      setFormer([]);
-      return;
-    }
-    const term = query.trim().replace(/[%,()]/g, " ");
+    const id = passId.trim();
+    if (chosen || id.length < 3) { setFound(null); return; }
     const handle = window.setTimeout(async () => {
-      const { data } = await supabase
-        .from("residents")
-        .select("id, first_name, last_name, date_of_birth, pass_id, stays(status)")
-        .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,pass_id.ilike.%${term}%`)
-        .limit(20);
-      const rows = (data ?? []) as Array<FormerResident & { stays: { status: string }[] }>;
-      setFormer(rows.filter((r) => r.stays.every((s) => s.status === "ended")));
-    }, 250);
+      const { data } = await supabase.rpc("find_former_resident", { p_pass_id: id });
+      const row = Array.isArray(data) ? (data[0] as FormerResident | undefined) : undefined;
+      setFound(row ?? null);
+    }, 300);
     return () => window.clearTimeout(handle);
-  }, [mode, query]);
+  }, [passId, chosen]);
 
   const valid = useMemo(
-    () => !bedsLoading && !!bedId && (mode === "new" ? firstName.trim().length > 0 : !!chosen),
-    [bedsLoading, bedId, mode, firstName, chosen],
+    () => !bedsLoading && !!bedId && (chosen ? true : firstName.trim().length > 0 && passId.trim().length > 0 && !found),
+    [bedsLoading, bedId, chosen, firstName, passId, found],
   );
+
+  function loadFormer(r: FormerResident) {
+    setChosen(r);
+    setFound(null);
+    setFirstName(r.first_name);
+    setLastName(r.last_name);
+    setDob(r.date_of_birth ?? "");
+    setPassId(r.pass_id);
+  }
+  function changePassId() {
+    setChosen(null);
+    setFound(null);
+    setFirstName("");
+    setLastName("");
+    setDob("");
+    setPassId("");
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -123,11 +131,11 @@ export function AdmitDialog({
     const { data: stayId, error: rpcError } = await supabase.rpc("admit_resident", {
       p_lodge: lodgeId,
       p_bed: bedId,
-      p_resident_id: mode === "existing" ? chosen?.id : null,
-      p_first_name: mode === "new" ? firstName.trim() : null,
-      p_last_name: mode === "new" ? lastName.trim() : null,
-      p_date_of_birth: mode === "new" && dob ? dob : null,
-      p_pass_id: mode === "new" && passId.trim() ? passId.trim() : null,
+      p_resident_id: chosen?.resident_id ?? null,
+      p_first_name: chosen ? null : firstName.trim(),
+      p_last_name: chosen ? null : lastName.trim(),
+      p_date_of_birth: !chosen && dob ? dob : null,
+      p_pass_id: chosen ? null : passId.trim(),
       p_admitted_at: admittedAt ? admittedAt.toISOString() : null,
     });
     if (rpcError) {
@@ -139,6 +147,7 @@ export function AdmitDialog({
     onDone((stay as { resident_id: string } | null)?.resident_id ?? "");
   }
 
+  const fullName = found ? residentName(found as unknown as { first_name: string; last_name: string }) : "";
   return (
     <Dialog
       title={t("residents.admitTitle")}
@@ -154,51 +163,48 @@ export function AdmitDialog({
       }
     >
       <form id="admit-form" className="form" onSubmit={submit}>
-        <div className="segmented">
-          <button type="button" className={mode === "new" ? "selected" : ""} onClick={() => setMode("new")}>
-            {t("residents.newResident")}
-          </button>
-          <button type="button" className={mode === "existing" ? "selected" : ""} onClick={() => setMode("existing")}>
-            {t("residents.existingResident")}
-          </button>
-        </div>
+        <label>
+          {t("residents.passId")}
+          <input required value={passId} onChange={(e) => setPassId(e.target.value)} disabled={!!chosen} autoFocus autoComplete="off" />
+        </label>
 
-        {mode === "new" ? (
-          <div className="form-grid">
-            <label>
-              {t("residents.firstName")}
-              <input required value={firstName} onChange={(e) => setFirstName(e.target.value)} autoFocus />
-            </label>
-            <label>
-              {t("residents.lastName")}
-              <input value={lastName} onChange={(e) => setLastName(e.target.value)} />
-            </label>
-            <label>
-              {t("residents.dateOfBirth")}
-              <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
-            </label>
-            <label>
-              {t("residents.passId")} <small>({t("app.optional")})</small>
-              <input value={passId} onChange={(e) => setPassId(e.target.value)} />
-            </label>
-          </div>
-        ) : (
-          <div className="form">
-            <label>
-              {t("app.search")}
-              <input value={query} onChange={(e) => { setQuery(e.target.value); setChosen(null); }} placeholder={t("residents.searchPlaceholder")} autoFocus />
-            </label>
-            <ul className="pick-list">
-              {former.map((r) => (
-                <li key={r.id}>
-                  <button type="button" className={chosen?.id === r.id ? "selected" : ""} onClick={() => setChosen(r)}>
-                    <strong>{residentName(r)}</strong> {formatCivilDate(r.date_of_birth, locale)} {r.pass_id && `· ${r.pass_id}`}
-                  </button>
-                </li>
-              ))}
-            </ul>
+        {found && (
+          <div className="notice notice-warning former-alert" role="alert">
+            {found.has_open_stay ? (
+              <p>{t("residents.alreadyResidentHere", { name: fullName, house: found.last_house ?? "" })}</p>
+            ) : (
+              <>
+                <p><strong>{t("residents.formerFound")}</strong></p>
+                <p>{t("residents.formerDetails", { name: fullName, dob: formatCivilDate(found.date_of_birth, locale), left: found.last_ended_at ? formatCivilDate(found.last_ended_at.slice(0, 10), locale) : "—" })}</p>
+                <div className="row-actions">
+                  <button type="button" className="primary" onClick={() => loadFormer(found)}>{t("residents.formerUse")}</button>
+                  <button type="button" onClick={changePassId}>{t("residents.formerChange")}</button>
+                </div>
+              </>
+            )}
           </div>
         )}
+        {chosen && (
+          <div className="notice notice-info former-alert">
+            <p>{t("residents.formerLoaded", { name: residentName(chosen as unknown as { first_name: string; last_name: string }) })}</p>
+            <button type="button" onClick={changePassId}>{t("residents.formerChange")}</button>
+          </div>
+        )}
+
+        <div className="form-grid">
+          <label>
+            {t("residents.firstName")}
+            <input required value={firstName} onChange={(e) => setFirstName(e.target.value)} disabled={!!chosen} />
+          </label>
+          <label>
+            {t("residents.lastName")}
+            <input value={lastName} onChange={(e) => setLastName(e.target.value)} disabled={!!chosen} />
+          </label>
+          <label>
+            {t("residents.dateOfBirth")}
+            <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} disabled={!!chosen} />
+          </label>
+        </div>
 
         <label>
           {t("residents.bed")}

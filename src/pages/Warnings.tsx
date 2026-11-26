@@ -31,7 +31,7 @@ type WarningRow = {
   residents: { first_name: string; last_name: string } | null;
 };
 
-/** Warnings (s.7): Verbal, Written e Final Written; FW ativo vira etiqueta; só a gestão desativa FW. */
+/** Warnings (s.7): Warning e Final Warning; FW ativo vira etiqueta; só a gestão desativa FW. */
 export function Warnings() {
   const { t, locale } = useI18n();
   const { canWriteLodge, isManagement } = useAuth();
@@ -114,13 +114,13 @@ export function Warnings() {
               <tr key={w.id} className={!w.active ? "row-inactive" : ""}>
                 <td className="cell-main">
                   <Link to={`/residents/${w.resident_id}`}>{w.residents ? residentName(w.residents) : ""}</Link>
-                  {w.type === "final_written" && w.active && <span className="tag tag-danger fw-tag">FW</span>}
+                  {w.type === "final_warning" && w.active && <span className="tag tag-danger fw-tag">FW</span>}
                 </td>
                 <td>{t(WARNING_LABEL[w.type])}{!w.active && ` · ${t("warnings.inactive")}`}</td>
                 <td>{w.note}</td>
                 <td className="nowrap">{formatDateTime(w.issued_at, locale)} · {nameOf(w.issued_by)}</td>
                 <td>
-                  {isManagement && w.type === "final_written" && w.active && (
+                  {isManagement && w.type === "final_warning" && w.active && (
                     <button className="small danger-outline" onClick={() => setDeactivating(w)}>{t("warnings.deactivate")}</button>
                   )}
                 </td>

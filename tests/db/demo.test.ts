@@ -159,7 +159,7 @@ describe("demo.seed", () => {
     expect(a.tasks).toBeUndefined(); // Beta: Daily Tasks voltaram para o papel
     expect(a.rounds_checks!.checks_pending).toBeLessThanOrEqual(2);
     for (const [lodge, r] of [[amiens, a], [connolly, c]] as const) {
-      for (const [block, metric] of [["occupancy", "admissions"], ["occupancy", "outs"], ["maintenance", "opened"], ["warnings", "verbal"], ["no_shows", "total"]]) {
+      for (const [block, metric] of [["occupancy", "admissions"], ["occupancy", "outs"], ["maintenance", "opened"], ["warnings", "warning"], ["no_shows", "total"]]) {
         const n = Number((await db.one<{ n: string }>("select count(*) n from public.report_details($1, $2, $3)", [lodge, month, `${block}.${metric}`])).n);
         expect(n, `${block}.${metric}`).toBe(r[block]![metric]);
       }

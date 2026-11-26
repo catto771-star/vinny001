@@ -1,6 +1,6 @@
 import { useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Plus, X } from "lucide-react";
-import { useI18n } from "@/i18n";
+import { useI18n, type MessageKey } from "@/i18n";
 import { filterResidents } from "./ResidentPicker";
 
 export type Person = { id: string; name: string; hint?: string };
@@ -20,10 +20,11 @@ export function initials(name: string): string {
  * Autor e colegas da anotação (revisão 8): um chip com o Author, chips removíveis para até 3 colegas e um
  * botão "+ Add colleague" que abre uma busca. Nada de quatro campos soltos.
  */
-export function StaffPicker({ people, author, rosteredId, coAuthors, onAuthor, onCoAuthors, required }: {
+export function StaffPicker({ people, author, defaultId, hintKey, coAuthors, onAuthor, onCoAuthors, required }: {
   people: Person[];
   author: string | null;
-  rosteredId: string;
+  defaultId: string;
+  hintKey: MessageKey;
   coAuthors: string[];
   onAuthor: (id: string | null) => void;
   onCoAuthors: (ids: string[]) => void;
@@ -36,7 +37,7 @@ export function StaffPicker({ people, author, rosteredId, coAuthors, onAuthor, o
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const authorId = author ?? rosteredId;
+  const authorId = author ?? defaultId;
   const byId = (id: string) => people.find((p) => p.id === id);
   const authorName = authorId ? byId(authorId)?.name : undefined;
   const total = 1 + coAuthors.length;
@@ -45,10 +46,10 @@ export function StaffPicker({ people, author, rosteredId, coAuthors, onAuthor, o
     const taken = new Set(mode === "colleague" ? [authorId, ...coAuthors] : []);
     const pool = people.filter((p) => !taken.has(p.id));
     // Quem está no Roster vem primeiro.
-    const sorted = [...pool].sort((a, b) => Number(b.id === rosteredId) - Number(a.id === rosteredId));
+    const sorted = [...pool].sort((a, b) => Number(b.id === defaultId) - Number(a.id === defaultId));
     return filterResidents(query, sorted.map((p) => ({ id: p.id, label: p.name }))).map((o) => byId(o.id)!);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [people, query, mode, authorId, coAuthors, rosteredId]);
+  }, [people, query, mode, authorId, coAuthors, defaultId]);
 
   function open(next: "author" | "colleague") {
     setMode(next);
@@ -83,7 +84,7 @@ export function StaffPicker({ people, author, rosteredId, coAuthors, onAuthor, o
             <>
               <span className="avatar" aria-hidden="true">{initials(authorName)}</span>
               <span className="person-name">{authorName}</span>
-              {authorId === rosteredId && <span className="person-hint">{t("handover.onRoster")}</span>}
+              {authorId === defaultId && <span className="person-hint">{t(hintKey)}</span>}
             </>
           ) : (
             <span className="person-name">{t(required ? "handover.filledByChoose" : "handover.filledByMe")}</span>
@@ -124,7 +125,7 @@ export function StaffPicker({ people, author, rosteredId, coAuthors, onAuthor, o
                 onMouseDown={(e) => e.preventDefault()} onClick={() => choose(p)} onMouseEnter={() => setActive(i)}>
                 <span className="avatar" aria-hidden="true">{initials(p.name)}</span>
                 <span className="person-name">{p.name}</span>
-                {p.id === rosteredId && <span className="person-hint">{t("handover.onRoster")}</span>}
+                {p.id === defaultId && <span className="person-hint">{t(hintKey)}</span>}
               </li>
             ))}
           </ul>

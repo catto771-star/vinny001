@@ -152,7 +152,7 @@ export function Tasks() {
             const signed = task.signatures.length > 0;
             return (
               <li key={`${task.kind}-${task.task_id}`} className={`task-item${signed ? " is-done" : ""}`}>
-                <span className="task-check" aria-hidden="true">{signed ? "✓" : ""}</span>
+                <span className="task-check" aria-hidden="true" />
                 <div className="task-main">
                   <span className="task-title">{pickTitle(task.title, locale)}</span>
                   <span className="task-meta">

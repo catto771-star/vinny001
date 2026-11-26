@@ -61,7 +61,7 @@ describe("Fridge", () => {
     tables.fridges = [{ id: "f1", lodge_id: "a", name: "Kitchen fridge", sort_order: 1 }];
     wrap(<Fridge />);
     const input = await screen.findByLabelText("Temperature (°C)");
-    const save = screen.getByRole("button", { name: "Record temperature" }) as HTMLButtonElement;
+    const save = screen.getByRole("button", { name: "New Reading" }) as HTMLButtonElement;
     expect(save.disabled).toBe(true);
     fireEvent.change(input, { target: { value: "7,5" } });
     expect(screen.getAllByText("out of range").length).toBeGreaterThan(0);
@@ -78,7 +78,7 @@ describe("Fridge", () => {
     wrap(<Fridge />);
     fireEvent.click(await screen.findByRole("tab", { name: /Fridge 3/ }));
     fireEvent.change(screen.getByLabelText("Temperature (°C)"), { target: { value: "4" } });
-    fireEvent.click(screen.getByRole("button", { name: "Record temperature" }));
+    fireEvent.click(screen.getByRole("button", { name: "New Reading" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("record_fridge_reading", { p_fridge: "c3", p_temperature: 4, p_note: "" }));
     delete tables.fridges;
     delete tables.fridge_readings;
@@ -88,12 +88,12 @@ describe("Fridge", () => {
 describe("Dinner", () => {
   const row = { stay_id: "s1", resident_id: "r1", first_name: "Ana", last_name: "X", room_kind: "room", room_code: "4", room_sort: 4, bed_number: 1, served: null, marked_by: null, final_warning: false };
 
-  it("'Took the meal' envia a marca do residente (vale como Seen Night); não há botão 'No' (revisão 4)", async () => {
+  it("'Received' envia a marca do residente (vale como Seen Night); não há botão 'No' (revisão 4)", async () => {
     rpcResult.dinner_sheet = [row];
     rpcResult.dinner_summary = [{ service_id: null, leftovers: null, packaged: null, close_note: null, closed_at: null, closed_by: null, served_count: 0, not_served_count: 0, residents_count: 1 }];
     wrap(<Dinner />);
     fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: "2026-11-01" } });
-    fireEvent.click(await screen.findByRole("button", { name: "Took the meal — Ana X" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Received — Ana X" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("mark_dinner", { p_lodge: "a", p_day: "2026-11-01", p_stay: "s1", p_served: true }));
     expect(screen.queryByRole("button", { name: "No" })).toBeNull();
   });
@@ -103,7 +103,7 @@ describe("Dinner", () => {
     rpcResult.dinner_summary = [{ service_id: null, leftovers: null, packaged: null, close_note: null, closed_at: null, closed_by: null, served_count: 1, not_served_count: 0, residents_count: 1 }];
     wrap(<Dinner />);
     fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: "2026-11-01" } });
-    fireEvent.click(await screen.findByRole("button", { name: "Took the meal — Ana X" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Received — Ana X" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("mark_dinner", { p_lodge: "a", p_day: "2026-11-01", p_stay: "s1", p_served: false }));
   });
 
@@ -112,7 +112,7 @@ describe("Dinner", () => {
     rpcResult.dinner_summary = [{ service_id: null, leftovers: null, packaged: null, close_note: null, closed_at: null, closed_by: null, served_count: 0, not_served_count: 0, residents_count: 1 }];
     wrap(<Dinner />);
     fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: "2099-01-01" } });
-    fireEvent.click(await screen.findByRole("button", { name: "Took the meal — Ana X" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Received — Ana X" }));
     expect(await screen.findByText(/Record Ana X's meal now/)).toBeTruthy();
     expect(rpc).not.toHaveBeenCalledWith("mark_dinner", expect.anything());
     fireEvent.click(screen.getByRole("button", { name: "Record now" }));
@@ -124,7 +124,7 @@ describe("Dinner", () => {
     rpcResult.dinner_summary = [{ service_id: null, leftovers: null, packaged: null, close_note: null, closed_at: null, closed_by: null, served_count: 0, not_served_count: 0, residents_count: 1 }];
     wrap(<Dinner />);
     fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: "2026-11-01" } });
-    await screen.findByRole("button", { name: "Took the meal — Ana X" });
+    await screen.findByRole("button", { name: "Received — Ana X" });
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "@ana" } });
     fireEvent.mouseDown(within(screen.getByRole("listbox")).getByRole("option", { name: /Ana X/ }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("mark_dinner", { p_lodge: "a", p_day: "2026-11-01", p_stay: "s1", p_served: true }));
@@ -135,7 +135,7 @@ describe("Dinner", () => {
     rpcResult.dinner_summary = [{ service_id: "x", leftovers: null, packaged: null, close_note: null, closed_at: null, closed_by: null, served_count: 0, not_served_count: 0, residents_count: 1 }];
     wrap(<Dinner />);
     fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: "2026-11-01" } });
-    await screen.findByRole("button", { name: "Took the meal — Ana X" });
+    await screen.findByRole("button", { name: "Received — Ana X" });
     expect(screen.queryByRole("button", { name: "Close leftovers" })).toBeNull();
     cleanup();
     management = true;
