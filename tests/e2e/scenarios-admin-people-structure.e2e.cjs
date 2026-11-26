@@ -186,7 +186,7 @@ const results = [];
   await step("Handover: anotação com tag e colega", async () => {
     await go("/handover", 5000);
     await p.getByPlaceholder(/Write an entry/).fill("Scenario: fire alarm test completed");
-    await p.getByRole("button", { name: "Incident / Safety" }).click();
+    await p.locator(".composer").getByRole("button", { name: "Incident / Safety" }).click();
     await p.getByRole("button", { name: /Add colleague/ }).click();
     await p.getByRole("option").first().click();
     await p.getByRole("button", { name: "Add entry" }).click(); await p.waitForTimeout(4000);
@@ -201,10 +201,10 @@ const results = [];
   await step("Settings: mudar a janela do Room Check para 45 e voltar a 60", async () => {
     await go("/settings?tab=system", 4500);
     await p.getByLabel("Check window (minutes)").fill("45");
-    await p.locator("section", { has: p.getByLabel("Check window (minutes)") }).getByRole("button", { name: "Save" }).click(); await p.waitForTimeout(3500);
+    await p.locator("section.system-section", { has: p.getByLabel("Check window (minutes)") }).getByRole("button", { name: "Save" }).click(); await p.waitForTimeout(3500);
     await expectDb("select value from public.parameters where key='presence.check_window_minutes' order by id desc limit 1", (r) => String(r[0]?.value) === "45");
     await p.getByLabel("Check window (minutes)").fill("60");
-    await p.locator("section", { has: p.getByLabel("Check window (minutes)") }).getByRole("button", { name: "Save" }).click(); await p.waitForTimeout(3500);
+    await p.locator("section.system-section", { has: p.getByLabel("Check window (minutes)") }).getByRole("button", { name: "Save" }).click(); await p.waitForTimeout(3500);
     return expectDb("select value from public.parameters where key='presence.check_window_minutes' order by id desc limit 1", (r) => String(r[0]?.value) === "60");
   });
   await step("Audit: filtro por módulo Settings mostra a mudança de configuração", async () => {
