@@ -92,10 +92,10 @@ box(s, 0.6, 2.0, 5.9, 4.6, SURF); box(s, 6.8, 2.0, 5.9, 4.6, SURF)
 text(s, 0.9, 2.2, 5.3, 0.6, "Admin", 28, ACC, True); text(s, 0.9, 2.85, 5.3, 0.4, "You and Guilherme", 16, MUTED)
 bullets(s, 0.9, 3.5, 5.4, ["Both houses, plus every management tab", "Reports, Roster, Holidays, Purchases, Audit", "Logs in from anywhere"], 17, 0.8)
 text(s, 7.1, 2.2, 5.3, 0.6, "Staff (house login)", 28, GRN, True); text(s, 7.1, 2.85, 5.3, 0.4, "Used on the office PC", 16, MUTED)
-bullets(s, 7.1, 3.5, 5.4, ["Their own house only", "Day-to-day screens only", "No management tabs at all"], 17, 0.8, dot=GRN)
+bullets(s, 7.1, 3.5, 5.4, ["Their own house only", "Day-to-day screens only", "No management tabs at all", "Float: same house login, only the report author changes"], 17, 0.8, dot=GRN)
 
 # ---------------- 4. login ----------------
-s = slide("Here's how you get in. You log in from anywhere, with your password and a one-time code we send to your email. Staff don't do any of that: they use the house login on the office PC. And just so it's clear, there's zero link to the Pass System.")
+s = slide("Here's how you get in. You log in from anywhere, with your password and a one-time code we send to your email. Staff don't do any of that: they use the house login on the office PC. And just so it's clear, there's zero link to the Pass System, so there's no GDPR risk at all.")
 header(s, "2 · Security, access and GDPR", "How people log in")
 steps = [("1", "Email + password"), ("2", "One-time email code"), ("3", "In, from anywhere")]
 for i, (n, t1) in enumerate(steps):
@@ -104,22 +104,22 @@ for i, (n, t1) in enumerate(steps):
 text(s, 0.8, 1.75, 6, 0.3, "ADMIN", 12, ACC, True)
 box(s, 0.8, 4.4, 11.7, 1.4, SURF, GRN); text(s, 1.1, 4.5, 3, 0.4, "STAFF", 12, GRN, True)
 text(s, 1.1, 4.9, 10.9, 0.8, "House login on the office PC. No email code needed, and no management tabs.", 20, INK)
-chip(s, 0.8, 6.15, 6.6, "No connection to the Pass System. Nothing flows there.", RED, size=16, h=0.55)
+chip(s, 0.8, 6.15, 8.2, "Zero link to the Pass System. Zero GDPR risk.", RED, size=18, h=0.6)
 
 # ---------------- 5. GDPR ----------------
-s = slide("On GDPR: personal data stays inside our own database, behind the logins I just showed you. There's no connection to the Pass System, so nothing goes out that way. Every change is recorded in the Audit, so we always know who did what, and when. I'd call the risk minimal, and I'm happy to go through it with whoever handles data protection for us.")
-header(s, "2 · Security, access and GDPR", "GDPR by design")
-items = [("Own database", "Data stays in our Supabase project, with automatic daily backups."), ("Role-based access", "Admins and Staff see only what their role needs."), ("Every change logged", "Audit shows who did what, when, and the before and after."), ("No Pass System link", "The PASS ID is just a reference typed in. Nothing is sent to it.")]
+s = slide("On GDPR: the information isn't available left, right and centre. It stays in our own database, behind the logins I just showed you, and each person only sees what their role needs. There's zero link to the Pass System, so nothing goes out that way. Every change is recorded in the Audit, so we always know who did what, and when. So there's no GDPR risk at all.")
+header(s, "2 · Security, access and GDPR", "GDPR: zero risk, by design")
+items = [("Own database", "Data stays in our Supabase project, with automatic daily backups."), ("Not available left and right", "Admins and Staff see only what their role needs."), ("Every change logged", "Audit shows who did what, when, and the before and after."), ("Zero link to the Pass System", "The PASS ID is just a reference typed in. Nothing is sent to it.")]
 for i, (t1, t2) in enumerate(items):
     x = 0.6 + (i % 2) * 6.2; y = 2.0 + (i // 2) * 2.3; box(s, x, y, 5.9, 2.0, SURF); text(s, x + 0.3, y + 0.2, 5.3, 0.5, t1, 22, AMB, True); text(s, x + 0.3, y + 0.85, 5.3, 1.0, t2, 16, INK)
 picture(s, "24-audit", 0.6, 6.7, 0.01) if False else None
 
 # ---------------- 6. cores ----------------
-s = slide("Now the colours, which was Guilherme's idea. The whole system is in English. Each house has its own colour: a dark yellow, or amber, for Amiens, and blue for Connolly. That stops anyone from logging something in the wrong house. And the Float can switch houses in one click, without logging out.")
+s = slide("Now the colours, which was Guilherme's idea. The whole system is in English. Each house has its own colour: a dark yellow, or amber, for Amiens, and blue for Connolly. That stops anyone from logging something in the wrong house. And the Float doesn't log in separately: they use the login of the house they're in, and the only thing that changes is the author of a Handover report.")
 header(s, "3 · Visual and colours", "Zero confusion: each house has its own colour")
 picture(s, "10-bed-map", 0.6, 1.95, 5.6, AMB); picture(s, "27-switch-house", 6.75, 1.95, 5.6, BLU)
 chip(s, 0.6, 6.15, 5.6, "Amiens: amber (dark yellow)", "A34A08", size=16, h=0.5); chip(s, 6.75, 6.15, 5.6, "Connolly: blue", "1D5FD1", size=16, h=0.5)
-text(s, 0.6, 6.8, 12.2, 0.5, "100% in English  ·  The Float switches house in one click, without logging out", 16, MUTED, False, PP_ALIGN.CENTER)
+text(s, 0.6, 6.8, 12.2, 0.5, "100% in English  ·  The Float uses the house login; only the report author changes", 16, MUTED, False, PP_ALIGN.CENTER)
 
 # ---------------- 7. operação: handover ----------------
 s = slide("Here's what the lads use on shift. First, the Handover. Every note is searchable by date, and tagged, so anything urgent gets seen quickly.")
@@ -202,13 +202,18 @@ picture(s, "22-reports", 0.6, 1.95, 7.8)
 bullets(s, 8.8, 2.1, 4.2, ["Day, week, month or any range", "One house or both together", "Occupancy, maintenance, warnings", "No-shows and worked hours"], 18, 0.95)
 
 # ---------------- 16. custos ----------------
-s = slide("For running costs, I've kept it as lean as I can. It's about forty-one to forty-three euro a month, ex-VAT. That covers commercial hosting on Vercel and the Pro database on Supabase. The Pro plan gives us automatic daily backups, so nothing gets lost. Prices are as of today, and I'll confirm them before we sign anything off.")
+s = slide("For running costs, I kept it as lean as I could, and I checked the official price pages. Vercel Pro is twenty dollars a month for the one person who deploys, with twenty dollars of usage credit included. Supabase Pro is twenty-five dollars a month, with daily backups kept for seven days, so nothing gets lost. That's about forty-five dollars, which comes to around forty-one to forty-three euro a month, ex-VAT, depending on the exchange rate. Prices were checked on the providers' own pages on the 27th of November, 2026, and I'll re-check them before we commit.")
 header(s, "8 · Costs and next steps", "Running costs: lean")
-box(s, 0.9, 2.0, 5.6, 3.2, SURF); box(s, 6.8, 2.0, 5.6, 3.2, SURF)
-text(s, 1.2, 2.2, 5.0, 0.5, "Vercel (commercial hosting)", 20, AMB, True); text(s, 1.2, 2.9, 5.0, 1.8, ["Fast, secure hosting.", "The app people open in the browser."], 17)
-text(s, 7.1, 2.2, 5.0, 0.5, "Supabase Pro (database)", 20, AMB, True); text(s, 7.1, 2.9, 5.0, 1.8, ["Automatic daily backups.", "Nothing gets lost."], 17)
-text(s, 0.9, 5.5, 11.5, 1.0, "About €41–43 per month, ex-VAT", 38, INK, True, PP_ALIGN.CENTER)
-text(s, 0.9, 6.5, 11.5, 0.5, "Prices as of today; to be confirmed before sign-off.", 14, MUTED, False, PP_ALIGN.CENTER)
+rows = [("Vercel Pro", "Commercial hosting: the app in the browser", "US$ 20 / month", "1 deploying seat included, US$ 20 usage credit included"),
+        ("Supabase Pro", "Database, logins and automatic daily backups", "US$ 25 / month", "7 days of daily backups; compute credit covers one small project")]
+for i, (n, d, pr, nt) in enumerate(rows):
+    y = 2.0 + i * 1.55; box(s, 0.6, y, 12.1, 1.35, SURF)
+    text(s, 0.9, y + 0.15, 4.2, 0.5, n, 24, AMB, True); text(s, 0.9, y + 0.7, 5.2, 0.5, d, 15, MUTED)
+    text(s, 6.4, y + 0.15, 3.0, 0.6, pr, 24, INK, True); text(s, 6.4, y + 0.75, 6.0, 0.5, nt, 14, MUTED)
+box(s, 0.6, 5.2, 12.1, 1.2, SURF, ACC)
+text(s, 0.9, 5.3, 6.0, 0.5, "Total", 18, MUTED, True); text(s, 0.9, 5.7, 6.0, 0.6, "≈ US$ 45 / month", 28, INK, True)
+text(s, 6.4, 5.3, 6.0, 0.5, "In euro, ex-VAT", 18, MUTED, True); text(s, 6.4, 5.7, 6.0, 0.6, "≈ €41–43 / month", 28, ACC, True)
+text(s, 0.6, 6.55, 12.1, 0.8, ["Official price pages, checked 27 Nov 2026: vercel.com/pricing · supabase.com/pricing. Euro figure depends on the exchange rate and VAT.", "Not included: Supabase point-in-time recovery add-on. Prices can change, so we re-check before we commit."], 12, MUTED)
 
 # ---------------- 17. próximos passos ----------------
 s = slide("So that's it. Give us your feedback today and I'll tweak whatever you need. Then we launch the Beta and record short how-to videos for the team. Thanks very much.")
