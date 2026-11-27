@@ -57,6 +57,13 @@ export function Purchases() {
   const [items, setItems] = useState<ShopItem[] | null>(null);
   const [orders, setOrders] = useState<ShopOrder[]>([]);
   const [orderId, setOrderId] = useState("");
+  const [poolStatus, setPoolStatus] = useState<"all" | OrderStatus>("all");
+  const [poolFrom, setPoolFrom] = useState("");
+  const [poolTo, setPoolTo] = useState("");
+  const pool = useMemo(
+    () => orders.filter((o) => (poolStatus === "all" || o.status === poolStatus) && (!poolFrom || o.delivery_date >= poolFrom) && (!poolTo || o.delivery_date <= poolTo)),
+    [orders, poolStatus, poolFrom, poolTo],
+  );
   const [lines, setLines] = useState<ShopLine[] | null>(null);
   const [editing, setEditing] = useState<ShopItem | "new" | null>(null);
   const [creating, setCreating] = useState(false);
@@ -176,20 +183,38 @@ export function Purchases() {
         <div className="card empty-state"><p>{t("purchases.noOrders")}</p></div>
       ) : (
         <>
-          <div className="toolbar">
-            <label className="inline">
-              {t("purchases.order")}
-              <select value={orderId} onChange={(e) => setOrderId(e.target.value)}>
-                {orders.map((o) => <option key={o.id} value={o.id}>{formatCivilDate(o.delivery_date, locale)} · {t(STATUS_LABEL[o.status])}</option>)}
-              </select>
-            </label>
-            {order && (
+          <div className="card order-pool" role="region" aria-label={t("purchases.order")}>
+            <div className="order-pool-filters">
+              <div className="chip-row" role="group" aria-label={t("filters.status")}>
+                {(["all", "created", "placed", "awaiting", "delivered"] as const).map((st) => (
+                  <button key={st} type="button" className={`chip${poolStatus === st ? " is-on" : ""}`} aria-pressed={poolStatus === st} onClick={() => setPoolStatus(st)}>
+                    {st === "all" ? t("app.all") : t(STATUS_LABEL[st])}
+                  </button>
+                ))}
+              </div>
+              <label className="inline">{t("filters.from")}<input type="date" value={poolFrom} onChange={(e) => setPoolFrom(e.target.value)} /></label>
+              <label className="inline">{t("filters.to")}<input type="date" value={poolTo} onChange={(e) => setPoolTo(e.target.value)} /></label>
+            </div>
+            <ul className="order-pool-list" role="listbox" aria-label={t("purchases.order")}>
+              {pool.map((o) => (
+                <li key={o.id}>
+                  <button type="button" role="option" aria-selected={o.id === orderId} className={`order-pool-item${o.id === orderId ? " is-on" : ""}`} onClick={() => setOrderId(o.id)}>
+                    <strong>{formatCivilDate(o.delivery_date, locale)}</strong>
+                    <span className={`tag status-${o.status}`}>{t(STATUS_LABEL[o.status])}</span>
+                  </button>
+                </li>
+              ))}
+              {pool.length === 0 && <li className="muted">{t("purchases.noOrders")}</li>}
+            </ul>
+          </div>
+          {order && (
+            <div className="toolbar">
               <label className="inline">
                 {t("purchases.delivery")}
                 <input type="date" value={order.delivery_date} onChange={(e) => e.target.value && void saveOrder({ delivery: e.target.value })} />
               </label>
-            )}
-          </div>
+            </div>
+          )}
 
           {unlinked.length > 0 && (
             <div className="card unlinked-box" role="region" aria-label={t("purchases.unlinkedTitle")}>

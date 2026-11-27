@@ -120,7 +120,7 @@ describe("Folha do dia", () => {
     await renderSheet();
     const absentButtons = screen.getAllByRole("button", { name: "Absence" }) as HTMLButtonElement[];
     expect(absentButtons.map((b) => b.disabled)).toEqual([false, true]);
-    expect(screen.getByText("reported absence")).toBeTruthy();
+    expect(screen.getByText("Reported absence")).toBeTruthy();
   });
 
   it("B05: visto durante ausência pergunta se antecipa; 'sim' registra o retorno", async () => {

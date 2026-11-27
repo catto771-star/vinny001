@@ -64,7 +64,7 @@ describe("Fridge", () => {
     const save = screen.getByRole("button", { name: "New Reading" }) as HTMLButtonElement;
     expect(save.disabled).toBe(true);
     fireEvent.change(input, { target: { value: "7,5" } });
-    expect(screen.getAllByText("out of range").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Out of range").length).toBeGreaterThan(0);
     fireEvent.change(input, { target: { value: "3,5" } });
     expect(save.disabled).toBe(false);
     fireEvent.click(save);

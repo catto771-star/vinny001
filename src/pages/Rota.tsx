@@ -132,7 +132,7 @@ export function Rota() {
                         <span className="rota-fn">{t(FN_LABEL[s.function])}{s.lodge_id && ` · ${lodgeShort(s.lodge_id)}`}{s.status === "draft" && ` · ${t("rota.draft")}`}</span>
                         {s.status === "published" && !s.planned_starts_at && <span className="rota-fn">{t("rota.cover")}</span>}
                         {s.planned_starts_at && s.planned_ends_at && (s.planned_starts_at !== s.starts_at || s.planned_ends_at !== s.ends_at) && (
-                          <span className="rota-fn">{t("rota.plannedWas", { time: `${formatTime(s.planned_starts_at, locale)}–${formatTime(s.planned_ends_at, locale)}` })}</span>
+                          <span className="rota-fn rota-changed"><span className="tag tag-warn">{t("rota.changed")}</span> <s>{formatTime(s.planned_starts_at, locale)}–{formatTime(s.planned_ends_at, locale)}</s></span>
                         )}
                       </button>
                     </li>

@@ -67,7 +67,7 @@ describe("Rota", () => {
     rpcResult.coverage_gaps = [{ lodge_id: "a", lodge_code: "AMIENS", kind: "night", starts_at: new Date().toISOString(), ends_at: new Date().toISOString() }];
     tables.staff = [{ id: "s1", full_name: "Ana Porter", display_name: null, role: "porter" }];
     wrap(<Rota />);
-    expect(await screen.findByText(/not covered/)).toBeTruthy();
+    expect(await screen.findByText(/Not covered/)).toBeTruthy();
     fireEvent.click(screen.getAllByRole("button", { name: /New Shift/ })[0]);
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: /Night 19–07/ }));

@@ -45,7 +45,7 @@ describe("Seen — diálogo 'Vi este residente'", () => {
 describe("Seen — check do turno (revisão 25/11)", () => {
   it("um toque em 'Seen' marca o residente agora; a contagem do turno aparece; quem não foi visto leva aos No Shows", async () => {
     render(<I18nProvider><MemoryRouter><Seen /></MemoryRouter></I18nProvider>);
-    expect(await screen.findByText(/seen this shift/)).toBeTruthy();
+    expect(await screen.findByText(/Seen this shift/)).toBeTruthy();
     expect(screen.getByRole("link", { name: /Go to No Shows/ }).getAttribute("href")).toBe("/no-shows");
     fireEvent.click(screen.getByRole("button", { name: "Seen — Present X" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("record_sighting", { p_resident: "r-s1", p_lodge: "a", p_seen_at: null, p_place: "" }));

@@ -318,3 +318,8 @@ a { transition:color 140ms var(--ios-ease), opacity 140ms }
 :root[data-theme] button.holiday-day.is-under_review { background-color:var(--hol-review)!important;color:#3d3000!important;opacity:1!important }
 :root[data-theme] button.holiday-day.is-approved { background-color:var(--hol-approved)!important;color:#3a1d00!important;opacity:1!important }
 :root[data-theme] button.holiday-day.is-locked, :root[data-theme] button.holiday-day.is-locked:disabled { background-color:var(--hol-locked)!important;color:#fff!important;opacity:1!important }
+.order-pool-filters { display:flex;flex-wrap:wrap;gap:.75rem 1rem;align-items:center;margin-bottom:.75rem }
+.order-pool-filters .chip-row { margin:0 }
+.order-pool-list { list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:.5rem;max-height:14rem;overflow:auto }
+.order-pool-item { width:100%;display:flex;align-items:center;justify-content:space-between;gap:.5rem;text-align:left }
+.order-pool-item.is-on { outline:2px solid var(--accent, currentColor) }

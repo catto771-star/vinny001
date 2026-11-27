@@ -52,7 +52,7 @@ describe("alerta de validade", () => {
     const d = new Date(Date.now() + 4 * 86_400_000).toISOString().slice(0, 10);
     tables.food_deliveries = [{ ...(tables.food_deliveries[0] as object), id: "x2", expiry_date: d }];
     render(<I18nProvider><ToastProvider><MemoryRouter><Deliveries /></MemoryRouter></ToastProvider></I18nProvider>);
-    expect(await screen.findByText("expires soon")).toBeTruthy();
+    expect(await screen.findByText("Expires soon")).toBeTruthy();
   });
 });
 
@@ -83,6 +83,6 @@ describe("New Delivery", () => {
   });
   it("entrega do Tesco aparece marcada como aguardando vínculo com o pedido", async () => {
     render(<I18nProvider><ToastProvider><MemoryRouter><Deliveries /></MemoryRouter></ToastProvider></I18nProvider>);
-    expect(await screen.findByText("awaiting order link")).toBeTruthy();
+    expect(await screen.findByText("Awaiting order link")).toBeTruthy();
   });
 });
