@@ -66,10 +66,10 @@ export function Warnings() {
     { key: "q", label: t("filters.search"), type: "search" },
     { key: "type", label: t("filters.type"), type: "select", primary: true, options: (Object.keys(WARNING_LABEL) as WarningType[]).map((k) => ({ value: k, label: t(WARNING_LABEL[k]) })) },
     { key: "status", label: t("filters.status"), type: "select", options: [{ value: "active", label: t("filters.active") }, { value: "inactive", label: t("warnings.inactive") }] },
-    { key: "by", label: t("filters.issuedBy"), type: "select", options: staffList.map((x) => ({ value: x.id, label: staffName(x) })) },
+    ...(isManagement ? [{ key: "by", label: t("filters.issuedBy"), type: "select" as const, options: staffList.map((x) => ({ value: x.id, label: staffName(x) })) }] : []),
     { key: "from", label: t("filters.from"), type: "date" },
     { key: "to", label: t("filters.to"), type: "date" },
-  ], [t, staffList]);
+  ], [t, staffList, isManagement]);
   const { values: fv, set: setFilters, clear: clearFilters } = useUrlFilters(filterDefs);
   const filtering = Object.keys(fv).length > 0;
   const shown = (rows ?? [])

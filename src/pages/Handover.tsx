@@ -188,7 +188,7 @@ export function Handover() {
         <LodgeTabs value={lodgeId} onChange={setLodgeId} />
       </header>
 
-      {/* Rondas de 2 em 2 horas — um clique gera "Room Check Done" */}
+      {/* Rondas de 2 em 2 horas — um clique gera "Welfare Check Done" */}
       {day === today && roundSlots.length > 0 && (
         <div className="rounds-strip" aria-label={t("handover.rounds")}>
           <span className="eyebrow">{t("handover.rounds")}</span>
@@ -506,7 +506,7 @@ function Composer({
   const chosenFiller = filledBy ?? rostered;
   const [coAuthorIds, setCoAuthorIds] = useState<string[]>([]);
   const [body, setBody] = useState("");
-  const [occurredAt, setOccurredAt] = useState<Date | null>(null);
+  const [occurredAt, setOccurredAt] = useState<Date | null>(() => new Date());
   const [reason, setReason] = useState("");
   const [reasons, setReasons] = useState<string[]>([]);
   const tags = useHandoverTags(true);
@@ -579,7 +579,7 @@ function Composer({
     setChosenTags([]);
     setCoAuthorIds([]);
     setPicked([]);
-    setOccurredAt(null);
+    setOccurredAt(new Date());
     setReason("");
     onPosted();
   }

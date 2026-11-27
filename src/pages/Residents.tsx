@@ -57,6 +57,22 @@ export function Residents() {
     return () => { cancelled = true; };
   }, [status]);
 
+  const [warnCounts, setWarnCounts] = useState<Record<string, number>>({});
+  const currentStayIds = useMemo(() => beds.filter((b) => b.resident_id && b.stay_id).map((b) => b.stay_id as string), [beds]);
+  useEffect(() => {
+    if (currentStayIds.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      const counts: Record<string, number> = {};
+      for (let i = 0; i < currentStayIds.length; i += 60) {
+        const { data } = await supabase.from("warnings").select("stay_id").in("stay_id", currentStayIds.slice(i, i + 60));
+        for (const w of (data ?? []) as { stay_id: string }[]) counts[w.stay_id] = (counts[w.stay_id] ?? 0) + 1;
+      }
+      if (!cancelled) setWarnCounts(counts);
+    })();
+    return () => { cancelled = true; };
+  }, [currentStayIds]);
+
   const current = useMemo(
     () =>
       beds
@@ -120,6 +136,7 @@ export function Residents() {
               <th className="hide-sm">{t("residents.passId")}</th>
               <th>{t("residents.lodge")}</th>
               <th className="hide-sm">{t("residents.admitted")}</th>
+              <th>{t("residents.warningsCol")}</th>
             </tr>
           </thead>
           <tbody>
@@ -136,10 +153,15 @@ export function Residents() {
                 <td className="hide-sm">{b.pass_id ?? ""}</td>
                 <td>{lodgeName(b.lodge_id)}</td>
                 <td className="hide-sm">{b.admitted_at ? formatDate(b.admitted_at, locale) : ""}</td>
+                <td>
+                  {(warnCounts[b.stay_id as string] ?? 0) > 0
+                    ? <Link to={`/residents/${b.resident_id}#warnings`} onClick={(e) => e.stopPropagation()} aria-label={t("residents.warningsLink", { n: warnCounts[b.stay_id as string] })}>{warnCounts[b.stay_id as string]}</Link>
+                    : <span className="muted">0</span>}
+                </td>
               </tr>
             ))}
             {current.length === 0 && (
-              <tr><td colSpan={7} className="muted">{t("residents.empty")}</td></tr>
+              <tr><td colSpan={8} className="muted">{t("residents.empty")}</td></tr>
             )}
           </tbody>
         </table>

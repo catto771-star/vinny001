@@ -44,6 +44,7 @@ export function Deliveries() {
   const [adding, setAdding] = useState(false);
   const [correcting, setCorrecting] = useState<Delivery | null>(null);
   const { suppliers: allSuppliers } = useSuppliers(false);
+  const [supFilter, setSupFilter] = useState<string>("all");
   const linksOrder = (d: Delivery) => !!allSuppliers?.find((s) => s.id === d.supplier_id)?.links_order;
   const [alertDays, setAlertDays] = useState(2);
   const begin = useLatestRequest();
@@ -93,6 +94,14 @@ export function Deliveries() {
           <span className="hint">{t("deliveries.tempHint")}</span>
         </div>
       )}
+      {rows !== null && rows.length > 0 && (
+        <div className="chip-row" role="group" aria-label={t("deliveries.supplier")}>
+          <button type="button" className={`chip${supFilter === "all" ? " is-on" : ""}`} aria-pressed={supFilter === "all"} onClick={() => setSupFilter("all")}>{t("deliveries.allSuppliers")}</button>
+          {(allSuppliers ?? []).filter((sp) => rows.some((r) => r.supplier_id === sp.id)).map((sp) => (
+            <button key={sp.id} type="button" className={`chip${supFilter === sp.id ? " is-on" : ""}`} aria-pressed={supFilter === sp.id} onClick={() => setSupFilter(sp.id)}>{sp.name}</button>
+          ))}
+        </div>
+      )}
       {rows === null ? (
         <div className="card"><Skeleton rows={5} label={t("app.loading")} /></div>
       ) : rows.length === 0 ? (
@@ -111,7 +120,7 @@ export function Deliveries() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((d) => (
+            {rows.filter((d) => supFilter === "all" || d.supplier_id === supFilter).map((d) => (
               <tr key={d.id}>
                 <td className="cell-main">{d.product}</td>
                 <td>{d.supplier}{linksOrder(d) && <span className={`tag${d.order_id ? "" : " tag-warn"}`}>{d.order_id ? t("deliveries.linked") : t("deliveries.awaitingLink")}</span>}</td>
@@ -123,8 +132,10 @@ export function Deliveries() {
                 <td>{d.temperature === null ? "—" : Number(d.temperature).toFixed(1)}</td>
                 <td className="nowrap">{formatDateTime(d.received_at, locale)} · {staffName(staffList.find((s) => s.id === d.received_by))}</td>
                 <td className="nowrap">
-                  {canWriteLodge(lodgeId) && <button className="ghost small" onClick={() => setCorrecting(d)}>{t("corrections.correct")}</button>}
-                  {isManagement && d.order_id && <button className="ghost small" onClick={() => void unlink(d)}>{t("corrections.unlink")}</button>}
+                  <div className="row-actions">
+                    {canWriteLodge(lodgeId) && <button className="ghost small" onClick={() => setCorrecting(d)}>{t("corrections.correct")}</button>}
+                    {isManagement && d.order_id && <button className="ghost small" onClick={() => void unlink(d)}>{t("corrections.unlink")}</button>}
+                  </div>
                 </td>
               </tr>
             ))}

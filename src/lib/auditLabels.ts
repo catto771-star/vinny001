@@ -5,7 +5,7 @@ const TABLES: Record<string, string> = {
   fridge_readings: "Fridge reading", fridges: "Fridge", handover_entries: "Handover entry", handover_entry_staff: "Handover colleague",
   handover_shifts: "Handover shift", handover_tags: "Handover tag", holiday_locks: "Holiday block", laundry_uses: "Laundry use",
   maintenance_tickets: "Maintenance request", no_shows: "No Show", product_movements: "Stock movement", products: "Product",
-  purchase_lines: "Purchase line", purchases: "Purchase", room_check_marks: "Room Check mark", room_check_runs: "Room Check",
+  purchase_lines: "Purchase line", purchases: "Purchase", room_check_marks: "Welfare Check mark", room_check_runs: "Welfare Check",
   rota_shifts: "Roster shift", shop_items: "Shop item", shop_order_lines: "Order line", shop_orders: "Order", sightings: "Seen",
   task_extras: "Extra task", task_signatures: "Task signature", task_templates: "Task", vacations: "Holiday", warnings: "Warning",
   work_intervals: "Hours entry",
@@ -14,7 +14,7 @@ const TABLES: Record<string, string> = {
 export const MODULES: { code: string; label: string; tables: string[] }[] = [
   { code: "people", label: "People", tables: ["staff", "duty_posts"] },
   { code: "residents", label: "Residents", tables: ["residents", "stays", "absences", "no_shows", "sightings", "warnings"] },
-  { code: "presence", label: "Room Check", tables: ["room_check_runs", "room_check_marks"] },
+  { code: "presence", label: "Welfare Check", tables: ["room_check_runs", "room_check_marks"] },
   { code: "handover", label: "Handover", tables: ["handover_entries", "handover_entry_staff", "handover_shifts", "handover_tags"] },
   { code: "maintenance", label: "Maintenance", tables: ["maintenance_tickets"] },
   { code: "services", label: "Services", tables: ["dinner_services", "dinner_marks", "laundry_uses", "fridges", "fridge_readings", "food_deliveries"] },

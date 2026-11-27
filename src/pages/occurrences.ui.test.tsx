@@ -70,7 +70,7 @@ const wrap = (ui: React.ReactNode) => render(<I18nProvider><MemoryRouter>{ui}</M
 
 describe("Handover", () => {
   const entry = (id: string, kind: Entry["kind"], at: string): Entry => ({
-    id, lodge_id: "a", kind, body: kind === "round" ? "Room Check Done" : "nota", occurred_at: at, operational_day: "2026-11-20",
+    id, lodge_id: "a", kind, body: kind === "round" ? "Welfare Check Done" : "nota", occurred_at: at, operational_day: "2026-11-20",
     round_slot: kind === "round" ? at.slice(11, 16) : null, author_id: "me", filled_by: null, late_reason: null, status: "active", void_reason: null, version: 1,
   });
 
@@ -201,7 +201,6 @@ describe("Handover", () => {
     wrap(<Handover />);
     const box = await screen.findByPlaceholderText(/Write an entry/);
     fireEvent.change(box, { target: { value: "Aconteceu ontem" } });
-    fireEvent.click(screen.getByLabelText("Now"));
     const input = document.querySelector('.composer input[type="datetime-local"]') as HTMLInputElement;
     fireEvent.change(input, { target: { value: "2026-01-10T10:00" } });
     expect(await screen.findByText("Occurred in a finished shift. Select a reason.")).toBeTruthy();
@@ -211,12 +210,21 @@ describe("Handover", () => {
     expect(post.disabled).toBe(false);
   });
 
+  it("R19: o check 'Now' vem sempre desmarcado (hora editável); marcar volta a usar a hora atual", async () => {
+    wrap(<Handover />);
+    await screen.findByPlaceholderText(/Write an entry/);
+    const now = screen.getByLabelText("Now") as HTMLInputElement;
+    expect(now.checked).toBe(false);
+    expect(document.querySelector('.composer input[type="datetime-local"]')).toBeTruthy();
+    fireEvent.click(now);
+    expect(document.querySelector('.composer input[type="datetime-local"]')).toBeNull();
+  });
+
   it("B39: para a gestão não aparece pedido de motivo", async () => {
     management = true;
     wrap(<Handover />);
     const box = await screen.findByPlaceholderText(/Write an entry/);
     fireEvent.change(box, { target: { value: "Nota antiga" } });
-    fireEvent.click(screen.getByLabelText("Now"));
     fireEvent.change(document.querySelector('.composer input[type="datetime-local"]') as HTMLInputElement, { target: { value: "2026-01-10T10:00" } });
     expect(screen.queryByText("Occurred in a finished shift. Select a reason.")).toBeNull();
   });

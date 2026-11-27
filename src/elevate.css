@@ -304,3 +304,17 @@ a { transition:color 140ms var(--ios-ease), opacity 140ms }
 :root[data-theme="light"] .tag-chips .chip.tag-c-red.is-on, :root[data-theme="light"] .tag-chips .chip.tag-incident.is-on, :root[data-theme="light"] .tag-chips .chip.tag-emergency.is-on { color:#ffffff!important }
 :root[data-theme="dark"] .tag-chips .chip.tag-c-amber.is-on, :root[data-theme="dark"] .tag-chips .chip.tag-health.is-on, :root[data-theme="dark"] .tag-chips .chip.tag-damage.is-on { color:#1f1300!important }
 :root[data-theme="dark"] .tag-chips .chip.tag-c-red.is-on, :root[data-theme="dark"] .tag-chips .chip.tag-incident.is-on, :root[data-theme="dark"] .tag-chips .chip.tag-emergency.is-on { color:#1a0609!important }
+
+/* Bed map: a trilha da grade nunca cresce com o conteúdo (corrige estouro na Room 8) */
+.room-grid { grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr)) }
+.room-card { min-width:0;overflow:hidden }
+.room-card .bed-list { grid-template-columns:minmax(0,1fr) }
+.room-card .bed-list li, .room-card .bed, .room-card .bed-body { min-width:0 }
+.row-actions { display:inline-flex;gap:.5rem;align-items:center }
+.chip-row { display:flex;flex-wrap:wrap;gap:.5rem;margin:.5rem 0 1rem }
+
+/* Holidays: as cores do calendário (revisão, aprovado, bloqueado) vencem o estilo genérico de botões, inclusive desabilitados */
+:root[data-theme] button.holiday-day { box-shadow:none!important;transform:none!important;background-image:none!important }
+:root[data-theme] button.holiday-day.is-under_review { background-color:var(--hol-review)!important;color:#3d3000!important;opacity:1!important }
+:root[data-theme] button.holiday-day.is-approved { background-color:var(--hol-approved)!important;color:#3a1d00!important;opacity:1!important }
+:root[data-theme] button.holiday-day.is-locked, :root[data-theme] button.holiday-day.is-locked:disabled { background-color:var(--hol-locked)!important;color:#fff!important;opacity:1!important }

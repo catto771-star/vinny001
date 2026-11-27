@@ -42,7 +42,7 @@ const SOURCE_KEY: Record<string, MessageKey> = {
 
 /**
  * Seen (revisão 25/11): um check por turno — Seen Day e Seen Night. Cada residente aparece com o que já o
- * conta como visto (Room Check, Dinner, entrada no Lodge, Seen manual); um toque marca o Seen agora.
+ * conta como visto (Welfare Check, Dinner, entrada no Lodge, Seen manual); um toque marca o Seen agora.
  * Quem não for visto no dia vira candidato a No Show.
  */
 export function Seen() {

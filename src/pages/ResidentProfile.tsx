@@ -77,6 +77,7 @@ export function ResidentProfile() {
         .limit(50),
     ]);
     setWarnings((w ?? []) as ProfileWarning[]);
+    if (window.location.hash === "#warnings") setTimeout(() => document.getElementById("warnings")?.scrollIntoView?.({ block: "start" }), 0);
     const entries = ((m ?? []) as unknown as { entry: ProfileEntry | null }[]).map((x) => x.entry).filter((e): e is ProfileEntry => !!e);
     setOccurrences(entries.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at)));
   }, [id, t]);
@@ -174,7 +175,7 @@ export function ResidentProfile() {
       </div>
 
       <div className="profile-columns">
-        <section>
+        <section id="warnings">
           <div className="section-head">
             <h2 className="section-title">{t("warnings.title")}</h2>
             {open && canWriteHere && <button className="small" onClick={() => setAction("warning")}>{t("warnings.record")}</button>}

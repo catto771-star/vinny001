@@ -99,7 +99,10 @@ describe("Minha conta", () => {
   it("conta de casa vê só Minha conta (sem Notifications, Handover nem System)", async () => {
     management = false;
     show();
-    expect(await screen.findByText("Vinicius Catto")).toBeTruthy();
+    expect(await screen.findByText("Appearance")).toBeTruthy();
+    expect(screen.queryByText("Vinicius Catto")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Change password" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Sign out of other devices" })).toBeNull();
     expect(screen.queryByRole("tab", { name: "System" })).toBeNull();
     expect(screen.queryByRole("tab", { name: "Notifications" })).toBeNull();
   });
@@ -114,16 +117,16 @@ describe("Sistema (Admin)", () => {
     fireEvent.click(within(idle.closest("section")!).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("set_system_parameter", { p_key: "security.session_idle_minutes", p_value: 30 }));
   });
-  it("faixa das geladeiras e horários de Room Check (adicionar e remover)", async () => {
+  it("faixa das geladeiras e horários de Welfare Check (adicionar e remover)", async () => {
     show("/settings?tab=system");
     const max = (await screen.findByLabelText("Fridge maximum (°C)")) as HTMLInputElement;
     fireEvent.change(max, { target: { value: "6" } });
     fireEvent.click(within(max.closest("section")!).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("set_system_parameter", { p_key: "fridge.range_celsius", p_value: { min: 0, max: 6 } }));
     fireEvent.click(screen.getByRole("button", { name: "Remove 22:00" }));
-    fireEvent.change(screen.getByLabelText("New Room Check time"), { target: { value: "14:30" } });
-    fireEvent.click(screen.getByRole("button", { name: "Add Room Check time" }));
-    const section = screen.getByLabelText("New Room Check time").closest("section")!;
+    fireEvent.change(screen.getByLabelText("New Welfare Check time"), { target: { value: "14:30" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add Welfare Check time" }));
+    const section = screen.getByLabelText("New Welfare Check time").closest("section")!;
     fireEvent.click(within(section).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("set_system_parameter", { p_key: "presence.check_times", p_value: ["12:00", "14:30", "18:00"] }));
   });
@@ -157,10 +160,10 @@ describe("Mais configurações (revisão 12)", () => {
   it("conta de casa não vê 'Open on' (não alterna entre casas)", async () => {
     management = false;
     show();
-    await screen.findByText("Vinicius Catto");
+    await screen.findByText("Appearance");
     expect(screen.queryByLabelText("Open on")).toBeNull();
   });
-  it("Sistema: janela do Room Check (minutos) salva junto com os horários; link para o histórico", async () => {
+  it("Sistema: janela do Welfare Check (minutos) salva junto com os horários; link para o histórico", async () => {
     show("/settings?tab=system");
     const win = (await screen.findByLabelText("Check window (minutes)")) as HTMLInputElement;
     expect(win.value).toBe("60");

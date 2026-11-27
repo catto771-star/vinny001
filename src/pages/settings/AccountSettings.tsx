@@ -77,6 +77,7 @@ export function AccountSettings() {
 
   return (
     <div className="settings-grid">
+      {isManagement && (
       <article className="card">
         <h2 className="section-title">{t("settings.profile")}</h2>
         <dl className="profile-list">
@@ -93,7 +94,9 @@ export function AccountSettings() {
           <button type="button" onClick={() => void saveName()}>{t("settings.saveName")}</button>
         </div>
       </article>
+      )}
 
+      {isManagement && (
       <article className="card">
         <h2 className="section-title">{t("settings.password")}</h2>
         <form className="form" onSubmit={(e) => void changePassword(e)}>
@@ -114,6 +117,7 @@ export function AccountSettings() {
           <button type="submit" className="primary" disabled={busy}>{busy ? t("app.saving") : t("settings.changePassword")}</button>
         </form>
       </article>
+      )}
 
       <article className="card">
         <h2 className="section-title">{t("settings.appearance")}</h2>
@@ -136,11 +140,13 @@ export function AccountSettings() {
         </div>
       </article>
 
+      {isManagement && (
       <article className="card">
         <h2 className="section-title">{t("settings.sessions")}</h2>
         <p className="hint">{t("settings.sessionsHint")}</p>
         <button type="button" onClick={() => void signOutOthers()}>{t("settings.signOutOthers")}</button>
       </article>
+      )}
     </div>
   );
 }

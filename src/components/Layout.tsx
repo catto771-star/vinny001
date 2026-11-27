@@ -31,7 +31,6 @@ export const GROUPS: Group[] = [
       { to: "/", label: "nav.today", icon: House },
       { to: "/tasks", label: "nav.tasks", icon: ListChecks },
       { to: "/notifications", label: "nav.notifications", icon: Bell, managementOnly: true },
-      { to: "/continuity", label: "nav.continuity", icon: FileText },
     ],
   },
   {
@@ -44,6 +43,7 @@ export const GROUPS: Group[] = [
       { to: "/no-shows", label: "nav.noShows", icon: UserX },
       { to: "/warnings", label: "nav.warnings", icon: ShieldAlert },
       { to: "/beds", label: "nav.bedMap", icon: BedDouble },
+      { to: "/continuity", label: "nav.continuity", icon: FileText },
     ],
   },
   {
