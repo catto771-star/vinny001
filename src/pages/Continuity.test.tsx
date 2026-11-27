@@ -7,7 +7,7 @@ vi.mock("@/lib/supabase", () => ({ supabaseConfigured: true, supabase: {} }));
 vi.mock("@/auth/AuthProvider", () => ({ useAuth: () => ({ lodges: [], staff: null }) }));
 
 import { I18nProvider } from "@/i18n";
-import { buildSnapshot, loadSnapshot, saveSnapshot } from "@/lib/continuity";
+import { buildSnapshot, fetchSnapshot, loadSnapshot, saveSnapshot } from "@/lib/continuity";
 import { ContinuityOffline, ContinuitySheet } from "./Continuity";
 import type { BedOccupancy } from "@/lib/types";
 
@@ -28,6 +28,11 @@ beforeEach(() => { try { window.localStorage.clear(); } catch { /* */ } });
 afterEach(cleanup);
 
 describe("folha de continuidade", () => {
+  it("falha de rede ou serviço ao atualizar não estoura erro: devolve null e mantém a cópia guardada", async () => {
+    saveSnapshot(snap(), "u1");
+    await expect(fetchSnapshot("u1", [], [])).resolves.toBeNull();
+    expect(loadSnapshot("u1")).not.toBeNull();
+  });
   it("monta a folha: presente, ausente, cama cancelada, livre e fora de uso; guarda e lê do aparelho", () => {
     const s = snap();
     expect(s.houses[0].rooms[0].beds.map((b) => b.status)).toEqual(["present", "absent", "cancelled", "free", "oos"]);

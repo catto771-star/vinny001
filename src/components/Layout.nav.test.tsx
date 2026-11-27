@@ -12,7 +12,7 @@ vi.mock("@/lib/supabase", () => ({
       data: name === "pending_counts" ? { tasks: 0, maintenance: 13, absences: 0, checks: 0, rounds: 10, no_shows: 0 } : name === "unread_notifications_count" ? 29 : null,
       error: null,
     }),
-    from: () => ({ select: () => ({ eq: () => ({ order: () => Promise.resolve({ data: [] }) }) }) }),
+    from: () => { const q: Record<string, unknown> = {}; for (const m of ["select", "eq", "is", "order", "in", "limit"]) q[m] = () => q; q.then = (ok: (v: unknown) => unknown) => Promise.resolve({ data: [], error: null }).then(ok); return q; },
   },
 }));
 vi.mock("@/auth/AuthProvider", () => ({

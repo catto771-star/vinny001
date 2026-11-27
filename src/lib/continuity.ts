@@ -54,10 +54,16 @@ export function loadSnapshot(owner: string | null = null): Snapshot | null {
 
 /** Busca os dados atuais, monta a folha e guarda no navegador. Devolve null se estiver sem internet. */
 export async function fetchSnapshot(owner: string, lodges: Pick<Lodge, "id" | "name">[], posts: { function: string; lodge_id: string | null; staff: { full_name: string; display_name: string | null } | null }[]): Promise<Snapshot | null> {
-  const [{ data: beds, error }, { data: abs }] = await Promise.all([
-    supabase.from("bed_occupancy").select("*").order("room_sort").order("bed_number"),
-    supabase.from("absences").select("stay_id").is("ended_at", null),
-  ]);
+  let beds: unknown, abs: unknown, error: unknown;
+  try {
+    const [b, a] = await Promise.all([
+      supabase.from("bed_occupancy").select("*").order("room_sort").order("bed_number"),
+      supabase.from("absences").select("stay_id").is("ended_at", null),
+    ]);
+    beds = b.data; error = b.error; abs = a.data;
+  } catch {
+    return null; // falha de rede ou serviço: mantém a cópia guardada
+  }
   if (error || !beds) return null;
   const onDuty: Record<string, string | null> = {};
   for (const l of lodges) onDuty[l.id] = staffName(posts.find((p) => p.function === "office" && p.lodge_id === l.id)?.staff) || null;
