@@ -20,6 +20,3 @@ Notes:
 - The REA and Craft Anything skills are not stored here. Run
   `bash scripts/install-rea.sh` to install REA, the Ghidra engine, its MCP
   server and its skill.
-- Run `bash scripts/install-craft-anything.sh` to build the Craft Anything
-  CLI (https://github.com/storytold/craft-anything) and register its MCP
-  server and skill.
