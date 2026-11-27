@@ -93,8 +93,8 @@ check("Admitir moradores em todas as camas livres pelo fluxo real", admitErr.len
 const day = (await su("select current_date d")).rows[0].d.toISOString().slice(0, 10);
 const yearAgo = new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10), tomorrow = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
 await time("Home do Admin (home_dashboard, 30 dias)", admin, "select public.home_dashboard(current_date - 30, current_date + 1)");
-const q90 = new Date(Date.now() - 90 * 864e5).toISOString().slice(0, 10);
-await time("Reports: 90 dias, as duas casas", admin, "select public.report_period(array[$1::uuid,$2::uuid], $3::date, $4::date)", [amiens, connolly, q90, tomorrow], 3000);
+const q90 = new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10);
+await time("Reports: 60 dias (máximo permitido), as duas casas", admin, "select public.report_period(array[$1::uuid,$2::uuid], $3::date, $4::date)", [amiens, connolly, q90, tomorrow], 3000);
 check("Reports: período de 1 ano é recusado com mensagem clara (limite de projeto)", /range_too_large/.test(await tryAs(admin, "select public.report_period(array[$1::uuid,$2::uuid], $3::date, $4::date)", [amiens, connolly, yearAgo, tomorrow]) ?? ""));
 await time("Reports: compras (1 ano)", admin, "select public.report_purchases($1::date, $2::date)", [yearAgo, tomorrow]);
 await time("Handover: busca por texto em 60 mil notas", admin, "select count(*) from public.search_handover($1::uuid, $2::date, $3::date, 'leak', null, null, null, null, null, false, 50)", [amiens, yearAgo, tomorrow], 2500);
