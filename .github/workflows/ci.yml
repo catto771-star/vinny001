@@ -5,6 +5,10 @@ on:
     branches: ["**"]
   pull_request:
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -37,4 +41,17 @@ jobs:
           for i in $(seq 1 20); do pg_isready -h localhost -p 54322 -U postgres && break; sleep 2; done
       - run: npm run db:reset
       - run: npm run typecheck
-      - run: npm test
+      - name: Testes
+        run: npm test 2>&1 | tee test.log; exit "${PIPESTATUS[0]}"
+      - name: Resumo da falha (comentário no PR)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "CI falhou em ${GITHUB_SHA::7}. Linhas de falha dos testes:"
+            echo '```'
+            grep -E "FAIL|×|AssertionError|Test Files|Tests  |Error:" test.log | grep -v "UTC \[" | head -80 | cut -c1-300
+            echo '```'
+          } > summary.md
+          gh pr comment "${GITHUB_REF_NAME}" --body-file summary.md || true
