@@ -123,7 +123,7 @@ res = await Promise.all(free.slice(1, 21).map((b) => tryAs(stA, "select public.a
 check("Concorrência: mesmo PASS ID em 20 camas → exatamente 1 vence", res.filter((e) => !e).length === 1, `${res.filter((e) => !e).length} sucesso(s)`);
 // C3: 300 notas de Handover simultâneas
 const before = (await su("select count(*)::int n from public.handover_entries")).rows[0].n;
-res = await Promise.all(Array.from({ length: 300 }, (_, i) => tryAs([stA, stC, admin][i % 3], "select public.add_handover_note($1::uuid, $2, now(), '[]'::jsonb, null)", [i % 2 ? amiens : connolly, `Concurrent note ${i}`])));
+res = await Promise.all(Array.from({ length: 300 }, (_, i) => tryAs([stA, stC, admin][i % 3], "select public.add_handover_note($1::uuid, $2, now(), '[]'::jsonb, null)", [[amiens, connolly, i % 2 ? amiens : connolly][i % 3], `Concurrent note ${i}`])));
 const after = (await su("select count(*)::int n from public.handover_entries")).rows[0].n;
 check("Concorrência: 300 notas de Handover ao mesmo tempo, sem perda", res.every((e) => !e) && after - before >= 300, `${res.filter((e) => !e).length}/300 ok · +${after - before} linhas${res.find((e) => e) ? " · " + res.find((e) => e) : ""}`);
 // C4: duplo clique no Room Check: 40 marcações simultâneas da mesma pessoa → uma só marca
