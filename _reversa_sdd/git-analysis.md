@@ -38,7 +38,7 @@
 - **Grandes refatorações** (mudança de requisito): Revisão 2 (Home/Handover/Seen/No Show), Revisão 8 (isolamento por casa, via `house_scope`), Revisão 13 (pessoas sem casa, `staff_home_only_station`).
 - **Migrations que remendam funções por `pg_get_functiondef` + `replace`** (r15 em `has_final_warning`, `report_period`, `report_purchases`, `set_system_parameter`): padrão de manutenção frágil, mas verificado como funcional (ver findings-verification.md) 🟡.
 - **Autoria**: mensagens de revisão do tipo "Revisão N (item X)" indicam um backlog numerado de pedidos do cliente; mensagens de commit são em português e quase todas co-assinadas por IA (trailer `Co-Authored-By`) 🟢.
-- **Ruído**: 8 commits "Update TypeScript build info" mostram `tsconfig.tsbuildinfo` versionado 🟡.
+- **Ruído**: 7 commits "Update TypeScript build info" mostram `tsconfig.tsbuildinfo` versionado 🟡.
 
 ## 4. Lacunas 🔴
 - Não há issues/PRs de produto no histórico (só PR #1/#2 de skills); o "porquê" de várias decisões só existe nas mensagens de commit e em comentários SQL. Motivação da troca do QR por e-mail só é conhecida pela frase "decisão da gestão em 20/11/2026" (comentário da migration 05).

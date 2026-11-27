@@ -8,13 +8,13 @@
   "doc_level": "completo",
   "output_folder": "_reversa_sdd",
   "forward_folder": "_reversa_forward",
-  "phase": "interpretacao",
+  "phase": "geracao",
   "completed": [
     "reconhecimento",
-    "escavacao"
+    "escavacao",
+    "interpretacao"
   ],
   "pending": [
-    "interpretacao",
     "geracao",
     "revisao"
   ],
@@ -42,6 +42,12 @@
         "notificacoes-e-push",
         "interface-e-i18n"
       ]
+    },
+    "detective": {
+      "done": true
+    },
+    "architect": {
+      "done": true
     }
   },
   "engines": [

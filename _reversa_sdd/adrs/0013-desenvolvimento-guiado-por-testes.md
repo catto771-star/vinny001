@@ -12,4 +12,4 @@
 Suítes `tests/db` (regras), `src/**/*.test.tsx` (UI), e2e e cenários; simulações de stress (`stress-workflow.test.ts`) acharam bugs reais (ex.: FW duplicada, corrigida em 259cf08).
 
 ## Consequências
-Dependência estrutural de os testes acompanharem renomeações (ex.: warnings.* após r15). Muitos commits 'Update TypeScript build info' (tsbuildinfo versionado).
+Dependência estrutural de os testes acompanharem renomeações (ex.: warnings.* após r15). 7 commits 'Update TypeScript build info' (tsbuildinfo versionado).

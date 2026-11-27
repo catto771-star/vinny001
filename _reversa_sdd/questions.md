@@ -97,3 +97,10 @@
 - [arquiteto] Os idiomas pt-PT e pl-PL voltarão à interface? — `LOCALES=["en-IE"]` na UI, mas `app_locale`, títulos trilíngues e Edge ainda tratam 3 idiomas.
 - [arquiteto] O assunto VAPID `mailto:noreply@example.com` deve ser um contato real da operação? — hardcoded em send-push/index.ts.
 - [arquiteto] Quais tabelas devem ficar fora da auditoria por triggers (ex.: notification_reads, push_prefs, sightings)? — cobertura de `audit_*` por tabela não é uniforme entre migrações; matriz completa não foi validada.
+- [detetive] `errors.ts` resolve `not_authorised` para a mensagem "Author only…" (regra `/not_author/` antes da de `not_authorised`); corrigir a ordem/ancorar a regex e cobrir com teste? — contexto: src/lib/errors.ts:5,90; errors.test.ts:11.
+- [detetive] `open_resident_profile` e `maintenance_set_status` (definição única, sem `can_see_lodge`) permitem a uma conta de casa alcançar outra casa se tiver o UUID; adicionar a checagem como nas demais RPCs de M29? — contexto: foundation.sql:788; occurrences.sql:583; house-scope.test.ts:45 (não cobre essas duas).
+- [detetive] Os patches da r15 por `pg_get_functiondef + replace` (report_period, report_purchases, set_system_parameter) falham em silêncio se o texto não casar; incluir testes de banco para as chaves `report_period().warnings` e `report_purchases().by_status`? — contexto: r15.sql:5-22,283-291.
+- [detetive] `release_cancelled_bed` encerra a estadia `out_pending` ao ocupar a cama, sem `effect_out` da gestão; a Admin deve ser notificada ou a confirmação dispensada é regra confirmada? — contexto: r16.sql:4-11.
+- [detetive] O histórico Git não registra o motivo da troca do autenticador/QR por código de e-mail além de "decisão da gestão em 20/11/2026"; existe registro formal dessa decisão (ata/ticket)? — contexto: git 2f6d2f9; email_code_second_step.sql:1-3.
+- [detetive] `find_former_resident` retorna dados pessoais de residente de qualquer casa para qualquer equipe ativa (inclui `station`); é a regra desejada para readmissão? — contexto: r15.sql:91-102.
+- [detetive] `tsconfig.tsbuildinfo` está versionado (7 commits "Update TypeScript build info"); é intencional? — contexto: git log.

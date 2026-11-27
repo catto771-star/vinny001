@@ -47,7 +47,7 @@
 7. O No Show só pode ser confirmado depois de `fim do dia − 30 min` e com todas as rondas do dia concluídas (`day_not_finished`, `checks_pending`); candidato é quem não tem evidência; um No Show confirmado por residente/dia. 🟢
 8. Ao atingir `presence.no_show_monthly_alert` (padrão 3) no mês, gera notificação `no_show_monthly_limit` para a gestão. 🟢
 9. Ausência protege a cama (contabilizada como "protected_by_absence"); ausências do mesmo residente não podem se sobrepor (`absence_overlaps`), mas a checagem não é protegida por constraint de exclusão. 🟡
-10. Marcações de Room Check têm janela de correção; `clear_mark` e `launch` exigem estado coerente; o lançamento pode acontecer fora do horário (Beta 2). 🟢
+10. Marcações de Room Check têm janela de correção; `clear_mark` e `launch` exigem estado coerente; o lançamento pode acontecer fora do horário (Beta 2). 🟡 (janela de correção citada pelos módulos, não reverificada)
 
 ### Ocorrências e turnos
 11. Nota do Handover não pode ter horário futuro; atrasos fora do turno exigem justificativa (`late_reason`) da lista `handover.late_reasons`. 🟢
