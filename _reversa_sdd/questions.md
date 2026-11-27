@@ -90,3 +90,10 @@
 - [equipe-escala-e-horas] Deve existir tela para desativar modelos recorrentes de Daily Tasks? — set_task_template_active (tasks_back:41-52) não é chamado pela UI e desativar altera retroativamente shift_tasks de turnos passados.
 - [equipe-escala-e-horas] As semanas da Rota (00:00 Dublin) e os períodos de Hours (07:00 Dublin, dia operacional) devem usar a mesma âncora? — Rota.tsx:49-50 × Hours.tsx:44 geram totais semanais diferentes para turnos que cruzam a fronteira.
 - [equipe-escala-e-horas] A edge function admin-users precisa de limite de taxa ou log de tentativas? — index.ts não registra nem limita chamadas; CORS aberto (*).
+- [arquiteto] Como as migrações são aplicadas em produção (Management API manual, supabase CLI ou outro) e quem é o responsável? — só `scripts/demo.mjs` usa a Management API; não há CI/CD nem documento de release (deployment.md).
+- [arquiteto] Qual provedor SMTP e quais limites de envio sustentam o código de login da gestão? — configuração fora do repositório; só o template `supabase/templates/sign-in-code.html` está versionado.
+- [arquiteto] O Realtime do Supabase deve ser adotado ou a decisão de não usar (consulta/polling) é definitiva? — nenhum canal no front; alertas dependem de recarregar ou do push.
+- [arquiteto] Existe estratégia de backup/restauração e rollback de migração (sem arquivos `down`)? — nada versionado.
+- [arquiteto] Os idiomas pt-PT e pl-PL voltarão à interface? — `LOCALES=["en-IE"]` na UI, mas `app_locale`, títulos trilíngues e Edge ainda tratam 3 idiomas.
+- [arquiteto] O assunto VAPID `mailto:noreply@example.com` deve ser um contato real da operação? — hardcoded em send-push/index.ts.
+- [arquiteto] Quais tabelas devem ficar fora da auditoria por triggers (ex.: notification_reads, push_prefs, sightings)? — cobertura de `audit_*` por tabela não é uniforme entre migrações; matriz completa não foi validada.
