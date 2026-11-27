@@ -6,3 +6,6 @@ dist
 demo-videos/
 docs/manual/web/
 docs/manual/*.html
+
+# Reversa pricing: números do negócio ficam só no disco
+_reversa_sdd/_pricing/
