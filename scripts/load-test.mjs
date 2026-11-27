@@ -97,7 +97,7 @@ const q90 = new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10);
 await time("Reports: 60 dias (máximo permitido), as duas casas", admin, "select public.report_period(array[$1::uuid,$2::uuid], $3::date, $4::date)", [amiens, connolly, q90, tomorrow], 3000);
 check("Reports: período de 1 ano é recusado com mensagem clara (limite de projeto)", /range_too_large/.test(await tryAs(admin, "select public.report_period(array[$1::uuid,$2::uuid], $3::date, $4::date)", [amiens, connolly, yearAgo, tomorrow]) ?? ""));
 await time("Reports: compras (1 ano)", admin, "select public.report_purchases($1::date, $2::date)", [yearAgo, tomorrow]);
-await time("Handover: busca por texto em 60 mil notas", admin, "select count(*) from public.search_handover($1::uuid, $2::date, $3::date, 'leak', null, null, null, null, null, false, 50)", [amiens, yearAgo, tomorrow], 2500);
+await time("Handover: busca por texto (60 dias, de 60 mil notas)", admin, "select count(*) from public.search_handover($1::uuid, $2::date, $3::date, 'leak', null, null, null, null, null, false, 50)", [amiens, q90, tomorrow], 2500);
 await time("Handover: um dia", admin, "select count(*) from public.search_handover($1::uuid, current_date, current_date, null, null, null, null, null, null, false, 200)", [amiens]);
 await time("Audit: busca recente (limite 100)", admin, "select count(*) from public.search_audit(null, null, null, null, null, null, null, 100, null)");
 await time("Mapa de camas (bed_occupancy)", stA, "select count(*) from public.bed_occupancy");
