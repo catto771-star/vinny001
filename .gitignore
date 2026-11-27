@@ -10,3 +10,4 @@ docs/manual/*.html
 # Reversa pricing: números do negócio ficam só no disco
 _reversa_sdd/_pricing/
 docs/presentation/web/
+docs/presentation/*.silent.mp4
