@@ -1,0 +1,46 @@
+{
+  "generated_at": "2026-11-27T00:00:00Z",
+  "project_root": "/home/user/vinny001",
+  "languages": [
+    {"name":"TypeScript","extensions":[".ts",".tsx"],"file_count":178},
+    {"name":"SQL (PL/pgSQL)","extensions":[".sql"],"file_count":38},
+    {"name":"JavaScript","extensions":[".cjs",".mjs"],"file_count":25},
+    {"name":"CSS","extensions":[".css"],"file_count":3}
+  ],
+  "primary_language": "TypeScript",
+  "frameworks": [
+    {"name":"React","version":"18.3.1","source":"package.json"},
+    {"name":"Vite","version":"5.4","source":"package.json"},
+    {"name":"React Router","version":"6.28","source":"package.json"},
+    {"name":"Supabase JS","version":"2.45","source":"package.json"},
+    {"name":"Vitest","version":"2.1","source":"package.json"},
+    {"name":"PostgreSQL (Supabase)","version":"16","source":"supabase/migrations"}
+  ],
+  "package_manager": "npm",
+  "entry_points": [
+    {"path":"src/main.tsx","type":"app_entry"},
+    {"path":"src/App.tsx","type":"router"},
+    {"path":"public/sw.js","type":"service_worker"},
+    {"path":"supabase/functions/admin-users/index.ts","type":"edge_function"},
+    {"path":"supabase/functions/send-push/index.ts","type":"edge_function"}
+  ],
+  "config_files": ["package.json","vite.config.ts","tsconfig.json","vercel.json",".env.example","public/manifest.webmanifest"],
+  "ci_cd": [],
+  "docker": {},
+  "database_hints": [
+    {"path":"supabase/migrations/","type":"migrations_dir"}
+  ],
+  "test_framework": "Vitest (+ scripts Playwright .cjs)",
+  "test_file_count": 86,
+  "modules": ["acesso-e-autenticacao","moradores-e-presenca","ocorrencias-e-passagem-de-turno","servicos-da-casa","compras-e-fornecedores","equipe-escala-e-horas","painel-relatorios-e-auditoria","configuracoes-e-cadastros","continuidade-offline","notificacoes-e-push","interface-e-i18n"],
+  "total_files": 400,
+  "organization_suggestion": {
+    "granularity": "module",
+    "rationale": "As telas e RPCs se agrupam por domínio de negócio (moradores, ocorrências, serviços, compras, equipe, gestão), não por endpoint REST.",
+    "signals": [
+      {"type":"top_level_domain_folders","evidence":["src/pages/","src/components/","src/lib/","supabase/migrations/"]},
+      {"type":"rpc_centric_backend","evidence":["supabase/migrations/","supabase/functions/"]}
+    ],
+    "features": []
+  }
+}

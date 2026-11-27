@@ -4,20 +4,30 @@
   "user_name": "Developer",
   "chat_language": "pt-br",
   "doc_language": "pt-br",
-  "answer_mode": "chat",
+  "answer_mode": "file",
   "doc_level": "completo",
   "output_folder": "_reversa_sdd",
   "forward_folder": "_reversa_forward",
-  "phase": null,
-  "completed": [],
+  "phase": "escavacao",
+  "completed": [
+    "reconhecimento"
+  ],
   "pending": [
-    "reconhecimento",
     "escavacao",
     "interpretacao",
     "geracao",
     "revisao"
   ],
-  "checkpoints": {},
+  "checkpoints": {
+    "scout": {
+      "done": true,
+      "files": [
+        "_reversa_sdd/inventory.md",
+        "_reversa_sdd/dependencies.md",
+        ".reversa/context/surface.json"
+      ]
+    }
+  },
   "engines": [
     "claude-code"
   ],
@@ -281,5 +291,6 @@
     ".reversa/plan.md",
     ".reversa/version",
     ".reversa/_config/manifest.yaml"
-  ]
+  ],
+  "specs_choice": "auto"
 }
