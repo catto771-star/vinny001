@@ -2,7 +2,7 @@ import type { MessageKey } from "@/i18n";
 
 const RULES: Array<[RegExp, MessageKey]> = [
   [/stale_version/, "errors.staleVersion"],
-  [/not_author/, "errors.notAuthor"],
+  [/not_author(?!ised)/, "errors.notAuthor"],
   [/correction_window_closed/, "errors.correctionWindowClosed"],
   [/unmarked_residents/, "sheet.markAll"],
   [/checks_pending/, "noShows.incomplete"],

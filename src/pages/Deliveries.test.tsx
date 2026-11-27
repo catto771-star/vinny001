@@ -11,6 +11,7 @@ const tables: Record<string, unknown[]> = {
     { id: "ripley", name: "Ripley's", active: true, require_batch: true, require_best_before: true, require_temperature: false, links_order: false, sort_order: 2 },
   ],
   food_deliveries: [{ id: "x1", product: "Milk", supplier: "Tesco", supplier_id: "tesco", order_id: null, batch: null, expiry_date: null, temperature: null, note: null, received_by: "s1", received_at: "2026-11-27T10:30:00Z" }],
+  parameters: [{ key: "delivery.expiry_alert_days", value: 5, valid_from: "2026-01-01", lodge_id: null }],
   staff: [{ id: "s1", full_name: "Niamh Doyle", display_name: null, role: "station", active: true }],
 };
 function query(result: unknown) {
@@ -45,6 +46,15 @@ const open = async () => {
 };
 const save = (d: HTMLElement) => d.querySelector('button[type="submit"]') as HTMLButtonElement;
 const field = (d: HTMLElement, label: string) => Array.from(d.querySelectorAll("label")).find((l) => l.textContent?.startsWith(label))!.querySelector("input,select") as HTMLInputElement;
+
+describe("alerta de validade", () => {
+  it("usa o prazo configurado em Settings (parameters), e não 2 dias fixos", async () => {
+    const d = new Date(Date.now() + 4 * 86_400_000).toISOString().slice(0, 10);
+    tables.food_deliveries = [{ ...(tables.food_deliveries[0] as object), id: "x2", expiry_date: d }];
+    render(<I18nProvider><ToastProvider><MemoryRouter><Deliveries /></MemoryRouter></ToastProvider></I18nProvider>);
+    expect(await screen.findByText("expires soon")).toBeTruthy();
+  });
+});
 
 describe("New Delivery", () => {
   it("o botão se chama New Delivery e o fornecedor vem de uma lista (Tesco, Ripley's)", async () => {

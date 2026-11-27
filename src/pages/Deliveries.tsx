@@ -43,6 +43,7 @@ export function Deliveries() {
   const [adding, setAdding] = useState(false);
   const { suppliers: allSuppliers } = useSuppliers(false);
   const linksOrder = (d: Delivery) => !!allSuppliers?.find((s) => s.id === d.supplier_id)?.links_order;
+  const [alertDays, setAlertDays] = useState(2);
   const begin = useLatestRequest();
   const today = operationalDay(new Date(Date.now() + serverOffsetMs));
 
@@ -58,6 +59,14 @@ export function Deliveries() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void (async () => {
+      const { data } = await supabase.from("parameters").select("value").eq("key", "delivery.expiry_alert_days").is("lodge_id", null).order("valid_from", { ascending: false }).limit(1);
+      const v = Number(Array.isArray(data) ? (data[0] as { value?: unknown } | undefined)?.value : NaN);
+      if (Number.isFinite(v) && v >= 0) setAlertDays(v);
+    })();
+  }, []);
 
   return (
     <section className="page">
@@ -99,7 +108,7 @@ export function Deliveries() {
                 <td>{d.batch ?? "—"}</td>
                 <td>
                   {d.expiry_date ? formatCivilDate(d.expiry_date, locale) : "—"}
-                  {d.expiry_date && expiresSoon(d.expiry_date, today) && <span className="tag">{t("deliveries.expiresSoon")}</span>}
+                  {d.expiry_date && expiresSoon(d.expiry_date, today, alertDays) && <span className="tag">{t("deliveries.expiresSoon")}</span>}
                 </td>
                 <td>{d.temperature === null ? "—" : Number(d.temperature).toFixed(1)}</td>
                 <td className="nowrap">{formatDateTime(d.received_at, locale)} · {staffName(staffList.find((s) => s.id === d.received_by))}</td>

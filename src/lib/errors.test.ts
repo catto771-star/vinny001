@@ -9,6 +9,8 @@ describe("errorKey", () => {
     expect(errorKey(new TypeError("Failed to fetch"))).toBe("errors.network");
     expect(errorKey(null)).toBe("errors.generic");
     expect(errorKey({ message: "not_author" })).toBe("errors.notAuthor");
+    expect(errorKey({ message: "not_authorised" })).toBe("errors.notAuthorised");
+    expect(errorKey({ message: "not_author: Author only" })).toBe("errors.notAuthor");
     expect(errorKey({ message: "unmarked_residents" })).toBe("sheet.markAll");
     expect(errorKey({ message: "checks_pending" })).toBe("noShows.incomplete");
   });
