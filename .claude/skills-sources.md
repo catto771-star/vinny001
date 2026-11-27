@@ -17,7 +17,6 @@ Notes:
 - Skills whose names collided across sources carry an `alireza-` or `composio-`
   prefix.
 - The 832 `*-automation` skills need the Rube MCP server (https://rube.app/mcp).
-- The REA skill (`reverse-engineer-anything`) is not stored here. Run
+- The REA and Craft Anything skills are not stored here. Run
   `bash scripts/install-rea.sh` to install REA, the Ghidra engine, its MCP
   server and its skill.
-| https://github.com/sandeco/reversa (v1.3.6, MIT) | 78 |
