@@ -1,0 +1,19 @@
+
+- [continuidade-offline] A contagem "N residents" por casa inclui camas `absent` e `cancelled`; é intencional para a chamada de incêndio? — `src/pages/Continuity.tsx:39`
+- [continuidade-offline] O cache do service worker (`shell-v1`) nunca é versionado por build; arquivos `assets/` com hash antigos acumulam. Existe política de limpeza? — `public/sw.js:3,24-28`
+- [continuidade-offline] O snapshot guarda nomes, datas de nascimento e PASS ID em localStorage sem expiração nem limpeza no logout; é aceito do ponto de vista de privacidade/LGPD-GDPR? — `src/lib/continuity.ts:31-33`
+- [continuidade-offline] O efeito do intervalo depende só de `enabled` e `lodges.length`; `posts` pode ficar desatualizado nos refreshes horários. Comportamento desejado? — `src/lib/continuity.ts:65-71`
+- [continuidade-offline] Conteúdo e cobertura de `src/pages/Continuity.test.tsx` não foram analisados nesta passada — a conferir.
+- [notificacoes-e-push] `push_recipients` não filtra por casa visível (`can_see_lodge`) enquanto `my_notifications` filtra; um Admin sem acesso a uma casa recebe push dela? — `supabase/migrations/20261125000023_handover_tags_push.sql:158-170` vs `20261125000029_house_scope.sql:1552`
+- [notificacoes-e-push] Kinds `no_show_monthly_limit`, `coverage_below_minimum`, `vacation_conflict`, `delivery_received`, `delivery_expiring` não geram push (`push_keys` vazio); é decisão de produto? — `20261125000023_handover_tags_push.sql:132-143`
+- [notificacoes-e-push] `TAG_LABEL` da edge function é fixo em inglês e duplica os códigos de `handover_tags` (editáveis); tags novas aparecem com o código cru? — `supabase/functions/send-push/index.ts:7-10`
+- [notificacoes-e-push] Contato VAPID `mailto:noreply@example.com` parece placeholder; é o valor real em produção? — `supabase/functions/send-push/index.ts:35`
+- [notificacoes-e-push] `mark_notification_read` não valida `can_see_lodge`, e `audience='lodge'` não é gerado por nenhuma migration vista; onde se usa? — `20261120000010_services.sql:455-466`
+- [notificacoes-e-push] Como a URL e o segredo do hook entram no Vault (nomes dos segredos, provisionamento por ambiente)? Não há script no repositório — `20261125000024_push_hook.sql:15-16`
+- [notificacoes-e-push] Não há retenção/limpeza de `notifications` e `notification_reads` (só a contagem usa 30 dias); existe rotina? — `20261125000029_house_scope.sql:1575`
+- [notificacoes-e-push] `Notifications.tsx` ignora erro da RPC `my_notifications` (mostra lista vazia); aceito? — `src/pages/Notifications.tsx:16-18`
+- [interface-e-i18n] Onde está definido `--ios-ease` (usado e testado por designSystem.test)? Só `--press` foi visto em elevate.css — `src/lib/designSystem.test.ts:41`
+- [interface-e-i18n] Definição completa dos tokens por casa/tema (`--bg`, `--hero`, `--hc`…) em `theme.css` além da linha 92 não foi detalhada — a conferir.
+- [interface-e-i18n] `setLocale` grava `dslodge.locale` mas `initialLocale` o apaga; há plano para novos idiomas ou é código morto? — `src/i18n/index.tsx:50-72`
+- [interface-e-i18n] O botão de fechar do Dialog usa `aria-label="×"` fixo (não traduzido); aceitável para acessibilidade? — `src/components/Dialog.tsx:55`
+- [interface-e-i18n] Resolução da hora repetida no fim do horário de verão (01:00–02:00) em `dublinWallTimeToDate` não é coberta explicitamente — `src/lib/time.ts:295-305`
