@@ -61,18 +61,18 @@ await c.query(`insert into public.residents (first_name, last_name, pass_id, dat
   select 'Hist' || g, 'Lad' || (g % 997), 'H' || lpad(g::text, 7, '0'), date '1960-01-01' + (g % 14000), $1 from generate_series(1, $2) g`, [admin.staffId, VOL.residents]);
 await c.query(`with b as (select array_agg(b.id) ids, array_agg(r.lodge_id) lodges from public.beds b join public.rooms r on r.id = b.room_id), rs as (select id, row_number() over () n from public.residents where pass_id like 'H%')
   insert into public.stays (resident_id, lodge_id, bed_id, admitted_at, status, ended_at, end_reason, created_by)
-  select rs.id, b.lodges[1 + (rs.n % cardinality(b.ids))], b.ids[1 + (rs.n % cardinality(b.ids))], now() - make_interval(days => 60 + (rs.n % 700)), 'ended', now() - make_interval(days => 5 + (rs.n % 55)), (enum_range(null::public.${endType}))[1], $1
+  select rs.id, b.lodges[1 + (rs.n % cardinality(b.ids))], b.ids[1 + (rs.n % cardinality(b.ids))], now() - make_interval(days => (60 + (rs.n % 700)::int)), 'ended', now() - make_interval(days => (5 + (rs.n % 55)::int)), (enum_range(null::public.${endType}))[1], $1
   from rs, b`, [admin.staffId]);
 await c.query(`insert into public.handover_entries (lodge_id, kind, body, occurred_at, operational_day, author_id, status)
   select case when g % 2 = 0 then $1::uuid else $2::uuid end, 'note', 'Fictional note ' || g || case when g % 50 = 0 then ' leak in the kitchen' else ' all quiet' end,
-         now() - make_interval(mins => g), (now() - make_interval(mins => g))::date, $3, 'active' from generate_series(1, $4) g`, [amiens, connolly, admin.staffId, VOL.handover]);
+         now() - make_interval(mins => (g)::int), (now() - make_interval(mins => (g)::int))::date, $3, 'active' from generate_series(1, $4) g`, [amiens, connolly, admin.staffId, VOL.handover]);
 await c.query(`insert into public.fridge_readings (lodge_id, fridge_id, temperature, range_min, range_max, out_of_range, recorded_by, recorded_at)
-  select f.lodge_id, f.id, 2 + (g % 7), 0, 5, (2 + (g % 7)) > 5, $1, now() - make_interval(mins => g * 7) from generate_series(1, $2) g cross join lateral (select id, lodge_id from public.fridges order by id limit 1) f`, [admin.staffId, VOL.fridge]);
+  select f.lodge_id, f.id, 2 + (g % 7), 0, 5, (2 + (g % 7)) > 5, $1, now() - make_interval(mins => (g * 7)::int) from generate_series(1, $2) g cross join lateral (select id, lodge_id from public.fridges order by id limit 1) f`, [admin.staffId, VOL.fridge]);
 const sup = (await c.query("select id from public.suppliers order by sort_order limit 1")).rows[0].id;
 await c.query(`insert into public.food_deliveries (lodge_id, product, supplier, supplier_id, received_by, received_at)
-  select $1, 'Product ' || g, 'Tesco', $2, $3, now() - make_interval(hours => g) from generate_series(1, $4) g`, [amiens, sup, admin.staffId, VOL.deliveries]);
+  select $1, 'Product ' || g, 'Tesco', $2, $3, now() - make_interval(hours => (g)::int) from generate_series(1, $4) g`, [amiens, sup, admin.staffId, VOL.deliveries]);
 await c.query(`insert into public.maintenance_tickets (lodge_id, location, description, priority, status, deadline_at, request_key, created_by, created_at)
-  select $1, 'Room ' || (g % 30), 'Fictional repair ' || g, 'normal', 'resolved', now() - make_interval(days => g % 300), gen_random_uuid(), $2, now() - make_interval(days => g % 300 + 1) from generate_series(1, $3) g`, [amiens, admin.staffId, VOL.tickets]);
+  select $1, 'Room ' || (g % 30), 'Fictional repair ' || g, 'normal', 'resolved', now() - make_interval(days => (g % 300)::int), gen_random_uuid(), $2, now() - make_interval(days => (g % 300 + 1)::int) from generate_series(1, $3) g`, [amiens, admin.staffId, VOL.tickets]);
 await c.query("set session_replication_role = origin"); c.release();
 await su("analyze");
 const counts = (await su(`select (select count(*) from public.residents) residents, (select count(*) from public.stays) stays, (select count(*) from public.handover_entries) handover, (select count(*) from public.fridge_readings) fridge, (select count(*) from public.food_deliveries) deliveries, (select count(*) from public.maintenance_tickets) tickets`)).rows[0];
