@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { durationLabel, insertMention, isLateFact, mentionQuery, pickTitle, shiftEnd } from "./occurrences";
+import { keptMentions, durationLabel, insertMention, isLateFact, mentionQuery, pickTitle, shiftEnd } from "./occurrences";
 
 describe("turnos e lançamento tardio", () => {
   it("fim do turno: Day termina às 19h; Night às 07h do dia seguinte (Dublin)", () => {
@@ -43,5 +43,17 @@ describe("títulos de modelos", () => {
     const t = { "pt-PT": "Temperatura da geladeira", "en-IE": "Fridge temperature" };
     expect(pickTitle(t, "pt-PT")).toBe("Temperatura da geladeira");
     expect(pickTitle(t, "pl-PL")).toBe("Fridge temperature");
+  });
+});
+
+describe("keptMentions", () => {
+  const list = [
+    { resident_id: "r1", staff_id: null, label: "Ana" },
+    { resident_id: null, staff_id: "s1", label: "Gestão" },
+    { resident_id: "r2", staff_id: null, label: null },
+  ];
+  it("mantém só quem continua no texto e preserva nomes desconhecidos", () => {
+    expect(keptMentions(list, "Hi @Gestão")).toEqual([{ staff_id: "s1" }, { resident_id: "r2" }]);
+    expect(keptMentions(list, "@Ana and @Gestão")).toHaveLength(3);
   });
 });

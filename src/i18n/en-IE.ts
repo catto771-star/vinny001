@@ -27,6 +27,15 @@ const enIE = {
     retry: "Try again",
     comingInPhase: "Available in phase {phase}",
   },
+  corrections: {
+    correct: "Correct",
+    reason: "Reason for the correction",
+    corrected: "corrected",
+    correctReading: "Correct temperature",
+    correctDelivery: "Correct delivery",
+    unlink: "Unlink from order",
+    unlinked: "Delivery unlinked; the order is awaiting delivery again.",
+  },
   errors: {
     absenceEnded: "This absence has already ended.",
     dinnerClosed: "Dinner for this day is already closed.",
@@ -111,6 +120,7 @@ const enIE = {
     residentHasStay: "This resident already has an open stay.",
     bedOutOfService: "This bed is out of service.",
     reasonRequired: "Give a reason.",
+    notLinked: "This delivery is not linked to an order.",
     invalidTime: "Check the date and time.",
     lodgeRequired: "Choose a house.",
     roleCannotTakeOffice: "Only Porters can be Office On Duty.",

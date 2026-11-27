@@ -12,11 +12,12 @@ import { LodgeTabs } from "@/components/LodgeTabs";
 import { useLodgeState } from "@/lib/activeLodge";
 import { Tabs } from "@/components/Tabs";
 import { Notice } from "@/components/Notice";
+import { CorrectDialog } from "@/components/CorrectDialog";
 import { Skeleton } from "@/components/Skeleton";
 import { useToast } from "@/components/Toast";
 
 type FridgeRow = { id: string; lodge_id: string; name: string; sort_order: number };
-type Reading = { id: string; fridge_id: string; temperature: string; range_min: string; range_max: string; out_of_range: boolean; note: string | null; recorded_by: string; recorded_at: string };
+type Reading = { corrected_at?: string | null; id: string; fridge_id: string; temperature: string; range_min: string; range_max: string; out_of_range: boolean; note: string | null; recorded_by: string; recorded_at: string };
 
 /** Fridge / Temperatura (s.8): só a geladeira; fora de 0–5 °C alerta o Manager; salvar conclui a tarefa. */
 export function Fridge() {
@@ -27,6 +28,7 @@ export function Fridge() {
   const [lodgeId, setLodgeId] = useLodgeState();
   const [fridges, setFridges] = useState<FridgeRow[]>([]);
   const [fridgeId, setFridgeId] = useState("");
+  const [correcting, setCorrecting] = useState<Reading | null>(null);
   const [allReadings, setReadings] = useState<Reading[] | null>(null);
   const [range, setRange] = useState({ min: 0, max: 5 });
   const [value, setValue] = useState("");
@@ -40,7 +42,7 @@ export function Fridge() {
     setReadings(null);
     const [{ data: f }, { data }, { data: r }] = await Promise.all([
       supabase.from("fridges").select("id, lodge_id, name, sort_order").eq("lodge_id", lodgeId).eq("active", true).order("sort_order"),
-      supabase.from("fridge_readings").select("id, fridge_id, temperature, range_min, range_max, out_of_range, note, recorded_by, recorded_at").eq("lodge_id", lodgeId).order("recorded_at", { ascending: false }).limit(120),
+      supabase.from("fridge_readings").select("id, fridge_id, temperature, range_min, range_max, out_of_range, note, recorded_by, recorded_at, corrected_at").eq("lodge_id", lodgeId).order("recorded_at", { ascending: false }).limit(120),
       supabase.rpc("param_value", { p_key: "fridge.range_celsius", p_lodge: lodgeId }),
     ]);
     if (!isLatest()) return;
@@ -158,11 +160,21 @@ export function Fridge() {
                 </td>
                 <td className="nowrap">{formatDateTime(r.recorded_at, locale)}</td>
                 <td>{staffName(staffList.find((s) => s.id === r.recorded_by))}</td>
-                <td>{r.note}</td>
+                <td>{r.note}{r.corrected_at && <span className="tag">{t("corrections.corrected")}</span>}</td>
+                <td>{canWriteLodge(lodgeId) && <button className="ghost small" onClick={() => setCorrecting(r)}>{t("corrections.correct")}</button>}</td>
               </tr>
             ))}
           </tbody>
         </table>
+      )}
+      {correcting && (
+        <CorrectDialog
+          title={t("corrections.correctReading")}
+          fields={[{ key: "temperature", label: t("fridge.temperature"), value: String(Number(correcting.temperature)), type: "number", step: "0.1" }]}
+          onSubmit={(v, reason) => supabase.rpc("correct_fridge_reading", { p_id: correcting.id, p_temperature: parseTemperature(v.temperature), p_reason: reason })}
+          onClose={() => setCorrecting(null)}
+          onDone={() => { setCorrecting(null); void load(); }}
+        />
       )}
     </section>
   );

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthProvider";
 import { useI18n } from "@/i18n";
+import { fetchAllPages } from "@/lib/paging";
 import { supabase } from "@/lib/supabase";
 import { roomLabel } from "@/lib/rooms";
 import { formatCivilDate, formatDate } from "@/lib/time";
@@ -40,12 +41,20 @@ export function Residents() {
 
   useEffect(() => {
     if (status !== "past") return;
-    void supabase
-      .from("residents")
-      .select("id, first_name, last_name, date_of_birth, pass_id, stays(status, ended_at, lodge_id)")
-      .order("last_name")
-      .limit(500)
-      .then(({ data }) => setFormer(((data ?? []) as Former[]).filter((r) => r.stays.length > 0 && r.stays.every((s) => s.status === "ended"))));
+    let cancelled = false;
+    void (async () => {
+      const all = await fetchAllPages<Former>(async (from, to) => {
+        const { data } = await supabase
+          .from("residents")
+          .select("id, first_name, last_name, date_of_birth, pass_id, stays(status, ended_at, lodge_id)")
+          .order("last_name")
+          .order("id")
+          .range(from, to);
+        return (data ?? []) as Former[];
+      });
+      if (!cancelled) setFormer(all.filter((r) => r.stays.length > 0 && r.stays.every((s) => s.status === "ended")));
+    })();
+    return () => { cancelled = true; };
   }, [status]);
 
   const current = useMemo(

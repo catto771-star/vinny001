@@ -92,6 +92,8 @@ const RULES: Array<[RegExp, MessageKey]> = [
   [/stays_one_open_per_resident/, "errors.residentHasStay"],
   [/bed_out_of_service/, "errors.bedOutOfService"],
   [/reason_required/, "errors.reasonRequired"],
+  [/not_linked/, "errors.notLinked"],
+  [/reading_not_found/, "errors.notFound"],
   [/invalid_.*time|admitted_in_future/, "errors.invalidTime"],
   [/lodge_required/, "errors.lodgeRequired"],
   [/role_cannot_take_office/, "errors.roleCannotTakeOffice"],

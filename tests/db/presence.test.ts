@@ -172,12 +172,10 @@ describe("Room Check e Seen", () => {
     expect((await db.query("select * from public.room_check_typing_times($1)", [run])).rowCount).toBeGreaterThan(0);
   });
 
-  it("B16: autor corrige em até 72h; outro Office não; Manager sempre", async () => {
+  it("B16: enquanto a ronda não foi lançada o autor corrige em até 72h; outro Office não; Manager sempre. Depois de lançada, ninguém remarca", async () => {
     const a = await admit("AMIENS", "Ana");
     const run = await openCheck(officeA, amiens, daysAgo(1), "12:00");
     await mark(officeA, run, a.stay, "not_seen");
-    await db.as(officeA);
-    await db.query("select public.launch_room_check($1)", [run]);
     await mark(officeA, run, a.stay, "seen"); // autor, dentro de 72h
 
     // Outro Porter, agora no posto de Amiens, não corrige a marca do colega.
@@ -192,6 +190,14 @@ describe("Room Check e Seen", () => {
     await db.query("select public.assume_post('office', $1, true)", [amiens]);
     expect(await db.error("select public.mark_resident($1, $2, 'not_seen')", [run, a.stay])).toMatch(/correction_window_closed/);
     await mark(manager, run, a.stay, "not_seen");
+
+    // Lançada, a ronda não aceita remarcação de ninguém (R18).
+    await mark(manager, run, a.stay, "seen");
+    await db.as(officeA);
+    await db.query("select public.launch_room_check($1)", [run]);
+    expect(await db.error("select public.mark_resident($1, $2, 'not_seen')", [run, a.stay])).toMatch(/run_launched/);
+    await db.as(manager);
+    expect(await db.error("select public.mark_resident($1, $2, 'not_seen')", [run, a.stay])).toMatch(/run_launched/);
   });
 
   it("B40: Office de Connolly não marca nem lança check de Amiens", async () => {

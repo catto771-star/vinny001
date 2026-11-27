@@ -21,6 +21,16 @@ function message(kind: string, p: Record<string, unknown>, lodge: string): { tit
       return { title: `${lodge} · Hours to confirm`, body: `${p.name ?? ""}'s shift differs from the Roster`, url: "/hours" };
     case "fridge_out_of_range":
       return { title: `${lodge} · Fridge out of range`, body: `${p.fridge_name ?? "Fridge"} at ${p.temperature} °C`, url: "/fridge" };
+    case "delivery_received":
+      return { title: `${lodge} · Delivery received`, body: `${p.supplier ?? ""} — ${p.product ?? ""}`, url: "/deliveries" };
+    case "delivery_expiring":
+      return { title: `${lodge} · Delivery expiring`, body: `${p.product ?? ""} (${p.supplier ?? ""})`, url: "/deliveries" };
+    case "no_show_monthly_limit":
+      return { title: `${lodge} · No Show limit`, body: `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim(), url: "/no-shows" };
+    case "coverage_below_minimum":
+      return { title: "Coverage below minimum", body: "Some shifts have no one assigned", url: "/rota" };
+    case "vacation_conflict":
+      return { title: "Holiday conflict", body: String(p.name ?? ""), url: "/vacations" };
     default:
       return { title: lodge || "Notice", body: "", url: "/notifications" };
   }

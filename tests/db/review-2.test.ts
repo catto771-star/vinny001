@@ -155,6 +155,9 @@ describe("Reports por categoria: Compras (item 6)", () => {
     const bleach = (await db.one<{ id: string }>("select l.id from public.shop_order_lines l join public.shop_items i on i.id = l.item_id where l.order_id = $1 and i.name = 'Bleach'", [order])).id;
     await db.query("select public.set_shop_line($1, 'standard', 0, 1.00)", [milk]);
     await db.query("select public.set_shop_line($1, 'standard', 0, 2.50)", [bleach]);
+    // Rascunho (created) não entra no relatório; só pedido já feito.
+    expect((await db.one("select public.report_purchases(current_date - 1, current_date + 1) as r")).r.orders).toBe(0);
+    await db.query("select public.set_shop_order($1, current_date, null, true)", [order]);
     const r = (await db.one("select public.report_purchases(current_date - 1, current_date + 1) as r")).r;
     expect(r.orders).toBe(1);
     expect(Number(r.total)).toBeCloseTo(18 * 1 + 1 * 2.5, 2);

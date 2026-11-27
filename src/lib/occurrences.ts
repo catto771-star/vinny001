@@ -45,3 +45,11 @@ export function pickTitle(title: Record<string, string> | null | undefined, loca
   if (!title) return "";
   return title[locale] || title["en-IE"] || Object.values(title)[0] || "";
 }
+
+/** Menções que continuam no texto editado; nome desconhecido (ex.: ex-residente) é mantido. */
+export function keptMentions(list: { resident_id: string | null; staff_id: string | null; label: string | null }[], text: string) {
+  return list
+    .filter((m) => m.label === null || text.includes(`@${m.label}`))
+    .map((m) => (m.resident_id ? { resident_id: m.resident_id } : { staff_id: m.staff_id }));
+}
+

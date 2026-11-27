@@ -12,6 +12,7 @@ import { insertMention, isLateFact, mentionQuery } from "@/lib/occurrences";
 import { slotInstant } from "@/lib/presence";
 import { addDays, formatCivilDate, formatTime, operationalDay, operationalDayBounds } from "@/lib/time";
 import { residentName, staffName } from "@/lib/types";
+import { keptMentions } from "@/lib/occurrences";
 import { useLatestRequest } from "@/lib/useLatestRequest";
 import { useOccupancy } from "@/lib/useOccupancy";
 import { useStaffList } from "@/lib/useStaffList";
@@ -346,6 +347,7 @@ export function Handover() {
         <EditEntry
           entry={editing.entry}
           mode={editing.mode}
+          mentions={mentions.filter((m) => m.entry_id === editing.entry.id).map((m) => ({ resident_id: m.resident_id, staff_id: m.staff_id, label: m.resident_id ? residentNames.get(m.resident_id) ?? null : nameOf(m.staff_id!) }))}
           onClose={() => setEditing(null)}
           onDone={() => {
             setEditing(null);
@@ -660,7 +662,7 @@ function Composer({
   );
 }
 
-function EditEntry({ entry, mode, onClose, onDone }: { entry: Entry; mode: "edit" | "void"; onClose: () => void; onDone: () => void }) {
+function EditEntry({ entry, mode, mentions, onClose, onDone }: { entry: Entry; mode: "edit" | "void"; mentions: { resident_id: string | null; staff_id: string | null; label: string | null }[]; onClose: () => void; onDone: () => void }) {
   const { t } = useI18n();
   const [text, setText] = useState(mode === "edit" ? entry.body : "");
   const [error, setError] = useState<string | null>(null);
@@ -668,7 +670,7 @@ function EditEntry({ entry, mode, onClose, onDone }: { entry: Entry; mode: "edit
   async function save() {
     const { error: err } =
       mode === "edit"
-        ? await supabase.rpc("correct_handover_note", { p_id: entry.id, p_body: text })
+        ? await supabase.rpc("correct_handover_note", { p_id: entry.id, p_body: text, p_mentions: keptMentions(mentions, text) })
         : await supabase.rpc("void_handover_note", { p_id: entry.id, p_reason: text });
     if (err) return setError(t(errorKey(err)));
     onDone();

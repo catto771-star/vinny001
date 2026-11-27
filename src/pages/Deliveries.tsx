@@ -8,6 +8,7 @@ import { formatCivilDate, formatDateTime, operationalDay } from "@/lib/time";
 import { staffName } from "@/lib/types";
 import { useLatestRequest } from "@/lib/useLatestRequest";
 import { useStaffList } from "@/lib/useStaffList";
+import { CorrectDialog } from "@/components/CorrectDialog";
 import { Dialog, DialogCancel } from "@/components/Dialog";
 import { LodgeTabs } from "@/components/LodgeTabs";
 import { useLodgeState } from "@/lib/activeLodge";
@@ -35,12 +36,13 @@ const kitchen = (l: { has_dinner: boolean }) => l.has_dinner;
 /** Food Delivery (s.8): produto, fornecedor, lote, validade e temperatura obrigatórios; sem alerta. */
 export function Deliveries() {
   const { t, locale } = useI18n();
-  const { canWriteLodge, serverOffsetMs } = useAuth();
+  const { canWriteLodge, serverOffsetMs, isManagement } = useAuth();
   const toast = useToast();
   const staffList = useStaffList();
   const [lodgeId, setLodgeId] = useLodgeState(kitchen);
   const [rows, setRows] = useState<Delivery[] | null>(null);
   const [adding, setAdding] = useState(false);
+  const [correcting, setCorrecting] = useState<Delivery | null>(null);
   const { suppliers: allSuppliers } = useSuppliers(false);
   const linksOrder = (d: Delivery) => !!allSuppliers?.find((s) => s.id === d.supplier_id)?.links_order;
   const [alertDays, setAlertDays] = useState(2);
@@ -59,6 +61,13 @@ export function Deliveries() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function unlink(d: Delivery) {
+    const { error } = await supabase.rpc("unlink_delivery_from_order", { p_delivery: d.id });
+    if (error) return toast.error(t(errorKey(error)));
+    toast.success(t("corrections.unlinked"));
+    void load();
+  }
 
   useEffect(() => {
     void (async () => {
@@ -98,6 +107,7 @@ export function Deliveries() {
               <th>{t("deliveries.expiry")}</th>
               <th>°C</th>
               <th>{t("audit.who")}</th>
+              <th />
             </tr>
           </thead>
           <tbody>
@@ -112,10 +122,27 @@ export function Deliveries() {
                 </td>
                 <td>{d.temperature === null ? "—" : Number(d.temperature).toFixed(1)}</td>
                 <td className="nowrap">{formatDateTime(d.received_at, locale)} · {staffName(staffList.find((s) => s.id === d.received_by))}</td>
+                <td className="nowrap">
+                  {canWriteLodge(lodgeId) && <button className="ghost small" onClick={() => setCorrecting(d)}>{t("corrections.correct")}</button>}
+                  {isManagement && d.order_id && <button className="ghost small" onClick={() => void unlink(d)}>{t("corrections.unlink")}</button>}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+      )}
+      {correcting && (
+        <CorrectDialog
+          title={t("corrections.correctDelivery")}
+          fields={[
+            { key: "batch", label: t("deliveries.batch"), value: correcting.batch ?? "" },
+            { key: "expiry", label: t("deliveries.expiry"), value: correcting.expiry_date ?? "", type: "date" },
+            { key: "temperature", label: t("deliveries.temperature"), value: correcting.temperature === null ? "" : String(Number(correcting.temperature)), type: "number", step: "0.1" },
+          ]}
+          onSubmit={(v, reason) => supabase.rpc("correct_food_delivery", { p_id: correcting.id, p_batch: v.batch || null, p_expiry: v.expiry || null, p_temperature: v.temperature === "" ? null : Number(v.temperature), p_reason: reason })}
+          onClose={() => setCorrecting(null)}
+          onDone={() => { setCorrecting(null); void load(); }}
+        />
       )}
       {adding && (
         <DeliveryDialog
