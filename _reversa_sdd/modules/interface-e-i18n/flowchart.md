@@ -17,7 +17,7 @@ flowchart TD
   K[clique ThemeToggle] --> L[applyTheme next, remember=true] --> M[grava ui.theme]
 ```
 
-## Erro do banco → mensagem 🟢 (`errors.ts:210-219`)
+## Erro do banco → mensagem 🟢 (`errors.ts:104-112`)
 ```mermaid
 flowchart TD
   A[erro Supabase/Postgres] --> B[extrai message]

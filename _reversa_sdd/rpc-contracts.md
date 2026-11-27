@@ -3,7 +3,7 @@
 > Redator Reversa · doc_level=completo · pt-br. Não há API REST própria: o front fala com **PostgREST** (`supabase.rpc(...)` e `.from(...)`) e com duas **Edge Functions** HTTPS. Por isso os contratos estão em tabelas estilo OpenAPI (nome, entrada, saída, autorização, erros) em vez de `openapi/*.yaml`.
 > Escala: 🟢 confirmado no SQL/código · 🟡 assinatura inferida/parcial · 🔴 LACUNA. `Mnn` = migration. Vale a definição **mais recente** (redefinições em M29 e blocos `DO` de M37 — ver `findings-verification.md`).
 > Convenções: todas `SECURITY DEFINER` com `search_path = public`; `revoke … from public, anon` e `grant execute … to authenticated` por função (M04); autorização = predicados `is_active_staff`, `is_management` (inclui MFA), `can_see_lodge`, `can_write_lodge`. Erros chegam como `raise exception '<codigo>'` (errcode em parênteses quando conhecido) e o front os traduz com `errorKey` (`src/lib/errors.ts`). Concorrência otimista: `stale_version` (40001). Tolerância de horário futuro: +5 min.
-> Cobertura: as ~190 funções do banco **não** foram todas extraídas; este arquivo cobre as RPCs documentadas pelos módulos (~110). 🔴 LACUNA: contrato exaustivo extraído de `pg_proc` (ver `questions.md`).
+> Cobertura: as 192 funções distintas do banco **não** foram todas extraídas; este arquivo cobre as RPCs documentadas pelos módulos (~110). 🔴 LACUNA: contrato exaustivo extraído de `pg_proc` (ver `questions.md`).
 
 ## 0. Notas gerais
 - **Tipos**: `uuid`, `text`, `int`, `timestamptz` (ISO 8601), `date` (`YYYY-MM-DD`), `jsonb`. Retorno "void" = sem payload.

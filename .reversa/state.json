@@ -8,16 +8,15 @@
   "doc_level": "completo",
   "output_folder": "_reversa_sdd",
   "forward_folder": "_reversa_forward",
-  "phase": "geracao",
+  "phase": "concluido",
   "completed": [
     "reconhecimento",
     "escavacao",
-    "interpretacao"
-  ],
-  "pending": [
+    "interpretacao",
     "geracao",
     "revisao"
   ],
+  "pending": [],
   "checkpoints": {
     "scout": {
       "done": true,
@@ -48,6 +47,39 @@
     },
     "architect": {
       "done": true
+    },
+    "writer": {
+      "done": true,
+      "files": [
+        "_reversa_sdd/specs/",
+        "_reversa_sdd/rpc-contracts.md",
+        "_reversa_sdd/traceability/code-spec-matrix.md"
+      ]
+    },
+    "reviewer": {
+      "done": true,
+      "files": [
+        "_reversa_sdd/confidence-report.md",
+        "_reversa_sdd/review-report.md",
+        "_reversa_sdd/questions-triage.md",
+        "_reversa_sdd/gaps.md"
+      ],
+      "cross_review": false,
+      "corrections": 5,
+      "regression_check": "nao_aplicavel",
+      "questions_answered": 0
+    },
+    "data_master": {
+      "done": true,
+      "files": [
+        "_reversa_sdd/database/"
+      ]
+    },
+    "design_system": {
+      "done": true,
+      "files": [
+        "_reversa_sdd/design-system/"
+      ]
     }
   },
   "engines": [

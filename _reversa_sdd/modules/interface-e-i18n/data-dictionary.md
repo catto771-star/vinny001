@@ -57,7 +57,7 @@
 | `invalid_range\|range_too_large\|invalid_month` | errors.invalidRange |
 | `stays_one_open_per_bed` / `…per_resident` | errors.bedTaken / errors.residentHasStay |
 | (nenhum casa) | errors.generic |
-Lista completa: ~110 regras em `src/lib/errors.ts:3-207` (cada uma `[regex, chave]`); códigos internos isentos: `invalid_priority, invalid_warning_type, invalid_slot, invalid_round_slot, invalid_quantities, invalid_performer, audit_log_is_immutable, not_required, password_session_required` (`errors.coverage.test.ts:9-12`).
+Lista completa: 97 regras em `src/lib/errors.ts:3-102` (cada uma `[regex, chave]`); códigos internos isentos: `invalid_priority, invalid_warning_type, invalid_slot, invalid_round_slot, invalid_quantities, invalid_performer, audit_log_is_immutable, not_required, password_session_required` (`errors.coverage.test.ts:9-12`).
 
 ## Menu (rotas por grupo) 🟢 (`Layout.tsx:27-78`)
 | Grupo | Rotas (gestão-only marcadas *) |

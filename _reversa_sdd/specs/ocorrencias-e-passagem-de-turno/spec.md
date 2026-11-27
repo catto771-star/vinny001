@@ -57,7 +57,7 @@ Ver `rpc-contracts.md` §Ocorrências. Rotas `/handover`, `/maintenance`, `/warn
 Escrita: `can_write_lodge`. Correção: gestão ou autor na janela (para `station` o autor é a conta da casa, não a pessoa — 🟡). Manutenção: status/prazo só gestão; Office da casa só resolve. Desativar FW, lembretes: gestão. `close_handover_shift`, `record_warning`, `correct/void` sem `can_see_lodge` (só `can_write_lodge`). 🟢
 
 ## 9. Casos de borda
-- EB-01 `late_reason_required` e `invalid_priority` sem regra em `errors.ts` → `errors.generic`. 🟡
+- EB-01 `invalid_priority` sem regra em `errors.ts` → `errors.generic` (está em `INTERNAL` do teste de cobertura); `late_reason_required` é mapeado por `/reason_required/` (`errors.ts:94`) → `errors.reasonRequired`. 🟢 [Revisão]
 - EB-02 `DEFAULT_HOURS` fixo no diálogo de manutenção só para dica. 🟡
 - EB-03 Chip de ronda usa 60 min fixos no front. 🟡
 - EB-04 `create_maintenance` com `request_key` duplicado retorna `duplicate:true` antes de validar a prioridade. 🟢

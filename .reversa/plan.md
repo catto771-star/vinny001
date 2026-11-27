@@ -8,9 +8,9 @@
 
 ## Fase 1: Reconhecimento 🔍
 
-- [x] **Scout** — Mapeamento de estrutura de pastas e tecnologias
-- [x] **Scout** — Análise de dependências e gerenciadores de pacotes
-- [x] **Scout** — Identificação de entry points, CI/CD e configurações
+- [x] **Scout** — Mapeamento de estrutura de pastas e tecnologias ✅
+- [x] **Scout** — Análise de dependências e gerenciadores de pacotes ✅
+- [x] **Scout** — Identificação de entry points, CI/CD e configurações ✅
 
 ## Decisão de organização das specs 🗂️
 
@@ -20,29 +20,29 @@
 
 > O Reversa preenche esta seção com os módulos reais após o Scout concluir o reconhecimento.
 
-- [x] **Arqueólogo** — 11 módulos analisados (_reversa_sdd/modules/)
+- [x] **Arqueólogo** — 11 módulos analisados (_reversa_sdd/modules/) ✅
 
 ## Fase 3: Interpretação 🧠
 
-- [ ] **Detetive** — Arqueologia Git e ADRs retroativos
-- [ ] **Detetive** — Regras de negócio implícitas e máquinas de estado
-- [ ] **Detetive** — Matriz de permissões (RBAC/ACL)
-- [ ] **Arquiteto** — Diagramas C4 (Contexto, Containers, Componentes)
-- [ ] **Arquiteto** — ERD completo e integrações externas
-- [ ] **Arquiteto** — Spec Impact Matrix
+- [x] **Detetive** — Arqueologia Git e ADRs retroativos ✅
+- [x] **Detetive** — Regras de negócio implícitas e máquinas de estado ✅
+- [x] **Detetive** — Matriz de permissões (RBAC/ACL) ✅
+- [x] **Arquiteto** — Diagramas C4 (Contexto, Containers, Componentes) ✅
+- [x] **Arquiteto** — ERD completo e integrações externas ✅
+- [x] **Arquiteto** — Spec Impact Matrix ✅
 
 ## Fase 4: Geração 📝
 
-- [ ] **Redator** — Specs SDD por componente
-- [ ] **Redator** — OpenAPI (se aplicável)
-- [ ] **Redator** — User Stories (se aplicável)
-- [ ] **Redator** — Code/Spec Matrix
+- [x] **Redator** — Specs SDD por componente ✅
+- [x] **Redator** — OpenAPI (se aplicável) ✅ (não aplicável: contratos em `rpc-contracts.md`)
+- [x] **Redator** — User Stories (se aplicável) ✅
+- [x] **Redator** — Code/Spec Matrix ✅
 
 ## Fase 5: Revisão ✅
 
-- [ ] **Revisor** — Revisão cruzada de specs
-- [ ] **Revisor** — Resolução de lacunas com o usuário
-- [ ] **Revisor** — Relatório de confiança final
+- [x] **Revisor** — Revisão cruzada de specs ✅
+- [x] **Revisor** — Resolução de lacunas com o usuário ✅ (modo arquivo: triadas em `questions-triage.md`; respostas do usuário pendentes)
+- [x] **Revisor** — Relatório de confiança final ✅
 
 ---
 
@@ -50,10 +50,10 @@
 
 > Execute estes agentes quando os recursos estiverem disponíveis — podem rodar em qualquer fase.
 
-- [ ] **Visor** — Análise de interface via screenshots
-- [ ] **Data Master** — Análise completa do banco de dados
-- [ ] **Design System** — Extração de tokens de design
-- [ ] **Tracer** — Análise dinâmica (requer sistema acessível)
+- [ ] **Visor** — Análise de interface via screenshots — não executado (sem screenshots/sistema dinâmico)
+- [x] **Data Master** — Análise completa do banco de dados ✅
+- [x] **Design System** — Extração de tokens de design ✅
+- [ ] **Tracer** — Análise dinâmica (requer sistema acessível) — não executado (sem sistema dinâmico acessível)
 
 ---
 
