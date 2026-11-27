@@ -20,3 +20,4 @@ Notes:
 - The REA skill (`reverse-engineer-anything`) is not stored here. Run
   `bash scripts/install-rea.sh` to install REA, the Ghidra engine, its MCP
   server and its skill.
+| https://github.com/sandeco/reversa (v1.3.6, MIT) | 78 |
