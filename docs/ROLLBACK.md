@@ -21,3 +21,9 @@ O projeto não tem migrações "down". Este roteiro vale para qualquer migraçã
 - Aplique a correção primeiro no banco local, rode os testes e só então em produção.
 - Registre o motivo da reversão no commit.
 - O histórico (`audit_log`) mostra quem mudou o quê nos dados e ajuda a decidir o que restaurar.
+
+## Backup por hora (GitHub Actions)
+- O workflow `Hourly database backup` roda a cada hora (minuto 17) e guarda o dump **criptografado** (AES-256) como artefato por 14 dias (Actions → a execução → Artifacts).
+- Segredos necessários (Settings → Secrets and variables → Actions): `SUPABASE_DB_URL` (string de conexão do **Session pooler**, Supabase → Connect) e `BACKUP_PASSPHRASE` (frase longa; guarde também em um cofre de senhas, sem ela o backup não abre).
+- Restaurar: baixe o artefato e rode `gpg -d arquivo.sql.gz.gpg | gunzip > dump.sql`; importe num banco novo com `psql "$URL" -f dump.sql`. Teste a restauração num projeto separado antes de precisar dela.
+- Os arquivos têm dados pessoais: nunca os coloque em e-mail, chat ou repositório.

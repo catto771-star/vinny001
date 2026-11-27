@@ -117,7 +117,7 @@ export function Hours() {
       ) : (
         <table className="table table-cards">
           <thead>
-            <tr><th>{t("users.name")}</th><th>{t("hours.planned")}</th><th>{t("hours.effective")}</th><th>{t("hours.difference")}</th><th /></tr>
+            <tr><th>{t("users.name")}</th><th className="num">{t("hours.planned")}</th><th className="num">{t("hours.effective")}</th><th className="num">{t("hours.difference")}</th><th /></tr>
           </thead>
           <tbody>
             {rows.map((r) => {
