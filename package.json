@@ -13,7 +13,8 @@
     "test:db": "vitest run tests/db",
     "db:reset": "node scripts/db-reset.mjs",
     "demo:seed": "node scripts/demo.mjs seed",
-    "demo:clear": "node scripts/demo.mjs clear"
+    "demo:clear": "node scripts/demo.mjs clear",
+    "load": "node scripts/load-test.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.1.1",
