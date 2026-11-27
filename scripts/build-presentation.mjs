@@ -1,6 +1,6 @@
 // Gera os manuais curtos de apresentação (Admin e Casas; EN e PT) em docs/presentation/*.pdf
 // a partir de docs/presentation/content.mjs e dos prints em docs/presentation/shots.
-import { mkdirSync, readFileSync, existsSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -56,7 +56,9 @@ ${c.sections.map((s, i) => `<section class="sec"><div class="num">${i + 1} / ${c
 const b = await chromium.launch();
 for (const [key, g] of Object.entries(GUIDES)) for (const lang of ["en", "pt"]) {
   const p = await b.newPage();
-  await p.setContent(html(g, lang), { waitUntil: "load" });
+  const htmlFile = path.join(web, `${g[lang].file}.html`);
+  writeFileSync(htmlFile, html(g, lang));
+  await p.goto("file://" + htmlFile, { waitUntil: "load" });
   const file = path.join(out, `${g[lang].file}.pdf`);
   await p.pdf({ path: file, format: "A4", printBackground: true, displayHeaderFooter: true, headerTemplate: "<span></span>", footerTemplate: `<div style="font-size:8px;width:100%;text-align:center;color:#888"><span class="pageNumber"></span> / <span class="totalPages"></span></div>`, margin: { top: "14mm", bottom: "16mm", left: "14mm", right: "14mm" } });
   console.log("ok", file);
