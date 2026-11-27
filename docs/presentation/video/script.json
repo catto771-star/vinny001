@@ -1,0 +1,47 @@
+{
+  "title": "DS Lodge in two and a half minutes",
+  "voice_note": "Irish English (Dublin). Warm, brisk, conversational. Smile on the opening and the closing. Do not read like a robot: short breaths between lines, stress the numbers.",
+  "scenes": [
+    {"id": "hook", "kind": "title", "lines": [
+      [3.2, "Two houses. Dozens of beds. One clear picture."],
+      [3.6, "This is how 47/48 Amiens and Connolly can run on live information."]]},
+    {"id": "problem", "kind": "problem", "lines": [
+      [3.4, "Right now, the story of a night lives in notebooks, calls and memory."],
+      [3.6, "So by the time it reaches the office, it is already old news."],
+      [3.2, "What if everyone worked from the same page, as it happens?"]]},
+    {"id": "home", "kind": "shot", "shot": "01-home", "tag": "Admin · Home", "lines": [
+      [3.6, "Here is the Admin's Home. Both houses, live."],
+      [3.8, "Who's in, which beds are free, who's on duty, and what's waiting on you."],
+      [3.2, "Pick a period, and every number moves with it."]]},
+    {"id": "beds", "kind": "shot", "shot": "10-bed-map", "tag": "House team · Bed Map", "lines": [
+      [3.4, "In the house, it starts with the bed map."],
+      [3.8, "Admit someone with their PASS ID, and the system spots former residents straight away."],
+      [3.0, "Cancel a bed, and it's free for the next person."]]},
+    {"id": "check", "kind": "shot", "shot": "05-room-check", "tag": "House team · Room Check", "lines": [
+      [3.6, "At each check, one tap per resident: seen, not seen, or absent."],
+      [3.6, "Launch it, and the Admin knows the count before the kettle's boiled."]]},
+    {"id": "handover", "kind": "shot", "shot": "11-handover", "tag": "House team · Handover", "lines": [
+      [3.4, "Anything worth knowing goes in the Handover, once."],
+      [3.8, "Tag it, mention a colleague, and urgent ones land on the manager's phone."],
+      [3.0, "Nothing deleted. Every correction is kept."]]},
+    {"id": "ops", "kind": "split", "shots": ["12-maintenance", "19-purchases"], "tag": "Maintenance · Purchases", "lines": [
+      [3.6, "A leak? A repair request with a deadline and a priority."],
+      [4.0, "The Tesco order is matched to the delivery the house receives, and the note writes itself."]]},
+    {"id": "flow", "kind": "flow", "lines": [
+      [3.6, "Every tap in the houses feeds one live picture."],
+      [3.8, "No double typing. No chasing. Just the facts, as they happen."],
+      [3.2, "And that is what makes better decisions possible."]]},
+    {"id": "reports", "kind": "shot", "shot": "22-reports", "tag": "Admin · Reports", "lines": [
+      [3.6, "Reports by period and by house."],
+      [3.8, "Occupancy, warnings, maintenance, no-shows, spending."],
+      [3.4, "Click any number, and you see the records behind it."]]},
+    {"id": "audit", "kind": "shot", "shot": "24-audit", "tag": "Admin · Audit", "lines": [
+      [3.6, "And if anyone asks who did what, and when?"],
+      [3.6, "The Audit trail has the answer, with the before and the after."]]},
+    {"id": "mobile", "kind": "mobile", "shots": ["30-mobile-home", "31-mobile-handover", "32-mobile-room-check"], "tag": "On a phone", "lines": [
+      [3.8, "It works on a phone too, and if the internet drops, there's an offline sheet you can print."]]},
+    {"id": "close", "kind": "close", "lines": [
+      [3.6, "Know sooner. Decide better."],
+      [3.8, "DS Lodge. Sorted."]]}
+  ]
+}
