@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_USER: postgres
+        ports:
+          - 54322:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        # O banco de teste precisa de mais locks por transação (varredura em massa).
+        # O parâmetro é aplicado no passo "Preparar o banco" abaixo.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Preparar o banco
+        run: |
+          psql -h localhost -p 54322 -U postgres -c "alter system set max_locks_per_transaction = 512"
+          docker restart "$(docker ps -q --filter ancestor=postgres:16)"
+          for i in $(seq 1 20); do pg_isready -h localhost -p 54322 -U postgres && break; sleep 2; done
+      - run: npm run db:reset
+      - run: npm run typecheck
+      - run: npm test

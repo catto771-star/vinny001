@@ -119,3 +119,45 @@ describe("lote B — serviços, compras e push", () => {
     }
   });
 });
+
+describe("lote C — configurações e casas", () => {
+  it("horários dos turnos são configuráveis em Settings, com validação", async () => {
+    await db.as(admin);
+    expect(await db.error("select public.set_system_parameter('shift.day_start', '\"06:30\"')")).toBeNull();
+    expect(await db.error("select public.set_system_parameter('shift.day_start', '\"25:00\"')")).toMatch(/invalid_parameter/);
+    expect(await db.error("select public.set_system_parameter('shift.night_start', '\"06:00\"')")).toMatch(/invalid_parameter/);
+    expect(await db.error("select public.set_system_parameter('shift.night_start', '\"20:00\"')")).toBeNull();
+    await db.asSuperuser();
+    expect((await db.one<{ s: string }>("select public.shift_of(('2026-01-15 06:45 Europe/Dublin')::timestamptz) s")).s).toBe("day");
+    expect((await db.one<{ s: string }>("select public.shift_of(('2026-01-15 19:45 Europe/Dublin')::timestamptz) s")).s).toBe("day");
+  });
+  it("gestão cria e desativa uma casa; conta de casa não", async () => {
+    await db.as(station);
+    expect(await db.error("select public.add_lodge('NEWHOUSE', 'New House', 'New', false, false)")).toMatch(/not_authorised/);
+    await db.as(admin);
+    expect(await db.error("select public.add_lodge('bad code', 'X', 'X', false, false)")).toMatch(/invalid_code/);
+    const id = (await db.one<{ id: string }>("select public.add_lodge('NEWHOUSE', 'New House', 'New', true, false) as id")).id;
+    expect(await db.error("select public.add_lodge('NEWHOUSE', 'Dup', 'Dup', false, false)")).toMatch(/lodge_exists/);
+    expect(await db.error("select public.set_lodge_active($1, false)", [id])).toBeNull();
+    await db.asSuperuser();
+    expect((await db.one("select active, has_dinner from public.lodges where id = $1", [id]))).toEqual({ active: false, has_dinner: true });
+  });
+  it("não desativa uma casa com residentes", async () => {
+    await admit("Ana");
+    await db.as(admin);
+    expect(await db.error("select public.set_lodge_active($1, false)", [amiens])).toMatch(/lodge_has_residents/);
+  });
+});
+
+describe("modelos de tarefas diárias", () => {
+  it("a gestão desativa um modelo recorrente; conta de casa não", async () => {
+    await db.as(admin);
+    const id = (await db.one<{ id: string }>("select public.create_task_template($1, 'day', null, '{\"en-IE\":\"Check boiler\"}'::jsonb, 1, null) as id", [amiens])).id;
+    await db.as(station);
+    expect(await db.error("select public.set_task_template_active($1, false)", [id])).toMatch(/not_authorised/);
+    await db.as(admin);
+    expect(await db.error("select public.set_task_template_active($1, false)", [id])).toBeNull();
+    await db.asSuperuser();
+    expect((await db.one("select active from public.task_templates where id = $1", [id])).active).toBe(false);
+  });
+});

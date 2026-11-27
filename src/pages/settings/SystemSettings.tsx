@@ -67,6 +67,16 @@ function NumberField({ label, value, onChange, step = 1 }: { label: MessageKey; 
   );
 }
 
+function TimeField({ label, value, onChange }: { label: MessageKey; value: string; onChange: (v: string) => void }) {
+  const { t } = useI18n();
+  return (
+    <label className="filter-field">
+      <span>{t(label)}</span>
+      <input type="time" value={value} onChange={(e) => onChange(e.target.value)} />
+    </label>
+  );
+}
+
 function TimeList({ times, onChange, inputLabel, addLabel }: { times: string[]; onChange: (t: string[]) => void; inputLabel: MessageKey; addLabel: MessageKey }) {
   const { t } = useI18n();
   const [draft, setDraft] = useState("");
@@ -129,7 +139,9 @@ function SystemForms({ p, onSaved }: { p: Params; onSaved: () => Promise<void> }
   const [correction, setCorrection] = useState(str(p["records.correction_window_hours"]));
   const [noShow, setNoShow] = useState(str(p["presence.no_show_monthly_alert"]));
   const [idle, setIdle] = useState(str(p["security.session_idle_minutes"]));
-  const [expiryDays, setExpiryDays] = useState(str(p["delivery.expiry_alert_days"], "3"));
+  const [expiryDays, setExpiryDays] = useState(str(p["delivery.expiry_alert_days"], "2"));
+  const [dayStart, setDayStart] = useState((p["shift.day_start"] as string) ?? "07:00");
+  const [nightStart, setNightStart] = useState((p["shift.night_start"] as string) ?? "19:00");
   const after = (fn: () => Promise<void>) => async () => { await fn(); await onSaved(); };
 
   return (
@@ -142,6 +154,14 @@ function SystemForms({ p, onSaved }: { p: Params; onSaved: () => Promise<void> }
         })}>
         <TimeList times={checks} onChange={setChecks} inputLabel="settings.newCheckTime" addLabel="settings.addCheckTime" />
         <NumberField label="settings.checkWindow" value={checkWindow} onChange={setCheckWindow} />
+      </Section>
+
+      <Section id="s-shifts" title="settings.sShifts" hint="settings.sShiftsHint" onSave={after(async () => {
+          await setParam("shift.night_start", nightStart);
+          await setParam("shift.day_start", dayStart);
+        })}>
+        <TimeField label="settings.dayStart" value={dayStart} onChange={setDayStart} />
+        <TimeField label="settings.nightStart" value={nightStart} onChange={setNightStart} />
       </Section>
 
       <Section id="s-rounds" title="settings.sRounds" hint="settings.sRoundsHint" onSave={after(() => setParam("rounds.hours", rounds))}>

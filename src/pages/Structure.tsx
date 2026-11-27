@@ -321,12 +321,74 @@ function Laundry({ lodgeId }: { lodgeId: string }) {
   );
 }
 
+type HouseRow = { id: string; name: string; short_name: string; has_dinner: boolean; has_laundry: boolean; active: boolean };
+
 function Houses() {
-  const { lodges } = useAuth();
+  const { t } = useI18n();
+  const { refresh } = useAuth();
+  const toast = useToast();
+  const [houses, setHouses] = useState<HouseRow[] | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const load = useCallback(async () => {
+    const { data } = await supabase.from("lodges").select("id, name, short_name, has_dinner, has_laundry, active").order("created_at");
+    setHouses((data ?? []) as HouseRow[]);
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+
+  async function setActive(h: HouseRow, active: boolean) {
+    setError(null);
+    const { error: e } = await supabase.rpc("set_lodge_active", { p_lodge: h.id, p_active: active });
+    if (e) return setError(t(errorKey(e)));
+    await refresh?.();
+    toast.success(t("structure.saved"));
+    await load();
+  }
+
+  if (!houses) return <div className="card"><Skeleton rows={3} label={t("app.loading")} /></div>;
   return (
-    <div className="settings-grid">
-      {lodges.map((l) => <HouseForm key={l.id} lodge={l} />)}
-    </div>
+    <>
+      <div className="toolbar"><button className="primary" onClick={() => setAdding(true)}>{t("structure.addHouse")}</button></div>
+      <Notice kind="error">{error}</Notice>
+      <div className="settings-grid">
+        {houses.map((h) => (
+          <div key={h.id}>
+            <HouseForm lodge={h} />
+            <button type="button" className="ghost" onClick={() => void setActive(h, !h.active)}>{h.active ? t("structure.deactivateHouse") : t("structure.reactivateHouse")}</button>
+          </div>
+        ))}
+      </div>
+      {adding && <AddHouse onClose={() => setAdding(false)} onDone={async () => { setAdding(false); await refresh?.(); await load(); }} />}
+    </>
+  );
+}
+
+function AddHouse({ onClose, onDone }: { onClose: () => void; onDone: () => Promise<void> }) {
+  const { t } = useI18n();
+  const toast = useToast();
+  const [code, setCode] = useState("");
+  const [name, setName] = useState("");
+  const [short, setShort] = useState("");
+  const [dinner, setDinner] = useState(false);
+  const [laundry, setLaundry] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const clean = code.toUpperCase().replace(/[^A-Z_]/g, "");
+  async function save() {
+    setError(null);
+    const { error: e } = await supabase.rpc("add_lodge", { p_code: clean, p_name: name, p_short: short, p_has_dinner: dinner, p_has_laundry: laundry });
+    if (e) return setError(t(errorKey(e)));
+    toast.success(t("structure.saved"));
+    await onDone();
+  }
+  return (
+    <Dialog title={t("structure.addHouse")} onClose={onClose} footer={<><DialogCancel>{t("app.cancel")}</DialogCancel><button className="primary" disabled={clean.length < 2 || !name.trim() || !short.trim()} onClick={() => void save()}>{t("app.save")}</button></>}>
+      <label className="form">{t("structure.houseCode")}<input value={code} maxLength={20} onChange={(e) => setCode(e.target.value)} /></label>
+      <label className="form">{t("structure.name")}<input value={name} maxLength={60} onChange={(e) => setName(e.target.value)} /></label>
+      <label className="form">{t("structure.shortName")}<input value={short} maxLength={20} onChange={(e) => setShort(e.target.value)} /></label>
+      <label className="switch-row"><span>{t("structure.dinner")}</span><input type="checkbox" role="switch" checked={dinner} onChange={(e) => setDinner(e.target.checked)} aria-label={t("structure.dinner")} /></label>
+      <label className="switch-row"><span>{t("structure.laundry")}</span><input type="checkbox" role="switch" checked={laundry} onChange={(e) => setLaundry(e.target.checked)} aria-label={t("structure.laundry")} /></label>
+      <Notice kind="error">{error}</Notice>
+    </Dialog>
   );
 }
 

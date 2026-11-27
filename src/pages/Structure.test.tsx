@@ -100,12 +100,29 @@ describe("Structure", () => {
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("add_laundry_machine", { p_lodge: "a", p_kind: "wash", p_label: "C · Wash" }));
   });
   it("casas: renomear e ligar/desligar Dinner e Laundry", async () => {
+    tables.lodges = [
+      { id: "a", name: "Amiens St.", short_name: "Amiens", has_dinner: true, has_laundry: false, active: true },
+      { id: "c", name: "Connolly", short_name: "Connolly", has_dinner: false, has_laundry: true, active: true },
+    ];
     show("/structure?tab=houses");
     const name = (await screen.findAllByLabelText("Name"))[0] as HTMLInputElement;
     fireEvent.change(name, { target: { value: "Amiens Street" } });
     fireEvent.click(within(name.closest("article")!).getByRole("switch", { name: "Laundry" }));
     fireEvent.click(within(name.closest("article")!).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("update_lodge", { p_lodge: "a", p_name: "Amiens Street", p_short_name: "Amiens", p_has_dinner: true, p_has_laundry: true }));
+  });
+  it("casas: cria uma casa nova e desativa uma existente", async () => {
+    tables.lodges = [{ id: "a", name: "Amiens St.", short_name: "Amiens", has_dinner: true, has_laundry: false, active: true }];
+    show("/structure?tab=houses");
+    fireEvent.click(await screen.findByRole("button", { name: "Add house" }));
+    const dlg = document.querySelector("dialog[open]") as HTMLElement;
+    fireEvent.change(within(dlg).getByLabelText(/Code/), { target: { value: "new_house" } });
+    fireEvent.change(within(dlg).getByLabelText("Name"), { target: { value: "New House" } });
+    fireEvent.change(within(dlg).getByLabelText("Short name"), { target: { value: "New" } });
+    fireEvent.click(within(dlg).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("add_lodge", { p_code: "NEW_HOUSE", p_name: "New House", p_short: "New", p_has_dinner: false, p_has_laundry: false }));
+    fireEvent.click(await screen.findByRole("button", { name: "Deactivate house" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("set_lodge_active", { p_lodge: "a", p_active: false }));
   });
 
   it("Suppliers: lista com as regras de cada um e cria fornecedor com campos obrigatórios", async () => {

@@ -298,3 +298,9 @@ a { transition:color 140ms var(--ios-ease), opacity 140ms }
   .continuity-table td, .continuity-table th { color:#000!important;border-bottom:1px solid #bbb!important;background:transparent!important }
   .rollbox { border-color:#000 }
 }
+
+/* Contraste AA nos chips selecionados (âmbar e vermelho) em cada tema. */
+:root[data-theme="light"] .tag-chips .chip.tag-c-amber.is-on, :root[data-theme="light"] .tag-chips .chip.tag-health.is-on, :root[data-theme="light"] .tag-chips .chip.tag-damage.is-on { color:#ffffff!important }
+:root[data-theme="light"] .tag-chips .chip.tag-c-red.is-on, :root[data-theme="light"] .tag-chips .chip.tag-incident.is-on, :root[data-theme="light"] .tag-chips .chip.tag-emergency.is-on { color:#ffffff!important }
+:root[data-theme="dark"] .tag-chips .chip.tag-c-amber.is-on, :root[data-theme="dark"] .tag-chips .chip.tag-health.is-on, :root[data-theme="dark"] .tag-chips .chip.tag-damage.is-on { color:#1f1300!important }
+:root[data-theme="dark"] .tag-chips .chip.tag-c-red.is-on, :root[data-theme="dark"] .tag-chips .chip.tag-incident.is-on, :root[data-theme="dark"] .tag-chips .chip.tag-emergency.is-on { color:#1a0609!important }

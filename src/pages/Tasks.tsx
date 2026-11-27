@@ -99,6 +99,13 @@ export function Tasks() {
     await load();
   }
 
+  async function deactivate(taskId: string) {
+    const { error: e } = await supabase.rpc("set_task_template_active", { p_id: taskId, p_active: false });
+    if (e) return toast.error(t(errorKey(e)));
+    toast.success(t("tasks.deactivated"));
+    await load();
+  }
+
   const nameOf = (id: string | null) => staffName(staffList.find((s) => s.id === id)) || "—";
   // Função de quem assinou: Office / Float (termos de trabalho) ou o perfil.
   const functionLabel = (f: string) =>
@@ -168,6 +175,9 @@ export function Tasks() {
                 <div className="task-actions">
                   {isManagement && task.kind === "extra" && task.staff_id && !signed && (
                     <button className="small ghost" onClick={() => void reassign(task.task_id)}>{t("tasks.reassign")}</button>
+                  )}
+                  {isManagement && task.kind === "template" && (
+                    <button className="small ghost" onClick={() => void deactivate(task.task_id)}>{t("tasks.deactivate")}</button>
                   )}
                   {canWrite && (
                     <button className={signed ? "small" : "small primary"} disabled={busyId === task.task_id} onClick={() => void sign(task.kind, task.task_id)}>
