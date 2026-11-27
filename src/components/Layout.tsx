@@ -105,7 +105,7 @@ const BOTTOM: Item[] = [
 function ContinuityKeeper() {
   const { lodges, staff } = useAuth();
   const { posts } = useOnDuty();
-  useContinuitySnapshot(!!staff, lodges, posts);
+  useContinuitySnapshot(staff?.id ?? null, !!staff, lodges, posts);
   return null;
 }
 

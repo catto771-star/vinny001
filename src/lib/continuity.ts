@@ -7,9 +7,12 @@ export type SnapBed = { n: number; name: string | null; dob: string | null; pass
 export type SnapRoom = { code: string; beds: SnapBed[] };
 export type SnapHouse = { id: string; name: string; onDuty: string | null; rooms: SnapRoom[] };
 export type Snapshot = { at: string; float: string | null; houses: SnapHouse[] };
+/** A cópia guardada pertence a UMA pessoa e só mostra as casas que ela pode ver: outra conta no mesmo aparelho nunca a lê. */
 
 const roomLabelPlain = (kind: string, code: string) => (kind === "apartment" ? `Apartment ${code}` : `Room ${code}`);
 const KEY = "continuity.snapshot";
+const LAST = `${KEY}.last`;
+const keyFor = (owner: string) => `${KEY}.${owner}`;
 export const SNAPSHOT_EVERY_MS = 60 * 60 * 1000;
 
 export function buildSnapshot(beds: BedOccupancy[], lodges: Pick<Lodge, "id" | "name">[], absentStays: Set<string>, onDuty: Record<string, string | null>, float: string | null, at: Date): Snapshot {
@@ -25,21 +28,32 @@ export function buildSnapshot(beds: BedOccupancy[], lodges: Pick<Lodge, "id" | "
     }
     return { id: l.id, name: l.name, onDuty: onDuty[l.id] ?? null, rooms };
   });
-  return { at: at.toISOString(), float, houses };
+  return { at: at.toISOString(), float, houses: houses.filter((h) => h.rooms.length > 0) };
 }
 
-export function saveSnapshot(s: Snapshot): void {
-  try { window.localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* armazenamento indisponível */ }
-}
-export function loadSnapshot(): Snapshot | null {
+export function saveSnapshot(s: Snapshot, owner: string): void {
   try {
-    const v = JSON.parse(window.localStorage.getItem(KEY) ?? "null");
+    const ls = window.localStorage;
+    for (let i = ls.length - 1; i >= 0; i--) {
+      const k = ls.key(i);
+      if (k && k.startsWith(KEY) && k !== keyFor(owner) && k !== LAST) ls.removeItem(k);
+    }
+    ls.setItem(keyFor(owner), JSON.stringify(s));
+    ls.setItem(LAST, owner);
+  } catch { /* armazenamento indisponível */ }
+}
+/** owner = a pessoa logada; sem sessão (offline) abre a última cópia deste aparelho. */
+export function loadSnapshot(owner: string | null = null): Snapshot | null {
+  try {
+    owner = owner ?? window.localStorage.getItem(LAST);
+    if (!owner) return null;
+    const v = JSON.parse(window.localStorage.getItem(keyFor(owner)) ?? "null");
     return v && Array.isArray(v.houses) && typeof v.at === "string" ? (v as Snapshot) : null;
   } catch { return null; }
 }
 
 /** Busca os dados atuais, monta a folha e guarda no navegador. Devolve null se estiver sem internet. */
-export async function fetchSnapshot(lodges: Pick<Lodge, "id" | "name">[], posts: { function: string; lodge_id: string | null; staff: { full_name: string; display_name: string | null } | null }[]): Promise<Snapshot | null> {
+export async function fetchSnapshot(owner: string, lodges: Pick<Lodge, "id" | "name">[], posts: { function: string; lodge_id: string | null; staff: { full_name: string; display_name: string | null } | null }[]): Promise<Snapshot | null> {
   const [{ data: beds, error }, { data: abs }] = await Promise.all([
     supabase.from("bed_occupancy").select("*").order("room_sort").order("bed_number"),
     supabase.from("absences").select("stay_id").is("ended_at", null),
@@ -49,26 +63,27 @@ export async function fetchSnapshot(lodges: Pick<Lodge, "id" | "name">[], posts:
   for (const l of lodges) onDuty[l.id] = staffName(posts.find((p) => p.function === "office" && p.lodge_id === l.id)?.staff) || null;
   const float = staffName(posts.find((p) => p.function === "float")?.staff) || null;
   const snap = buildSnapshot(beds as BedOccupancy[], lodges, new Set(((abs ?? []) as { stay_id: string }[]).map((a) => a.stay_id)), onDuty, float, new Date());
-  saveSnapshot(snap);
+  saveSnapshot(snap, owner);
   return snap;
 }
 
 /** Atualiza a cópia guardada a cada hora enquanto o sistema estiver aberto (e ao abrir). */
-export function useContinuitySnapshot(enabled: boolean, lodges: Pick<Lodge, "id" | "name">[], posts: Parameters<typeof fetchSnapshot>[1]) {
-  const [snap, setSnap] = useState<Snapshot | null>(() => loadSnapshot());
+export function useContinuitySnapshot(owner: string | null, enabled: boolean, lodges: Pick<Lodge, "id" | "name">[], posts: Parameters<typeof fetchSnapshot>[2]) {
+  const [snap, setSnap] = useState<Snapshot | null>(() => loadSnapshot(owner));
   const [online, setOnline] = useState<boolean>(() => (typeof navigator === "undefined" ? true : navigator.onLine));
   const refresh = useCallback(async () => {
-    const s = await fetchSnapshot(lodges, posts);
+    if (!owner) return null;
+    const s = await fetchSnapshot(owner, lodges, posts);
     if (s) { setSnap(s); setOnline(true); } else setOnline(false);
     return s;
-  }, [lodges, posts]);
+  }, [owner, lodges, posts]);
   useEffect(() => {
-    if (!enabled || lodges.length === 0) return;
+    if (!enabled || !owner || lodges.length === 0) return;
     void refresh();
     const id = window.setInterval(() => void refresh(), SNAPSHOT_EVERY_MS);
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, lodges.length]);
+  }, [enabled, owner, lodges.length]);
   useEffect(() => {
     const on = () => setOnline(true), off = () => setOnline(false);
     window.addEventListener("online", on); window.addEventListener("offline", off);

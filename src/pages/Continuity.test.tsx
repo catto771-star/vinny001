@@ -32,9 +32,9 @@ describe("folha de continuidade", () => {
     const s = snap();
     expect(s.houses[0].rooms[0].beds.map((b) => b.status)).toEqual(["present", "absent", "cancelled", "free", "oos"]);
     expect(s.houses[0].onDuty).toBe("Ciarán Byrne");
-    saveSnapshot(s);
-    expect(loadSnapshot()?.at).toBe(s.at);
-    expect(loadSnapshot()?.houses[0].rooms[0].beds[0].name).toBe("Declan Byrne");
+    saveSnapshot(s, "u1");
+    expect(loadSnapshot("u1")?.at).toBe(s.at);
+    expect(loadSnapshot("u1")?.houses[0].rooms[0].beds[0].name).toBe("Declan Byrne");
   });
   it("mostra a chamada de incêndio: quadradinho para cada residente presente, nota nos demais, e o aviso de cópia guardada", () => {
     render(<I18nProvider><ContinuitySheet snap={snap()} online={false} /></I18nProvider>);
@@ -47,8 +47,15 @@ describe("folha de continuidade", () => {
     expect(screen.getByText("Declan Byrne")).toBeTruthy();
     expect(screen.getByText(/Float: Rafael Souza/)).toBeTruthy();
   });
+  it("a cópia é de uma pessoa só: outra conta no mesmo aparelho não lê, e a anterior é apagada", () => {
+    saveSnapshot(snap(), "u1");
+    expect(loadSnapshot("u2")).toBeNull();
+    saveSnapshot(snap(), "u2");
+    expect(loadSnapshot("u1")).toBeNull();
+    expect(loadSnapshot("u2")).not.toBeNull();
+  });
   it("sem sessão e sem internet abre só a cópia guardada; sem cópia, explica", () => {
-    saveSnapshot(snap());
+    saveSnapshot(snap(), "u1");
     render(<I18nProvider><ContinuityOffline /></I18nProvider>);
     expect(screen.getByText("Declan Byrne")).toBeTruthy();
     cleanup();

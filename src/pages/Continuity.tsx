@@ -73,7 +73,7 @@ export function ContinuitySheet({ snap, online, onRefresh, standalone = false }:
 export function Continuity() {
   const { lodges, staff } = useAuth();
   const { posts } = useOnDuty();
-  const { snap, online, refresh } = useContinuitySnapshot(!!staff, lodges, posts);
+  const { snap, online, refresh } = useContinuitySnapshot(staff?.id ?? null, !!staff, lodges, posts);
   return <ContinuitySheet snap={snap} online={online} onRefresh={() => void refresh()} />;
 }
 
