@@ -8,12 +8,12 @@
   "doc_level": "completo",
   "output_folder": "_reversa_sdd",
   "forward_folder": "_reversa_forward",
-  "phase": "escavacao",
+  "phase": "interpretacao",
   "completed": [
-    "reconhecimento"
+    "reconhecimento",
+    "escavacao"
   ],
   "pending": [
-    "escavacao",
     "interpretacao",
     "geracao",
     "revisao"
@@ -25,6 +25,22 @@
         "_reversa_sdd/inventory.md",
         "_reversa_sdd/dependencies.md",
         ".reversa/context/surface.json"
+      ]
+    },
+    "archaeologist": {
+      "done": true,
+      "modules_analyzed": [
+        "acesso-e-autenticacao",
+        "moradores-e-presenca",
+        "ocorrencias-e-passagem-de-turno",
+        "servicos-da-casa",
+        "compras-e-fornecedores",
+        "equipe-escala-e-horas",
+        "painel-relatorios-e-auditoria",
+        "configuracoes-e-cadastros",
+        "continuidade-offline",
+        "notificacoes-e-push",
+        "interface-e-i18n"
       ]
     }
   },
