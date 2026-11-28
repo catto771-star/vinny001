@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
   for (const s of subs ?? []) {
     try {
       await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-        JSON.stringify({ ...msg, tag: `n${n.id}` }), { TTL: 3600 });
+        JSON.stringify({ ...msg, tag: `n${n.id}` }), { TTL: 3600, urgency: "high" }); // prioridade alta: o Android (Doze) não segura o aviso com a tela apagada
       sent++;
       await admin.from("push_subscriptions").update({ last_used_at: new Date().toISOString() }).eq("id", s.id);
     } catch (e) {
