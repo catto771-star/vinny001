@@ -27,6 +27,12 @@ export function Notifications() {
     await supabase.rpc("mark_notification_read", { p_id: n.id });
   }
 
+  const unread = rows?.filter((n) => !n.read).length ?? 0;
+  async function readAll() {
+    setRows((list) => list?.map((x) => ({ ...x, read: true })) ?? null);
+    await supabase.rpc("mark_all_notifications_read");
+  }
+
   const lodgeName = (id: string | null) => lodges.find((l) => l.id === id)?.short_name ?? "";
 
   return (
@@ -36,6 +42,7 @@ export function Notifications() {
           <span className="eyebrow">{t("notifications.readHint")}</span>
           <h1>{t("notifications.title")}</h1>
         </div>
+        {unread > 0 && <button type="button" className="primary" onClick={() => void readAll()}>{t("notifications.markAllRead")}</button>}
       </header>
       {rows === null ? (
         <div className="card"><Skeleton rows={6} label={t("app.loading")} /></div>
