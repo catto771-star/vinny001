@@ -114,3 +114,13 @@ describe("cores das tags (revisão 14)", () => {
     }
   });
 });
+
+describe("tabelas em tablet (Food Delivery)", () => {
+  it("em até 1100px a coluna 'Who' quebra linha e os botões de ação quebram, sem empurrar a página para o lado", () => {
+    const raw = readFileSync("src/elevate.css", "utf8");
+    const m = raw.match(/@media \(max-width: 1100px\) \{([\s\S]*?)\n\}/);
+    expect(m, "regra @media (max-width: 1100px)").toBeTruthy();
+    expect(m![1]).toMatch(/\.table-cards td\.nowrap\s*\{[^}]*white-space:\s*normal/);
+    expect(m![1]).toMatch(/\.row-actions\s*\{[^}]*flex-wrap:\s*wrap/);
+  });
+});
