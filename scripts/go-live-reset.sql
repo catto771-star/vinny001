@@ -2,7 +2,8 @@
 -- MANTÉM: casas, quartos, camas, geladeiras, máquinas de lavar e secar, fornecedores, lista padrão do Tesco,
 --         tags do Handover, parâmetros do sistema, modelos de tarefas diárias e as contas listadas em KEEP_EMAILS
 --         (com o aparelho e as preferências de notificação delas).
--- NÃO MEXE em audit_log nem access_log (têm bloqueio de alteração de propósito).
+-- Reinicia também audit_log e access_log UMA ÚNICA VEZ (decisão do dono, com backup criptografado feito antes);
+-- eles têm bloqueio de alteração de propósito, por isso só TRUNCATE na entrada em operação.
 -- Uso: substituir @@KEEP_EMAIL_1@@ e @@KEEP_EMAIL_2@@ (não ficam no repositório) e rodar numa transação.
 -- Com MODE = 'dry' o resultado é devolvido numa exceção, que desfaz tudo (ensaio).
 do $$
@@ -26,7 +27,7 @@ begin
     public.purchase_lines, public.purchases, public.residents, public.room_check_marks, public.room_check_runs,
     public.rota_shifts, public.shop_order_lines, public.shop_orders, public.sightings, public.stays,
     public.task_extras, public.task_signatures, public.vacations, public.warnings, public.work_intervals,
-    public.access_log;
+    public.access_log, public.audit_log;
 
   -- 2) sobras de teste na estrutura (por nome exato)
   delete from public.beds where room_id in (select r.id from public.rooms r join public.lodges l on l.id = r.lodge_id where l.code = 'AMIENS' and r.code = 'S1');
