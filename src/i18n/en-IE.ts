@@ -812,6 +812,7 @@ const enIE = {
     title: "Notifications",
     empty: "No notifications.",
     markRead: "Mark as read",
+    markAllRead: "Mark all as read",
     readHint: "Marking as read does not resolve the item.",
     fridge_out_of_range: "{lodge} · {fridge} at {temperature} °C (range {min}–{max} °C)",
     maintenance_opened: "New maintenance request in {lodge}: {location}",

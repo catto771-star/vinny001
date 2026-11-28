@@ -177,4 +177,28 @@ describe("Notificações", () => {
     fireEvent.click(item);
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("mark_notification_read", { p_id: 7 }));
   });
+
+  it("botão 'Mark all as read': aparece com não lidas, marca tudo de uma vez e some quando não há mais", async () => {
+    management = true;
+    rpcResult.my_notifications = [
+      { id: 7, kind: "fridge_out_of_range", lodge_id: "a", resident_id: null, payload: { temperature: 7.5, min: 0, max: 5, fridge_name: "Kitchen fridge" }, created_at: "2026-11-20T10:00:00Z", read: false },
+      { id: 8, kind: "fridge_out_of_range", lodge_id: "a", resident_id: null, payload: { temperature: 8.5, min: 0, max: 5, fridge_name: "Cold room" }, created_at: "2026-11-20T11:00:00Z", read: false },
+    ];
+    wrap(<Notifications />);
+    const btn = await screen.findByRole("button", { name: "Mark all as read" });
+    fireEvent.click(btn);
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("mark_all_notifications_read", undefined));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Mark all as read" })).toBeNull());
+    expect(document.querySelectorAll(".notification.is-read")).toHaveLength(2);
+  });
+
+  it("sem não lidas, o botão 'Mark all as read' não aparece", async () => {
+    management = true;
+    rpcResult.my_notifications = [
+      { id: 7, kind: "fridge_out_of_range", lodge_id: "a", resident_id: null, payload: { temperature: 7.5, min: 0, max: 5, fridge_name: "Kitchen fridge" }, created_at: "2026-11-20T10:00:00Z", read: true },
+    ];
+    wrap(<Notifications />);
+    await screen.findByText("Amiens · Kitchen fridge at 7.5 °C (range 0–5 °C)");
+    expect(screen.queryByRole("button", { name: "Mark all as read" })).toBeNull();
+  });
 });
