@@ -323,3 +323,9 @@ a { transition:color 140ms var(--ios-ease), opacity 140ms }
 .order-pool-list { list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:.5rem;max-height:14rem;overflow:auto }
 .order-pool-item { width:100%;display:flex;align-items:center;justify-content:space-between;gap:.5rem;text-align:left }
 .order-pool-item.is-on { outline:2px solid var(--accent, currentColor) }
+
+/* Food Delivery em tablet: colunas que não quebravam linha empurravam a página para o lado */
+@media (max-width: 1100px) {
+  .table-cards td.nowrap { white-space: normal; }
+  .row-actions { flex-wrap: wrap; }
+}
