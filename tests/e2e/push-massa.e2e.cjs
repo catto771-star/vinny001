@@ -43,7 +43,7 @@ const FRIDGE_TEMPS = [6.4, 7.2, 8.1, 9.5, 11.0, 12.5, 14.0, 6.9, 7.8, 10.2];
   const fridges = Object.fromEntries(house.map(([, c]) => [c, sql(`select id from public.fridges where active and lodge_id='${lodges[c]}';`).map((x) => x.id)]));
   const stays = Object.fromEntries(house.map(([, c]) => [c, sql(`select distinct stay_id as id from public.bed_occupancy where lodge_id='${lodges[c]}' and stay_id is not null limit 60;`).map((x) => x.id)]));
   const sup = Object.fromEntries(sql("select id, name from public.suppliers where active;").map((s) => [s.name, s.id]));
-  const dev = () => sql("select s.full_name, count(p.id)::int as n from public.staff s left join public.push_subscriptions p on p.staff_id=s.id where s.role in ('manager','owner','developer') and s.active group by 1;");
+  const dev = () => sql(`select s.full_name, count(p.id)::int as n from public.staff s left join public.push_subscriptions p on p.staff_id=s.id where s.role in ('manager','owner','developer') and s.active ${process.env.ONLY_ROLE ? `and s.role = '${process.env.ONLY_ROLE}'` : ''} group by 1;`);
   if (process.env.WAIT_DEVICE) { say("Aguardando um aparelho cadastrado (Settings → Notifications → Turn on)…"); while (dev().every((d) => d.n === 0)) { if (fs.existsSync(STOP)) return say("Parado antes de começar."); await sleep(5000); } }
   say(`Aparelhos cadastrados: ${JSON.stringify(dev().filter((d) => d.n > 0))}`);
   const startNotif = sql("select coalesce(max(id),0)::bigint as m from public.notifications;")[0].m;
