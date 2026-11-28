@@ -1,5 +1,0 @@
-interface:
-  display_name: "Reversa Pricing Advisor"
-  short_description: "Conduz uma entrevista de seis perguntas sobre o software e o…"
-policy:
-  allow_implicit_invocation: false
