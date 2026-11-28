@@ -39,14 +39,16 @@ vi.mock("@/auth/AuthProvider", () => ({
     refresh: refreshMock,
   }),
 }));
-vi.mock("@/lib/push", () => ({ pushState: async () => "off", enablePush: async () => {}, disablePush: async () => {} }));
+let pushStateMock = "off";
+let enablePushImpl: () => Promise<void> = async () => {};
+vi.mock("@/lib/push", () => ({ pushState: async () => pushStateMock, enablePush: () => enablePushImpl(), disablePush: async () => {} }));
 
 import { I18nProvider } from "@/i18n";
 import { ToastProvider } from "@/components/Toast";
 import { Settings } from "./Settings";
 
 const show = (url = "/settings") => render(<I18nProvider><ToastProvider><MemoryRouter initialEntries={[url]}><Settings /></MemoryRouter></ToastProvider></I18nProvider>);
-beforeEach(() => { management = true; });
+beforeEach(() => { management = true; pushStateMock = "off"; enablePushImpl = async () => {}; });
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 async function fillPassword(current: string, next: string, repeat = next) {
@@ -171,5 +173,32 @@ describe("Mais configurações (revisão 12)", () => {
     fireEvent.click(within(win.closest("section")!).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("set_system_parameter", { p_key: "presence.check_window_minutes", p_value: 45 }));
     expect(screen.getByRole("link", { name: "Change history" }).getAttribute("href")).toBe("/audit?module=settings");
+  });
+});
+
+describe("Notificações no celular: mensagens que ajudam (Android e iPhone)", () => {
+  it("falha ao cadastrar o aparelho mostra o motivo real, não uma mensagem genérica", async () => {
+    enablePushImpl = async () => { const e = new Error("Registration failed - push service error"); e.name = "AbortError"; throw e; };
+    show("/settings?tab=notifications");
+    fireEvent.click(await screen.findByRole("button", { name: "Turn on notifications" }));
+    const msg = await screen.findByText(/Could not turn on notifications/);
+    expect(msg.textContent).toMatch(/AbortError/);
+    expect(msg.textContent).toMatch(/Chrome/);
+    expect(screen.queryByText("Something went wrong. Try again.")).toBeNull();
+  });
+  it("permissão bloqueada explica o caminho no Android e no iPhone", async () => {
+    pushStateMock = "denied";
+    show("/settings?tab=notifications");
+    const hint = await screen.findByText(/Notifications blocked/);
+    expect(hint.textContent).toMatch(/Android/);
+    expect(hint.textContent).toMatch(/iPhone/);
+  });
+  it("navegador sem suporte indica Chrome no Android e o app da Tela de Início no iPhone", async () => {
+    pushStateMock = "unsupported";
+    show("/settings?tab=notifications");
+    const hint = await screen.findByText(/can't receive notifications/);
+    expect(hint.textContent).toMatch(/Android/);
+    expect(hint.textContent).toMatch(/Chrome/);
+    expect(hint.textContent).toMatch(/iPhone/);
   });
 });
