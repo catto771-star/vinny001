@@ -29,16 +29,25 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
+// O Android aceita no máximo 50 notificações abertas por app e descarta as novas em silêncio quando chega no limite.
+// Mantemos no máximo 40 abertas: antes de mostrar uma nova, fechamos as mais antigas (tudo continua na tela Notifications do app).
+const MAX_OPEN = 40;
+async function trimOpenNotifications() {
+  const open = await self.registration.getNotifications();
+  if (open.length < MAX_OPEN) return;
+  open.sort((a, b) => a.timestamp - b.timestamp).slice(0, open.length - (MAX_OPEN - 1)).forEach((n) => n.close());
+}
+
 self.addEventListener("push", (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch { data = { title: "Lodges", body: event.data ? event.data.text() : "" }; }
-  event.waitUntil(self.registration.showNotification(data.title || "Lodges", {
+  event.waitUntil(trimOpenNotifications().catch(() => undefined).then(() => self.registration.showNotification(data.title || "Lodges", {
     body: data.body || "",
     tag: data.tag,
     icon: "/icon-192.png",
     badge: "/icon-192.png",
     data: { url: data.url || "/notifications" },
-  }));
+  })));
 });
 
 self.addEventListener("notificationclick", (event) => {

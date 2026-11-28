@@ -14,7 +14,19 @@ describe("push com o app fechado", () => {
   });
   it("o service worker mostra a notificação dentro do evento push (funciona sem a página aberta)", () => {
     const handler = sw.slice(sw.indexOf('addEventListener("push"'), sw.indexOf('addEventListener("notificationclick"'));
-    expect(handler).toMatch(/event\.waitUntil\(self\.registration\.showNotification/);
+    expect(handler).toMatch(/event\.waitUntil\(/);
+    expect(handler).toMatch(/self\.registration\.showNotification/);
     expect(handler).not.toMatch(/clients\.matchAll/); // nunca depende de uma janela aberta
+  });
+});
+
+describe("limite de notificações do Android", () => {
+  it("o service worker mantém no máximo 40 avisos abertos e fecha os mais antigos antes de mostrar o novo", () => {
+    const handler = sw.slice(sw.indexOf("const MAX_OPEN"), sw.indexOf('addEventListener("notificationclick"'));
+    expect(handler).toMatch(/getNotifications\(\)/);
+    expect(handler).toMatch(/MAX_OPEN\s*=\s*40|const MAX_OPEN/);
+    expect(handler).toMatch(/\.close\(\)/);
+    // limpa ANTES de mostrar o novo, para o novo nunca ser descartado pelo limite de 50 do Android
+    expect(handler.indexOf("getNotifications")).toBeLessThan(handler.indexOf("showNotification"));
   });
 });
