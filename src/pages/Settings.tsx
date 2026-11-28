@@ -76,7 +76,9 @@ function useSettingsData() {
       toast.success(push === "on" ? t("settings.pushOff") : t("settings.pushOn"));
     } catch (e) {
       const m = (e as Error).message;
-      setError(m === "push_denied" ? t("settings.pushDenied") : m === "push_not_configured" ? t("settings.pushNotConfigured") : t(errorKey(e as { message: string })));
+      const key = errorKey(e as { message: string });
+      const reason = `${(e as Error).name && (e as Error).name !== "Error" ? (e as Error).name + ": " : ""}${m}`.slice(0, 140);
+      setError(m === "push_denied" ? t("settings.pushDenied") : m === "push_not_configured" ? t("settings.pushNotConfigured") : key === "errors.generic" ? t("settings.pushFailed", { reason }) : t(key));
     }
   }
 
