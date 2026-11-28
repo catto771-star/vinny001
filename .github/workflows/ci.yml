@@ -54,4 +54,6 @@ jobs:
             grep -E "FAIL|×|AssertionError|Test Files|Tests  |Error:" test.log | grep -v "UTC \[" | head -80 | cut -c1-300
             echo '```'
           } > summary.md
-          gh pr comment "${GITHUB_REF_NAME}" --body-file summary.md || true
+          TARGET="${{ github.event.pull_request.number }}"
+          [ -n "$TARGET" ] || TARGET="${GITHUB_REF_NAME}"
+          gh pr comment "$TARGET" --body-file summary.md || true
