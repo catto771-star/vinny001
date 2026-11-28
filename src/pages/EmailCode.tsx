@@ -6,7 +6,7 @@ import { errorKey } from "@/lib/errors";
 import { Notice } from "@/components/Notice";
 import { AuthCard } from "./Login";
 
-/** "catto771@gmail.com" → "c*******@gmail.com" */
+/** "user@example.com" → "u***@example.com" */
 export function maskEmail(email: string): string {
   const [user, domain] = email.split("@");
   if (!domain) return email;
