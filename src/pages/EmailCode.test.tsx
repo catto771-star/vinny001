@@ -22,7 +22,7 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 vi.mock("@/auth/AuthProvider", () => ({
-  useAuth: () => ({ session: { user: { email: "catto771@gmail.com" } }, refresh, signOut: vi.fn() }),
+  useAuth: () => ({ session: { user: { email: "user@example.com" } }, refresh, signOut: vi.fn() }),
 }));
 
 import { I18nProvider } from "@/i18n";
@@ -51,7 +51,7 @@ describe("Código por e-mail", () => {
     await new Promise((r) => setTimeout(r, 30));
     expect(document.querySelector("img:not(.auth-logo)")).toBeNull();
     expect(signInWithOtp).not.toHaveBeenCalled();
-    expect(screen.getByText(/c\*+@gmail\.com/)).toBeTruthy();
+    expect(screen.getByText(/u\*+@example\.com/)).toBeTruthy();
   });
 
   it("enviar: registra o pedido com a senha e depois pede o e-mail, uma vez só", async () => {
@@ -60,7 +60,7 @@ describe("Código por e-mail", () => {
     await waitFor(() => expect(signInWithOtp).toHaveBeenCalledTimes(1));
     expect(rpc).toHaveBeenCalledWith("begin_email_verification");
     expect(rpc.mock.invocationCallOrder[0]).toBeLessThan(signInWithOtp.mock.invocationCallOrder[0]);
-    expect(signInWithOtp).toHaveBeenCalledWith({ email: "catto771@gmail.com", options: { shouldCreateUser: false } });
+    expect(signInWithOtp).toHaveBeenCalledWith({ email: "user@example.com", options: { shouldCreateUser: false } });
   });
 
   it("digitar o código confirma no Supabase", async () => {
@@ -69,7 +69,7 @@ describe("Código por e-mail", () => {
     await waitFor(() => expect(screen.getByLabelText("Code")).toBeTruthy());
     fireEvent.change(screen.getByLabelText("Code"), { target: { value: " 123456 " } });
     fireEvent.click(screen.getByRole("button", { name: "Verify" }));
-    await waitFor(() => expect(verifyOtp).toHaveBeenCalledWith({ email: "catto771@gmail.com", token: "123456", type: "email" }));
+    await waitFor(() => expect(verifyOtp).toHaveBeenCalledWith({ email: "user@example.com", token: "123456", type: "email" }));
   });
 
   it("limite de envios do servidor vira mensagem clara", async () => {
