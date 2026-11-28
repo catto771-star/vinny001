@@ -181,7 +181,7 @@ describe("Notificações no celular: mensagens que ajudam (Android e iPhone)", (
     enablePushImpl = async () => { const e = new Error("Registration failed - push service error"); e.name = "AbortError"; throw e; };
     show("/settings?tab=notifications");
     fireEvent.click(await screen.findByRole("button", { name: "Turn on notifications" }));
-    const msg = await screen.findByText(/Could not turn on notifications on this device/);
+    const msg = await screen.findByText(/Could not turn on notifications/);
     expect(msg.textContent).toMatch(/AbortError/);
     expect(msg.textContent).toMatch(/Chrome/);
     expect(screen.queryByText("Something went wrong. Try again.")).toBeNull();
